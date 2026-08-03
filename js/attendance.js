@@ -5,33 +5,7 @@ let displayedStudents = [];
 async function initSystem() {
   try {
     const res = await fetchFromAPI('getInitialData');
-    if (res.success) {
-      allStudents = res.data.students;
-      const subjects = res.data.subjects;
-      
-      const roomFilter = document.getElementById('room-filter');
-      roomFilter.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>';
-      const rooms = [...new Set(allStudents.slice(1).map(r => r[3]))].filter(r => r);
-      rooms.forEach(room => roomFilter.innerHTML += `<option value="${room}">${room}</option>`);
-
-      const subjDropdown = document.getElementById('subject-dropdown');
-      subjDropdown.innerHTML = '<option value="">-- เลือกวิชา --</option>';
-      subjects.slice(1).forEach(row => {
-        if(row[0] && row[1]) subjDropdown.innerHTML += `<option value="${row[0]}|${row[1]}">${row[0]} - ${row[1]}</option>`;
-      });
-
-      document.getElementById('load-btn').disabled = false;
-    }
-  } catch (err) {
-    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลจาก Google Sheets ได้', 'error');
-  }
-}
-// โหลดข้อมูลจาก Google Sheets อัตโนมัติเมื่อเปิดหน้าเว็บ
-async function initSystem() {
-  try {
-    const res = await fetchFromAPI('getInitialData');
-    console.log("ข้อมูลที่ได้จาก Google Apps Script:", res); // เพิ่มเพื่อจับผิด
-
+    
     if (res.success) {
       allStudents = res.data.students;
       const subjects = res.data.subjects;
@@ -49,15 +23,16 @@ async function initSystem() {
 
       document.getElementById('load-btn').disabled = false;
     } else {
-      // ถ้าระบบหลังบ้านตอบกลับมาว่าผิดพลาด ให้เด้งแจ้งเตือน
-      Swal.fire('ข้อความจากหลังบ้าน', res.error || JSON.stringify(res), 'warning');
+      Swal.fire('แจ้งเตือน', 'ดึงข้อมูลไม่สำเร็จ กรุณารีเฟรชหน้าเว็บอีกครั้งครับ', 'warning');
     }
   } catch (err) {
-    console.error("Fetch Error:", err); // แสดง Error สีแดงใน Console
-    Swal.fire('ข้อผิดพลาดระบบ', 'เชื่อมต่อ API ไม่สำเร็จ (ลองตรวจสอบ Web App URL ใน api.js)', 'error');
+    console.error("Fetch Error:", err); 
+    Swal.fire('การเชื่อมต่อขัดข้อง', 'ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือลองใหม่อีกครั้งครับ', 'error');
   }
 }
+
 initSystem();
+
 // ฟังก์ชันกดปุ่มโหลดรายชื่อเข้าตาราง
 function filterAndLoad() {
   const room = document.getElementById('room-filter').value;
@@ -78,9 +53,12 @@ function filterAndLoad() {
         <td><span class="stats">${statsStr}</span></td>
         <td class="alert-text">${row[9] || 0} ครั้ง</td>
         <td>
-          <select id="status-${i}" style="padding: 5px; border-radius: 5px;">
-            <option value="มา">มา</option><option value="สาย">สาย</option>
-            <option value="ลาป่วย">ลาป่วย</option><option value="ลากิจ">ลากิจ</option>
+          <select id="status-${i}" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-family: 'Prompt', sans-serif;">
+            <option value="รอเช็ค" selected>-- รอเช็ค --</option>
+            <option value="มา">มา</option>
+            <option value="สาย">สาย</option>
+            <option value="ลาป่วย">ลาป่วย</option>
+            <option value="ลากิจ">ลากิจ</option>
             <option value="ขาด">ขาด</option>
           </select>
         </td>
