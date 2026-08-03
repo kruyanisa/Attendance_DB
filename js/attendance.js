@@ -26,6 +26,37 @@ async function initSystem() {
     Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลจาก Google Sheets ได้', 'error');
   }
 }
+// โหลดข้อมูลจาก Google Sheets อัตโนมัติเมื่อเปิดหน้าเว็บ
+async function initSystem() {
+  try {
+    const res = await fetchFromAPI('getInitialData');
+    console.log("ข้อมูลที่ได้จาก Google Apps Script:", res); // เพิ่มเพื่อจับผิด
+
+    if (res.success) {
+      allStudents = res.data.students;
+      const subjects = res.data.subjects;
+      
+      const roomFilter = document.getElementById('room-filter');
+      roomFilter.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>';
+      const rooms = [...new Set(allStudents.slice(1).map(r => r[3]))].filter(r => r);
+      rooms.forEach(room => roomFilter.innerHTML += `<option value="${room}">${room}</option>`);
+
+      const subjDropdown = document.getElementById('subject-dropdown');
+      subjDropdown.innerHTML = '<option value="">-- เลือกวิชา --</option>';
+      subjects.slice(1).forEach(row => {
+        if(row[0] && row[1]) subjDropdown.innerHTML += `<option value="${row[0]}|${row[1]}">${row[0]} - ${row[1]}</option>`;
+      });
+
+      document.getElementById('load-btn').disabled = false;
+    } else {
+      // ถ้าระบบหลังบ้านตอบกลับมาว่าผิดพลาด ให้เด้งแจ้งเตือน
+      Swal.fire('ข้อความจากหลังบ้าน', res.error || JSON.stringify(res), 'warning');
+    }
+  } catch (err) {
+    console.error("Fetch Error:", err); // แสดง Error สีแดงใน Console
+    Swal.fire('ข้อผิดพลาดระบบ', 'เชื่อมต่อ API ไม่สำเร็จ (ลองตรวจสอบ Web App URL ใน api.js)', 'error');
+  }
+}
 initSystem();
 // ฟังก์ชันกดปุ่มโหลดรายชื่อเข้าตาราง
 function filterAndLoad() {
