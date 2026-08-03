@@ -26,7 +26,7 @@ async function initSystem() {
     Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลจาก Google Sheets ได้', 'error');
   }
 }
-
+initSystem();
 // ฟังก์ชันกดปุ่มโหลดรายชื่อเข้าตาราง
 function filterAndLoad() {
   const room = document.getElementById('room-filter').value;
