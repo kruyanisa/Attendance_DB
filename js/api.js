@@ -4,21 +4,23 @@ const SECRET_TOKEN = "Kruyanisa_Secret_12345";
 
 // ฟังก์ชันหลักสำหรับส่งข้อมูลไปที่หลังบ้าน
 async function fetchFromAPI(action, data = {}) {
-  const payload = {
-    token: SECRET_TOKEN,
-    action: action,
-    ...data
-  };
-
   try {
-    const response = await fetch(WEB_APP_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8' // บรรทัดนี้สำคัญมาก! ป้องกันเบราว์เซอร์บล็อกการเชื่อมต่อ (CORS)
-      },
-      body: JSON.stringify(payload),
-      redirect: 'follow' // บังคับให้วิ่งตามลิงก์ชั่วคราวของ Google ให้สุดทาง
-    });
+    let url = WEB_APP_URL;
+    let options = {};
+
+    if (action === 'getInitialData') {
+      url += `?action=${action}&token=${encodeURIComponent(SECRET_TOKEN)}`;
+      options = { method: 'GET' };
+    } else {
+      options = {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ token: SECRET_TOKEN, action: action, ...data }),
+        redirect: 'follow'
+      };
+    }
+
+    const response = await fetch(url, options);
     const result = await response.json();
     return result;
   } catch (error) {
