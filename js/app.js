@@ -17,3 +17,18 @@ function switchView(view) {
     }
   });
 }
+
+function toggleTheme() {
+  const body = document.body;
+  const btn = document.getElementById('theme-toggle');
+  
+  // สลับ class dark-mode ที่ body
+  body.classList.toggle('dark-mode');
+  
+  // เปลี่ยนข้อความและไอคอนบนปุ่ม
+  if (body.classList.contains('dark-mode')) {
+    btn.innerHTML = '☀️ Light Mode';
+  } else {
+    btn.innerHTML = '🌙 Dark Mode';
+  }
+}
