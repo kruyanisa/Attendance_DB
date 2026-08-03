@@ -33,27 +33,119 @@
   <div class="content">
     <!-- นำโค้ดนี้ไปแทนที่ <div id="view-attendance">...</div> ตัวเดิม -->
 <div id="view-attendance">
+
   <div class="page-header">
-    <h1>🎓 Student Attendance Dashboard</h1>
-    <p>ระบบเช็คชื่อนักเรียน</p>
-</div>
-  <div class="header-controls">
-    <select id="room-filter" class="room-selector"><option value="">กำลังโหลดชั้นเรียน...</option></select>
-    <select id="subject-dropdown"><option value="">กำลังโหลดวิชา...</option></select>
-    <button class="btn" id="load-btn" onclick="filterAndLoad()" disabled>🔄 โหลดรายชื่อ</button>
-    <button class="btn" id="scan-btn" onclick="openScanner()" style="background: linear-gradient(to bottom, #f6d365 0%, #fda085 100%); display:none;">📷 สแกน QR / ปืนยิง</button>
+      <div>
+          <h1>🎓 Student Attendance Dashboard</h1>
+          <p>ระบบเช็คชื่อนักเรียน</p>
+      </div>
+  </div>
+
+  <div class="summary-cards">
+
+      <div class="card-summary">
+          <h3>👨‍🎓 นักเรียนทั้งหมด</h3>
+          <span id="total-students">0</span>
+      </div>
+
+      <div class="card-summary">
+          <h3>✅ มาเรียน</h3>
+          <span id="present-students">0</span>
+      </div>
+
+      <div class="card-summary">
+          <h3>⏰ มาสาย</h3>
+          <span id="late-students">0</span>
+      </div>
+
+      <div class="card-summary">
+          <h3>❌ ขาดเรียน</h3>
+          <span id="absent-students">0</span>
+      </div>
+
+  </div>
+
+  <div class="glass-card">
+
+      <div class="header-controls">
+
+          <select id="room-filter" class="room-selector">
+              <option value="">กำลังโหลดชั้นเรียน...</option>
+          </select>
+
+          <select id="subject-dropdown">
+              <option value="">กำลังโหลดวิชา...</option>
+          </select>
+
+          <button class="btn" id="load-btn" onclick="filterAndLoad()" disabled>
+              🔄 โหลดรายชื่อ
+          </button>
+
+          <button
+              class="btn"
+              id="scan-btn"
+              onclick="openScanner()"
+              style="display:none;background:#f59e0b;">
+              📷 สแกน QR / ปืนยิง
+          </button>
+
+      </div>
+
   </div>
 
   <table id="student-table" style="display:none;">
-    <thead>
-      <tr><th>เลขที่</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>สถิติเดิม</th><th>รวมขาด</th><th>สถานะ</th><th>จัดการ</th></tr>
-    </thead>
-    <tbody id="student-body"></tbody>
+
+      <thead>
+
+          <tr>
+
+              <th>เลขที่</th>
+
+              <th>รหัสนักเรียน</th>
+
+              <th>ชื่อ - สกุล</th>
+
+              <th>สถิติเดิม</th>
+
+              <th>รวมขาด</th>
+
+              <th>สถานะ</th>
+
+              <th>จัดการ</th>
+
+          </tr>
+
+      </thead>
+
+      <tbody id="student-body"></tbody>
+
   </table>
-  <button class="btn btn-save" id="save-btn" onclick="submitAttendance()" style="display:none;">💾 บันทึกข้อมูล</button>
-  <!-- กล่องแสดงกล้องสแกน -->
-  <div id="reader" style="display:none; width: 100%; max-width: 400px; margin: 20px auto; border-radius: 10px; overflow: hidden;"></div>
-  <button class="btn" id="close-scan-btn" onclick="closeScanner()" style="display:none; background: #dc3545; margin: 10px auto;">❌ ปิดกล้อง</button>
+
+  <button
+      class="btn btn-save"
+      id="save-btn"
+      onclick="submitAttendance()"
+      style="display:none;">
+
+      💾 บันทึกข้อมูล
+
+  </button>
+
+  <div
+      id="reader"
+      style="display:none;max-width:450px;margin:25px auto;">
+  </div>
+
+  <button
+      class="btn"
+      id="close-scan-btn"
+      onclick="closeScanner()"
+      style="display:none;background:#dc2626;">
+
+      ❌ ปิดกล้อง
+
+  </button>
+
 </div>
     
     <div id="view-homework" style="display:none;"><h2 style="color: #333;">ระบบส่งการบ้าน</h2></div>
