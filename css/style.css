@@ -498,3 +498,15 @@ select,
 }
 
 }
+
+/* 1. บังคับไม่ให้ข้อความตัดขึ้นบรรทัดใหม่ (แก้หัวข้อตกลงมา และสถิติ 2 บรรทัด) */
+#student-table th, 
+#student-table td {
+    white-space: nowrap;
+}
+
+/* 2. จัดคอลัมน์ชื่อ-สกุล (คอลัมน์ที่ 3) ให้ชิดซ้าย */
+#student-table th:nth-child(3),
+#student-table td:nth-child(3) {
+    text-align: left;
+}
