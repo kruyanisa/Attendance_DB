@@ -3,6 +3,12 @@ let displayedStudents = [];
 
 // โหลดข้อมูลจาก Google Sheets อัตโนมัติเมื่อเปิดหน้าเว็บ
 async function initSystem() {
+  Swal.fire({
+    title: 'กำลังโหลดข้อมูล...',
+    allowOutsideClick: false,
+    didOpen: () => { Swal.showLoading(); }
+  });
+
   try {
     const res = await fetchFromAPI('getInitialData');
     console.log("คำตอบจากหลังบ้าน:", res); // เพิ่มบรรทัดนี้
@@ -22,11 +28,14 @@ async function initSystem() {
       });
 
       document.getElementById('load-btn').disabled = false;
+      Swal.close();
     } else {
+      Swal.close();
       Swal.fire('แจ้งเตือน', 'ดึงข้อมูลไม่สำเร็จ กรุณารีเฟรชหน้าเว็บอีกครั้งครับ', 'warning');
     }
   } catch (err) {
     console.error("Fetch Error:", err); 
+    Swal.close();
     Swal.fire('การเชื่อมต่อขัดข้อง', 'ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือลองใหม่อีกครั้งครับ', 'error');
   }
 }
