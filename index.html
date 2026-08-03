@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการชั้นเรียน (Attendance DB)</title>
+  
+  <!-- โหลด CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- โหลดไลบรารีภายนอก -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body>
+
+  <!-- เมนูด้านข้าง -->
+  <div class="sidebar">
+    <h3>✨ เมนูระบบ</h3>
+    <button id="menu-attendance" class="active" onclick="switchView('attendance')">📋 1. เช็คชื่อ</button>
+    <button id="menu-hw" onclick="switchView('homework')">📝 2. การบ้าน</button>
+    <button id="menu-qrcode" onclick="switchView('qrcode')">🔲 3. QR Code</button>
+    
+    <hr>
+    <small style="color: #ccc; display: block; text-align: center; margin-bottom: 10px;">เมนูใหม่ (เร็วๆ นี้)</small>
+    <button id="menu-guidance" onclick="switchView('guidance')">🧭 งานแนะแนว</button>
+    <button id="menu-study" onclick="switchView('study')">🎓 ศึกษาต่อ</button>
+    <button id="menu-scholarship" onclick="switchView('scholarship')">💰 รับทุน</button>
+    <button id="menu-pdf" onclick="switchView('pdf')">📄 โหลดรายงาน PDF</button>
+  </div>
+  
+  <!-- พื้นที่แสดงเนื้อหา -->
+  <div class="content">
+    <div id="view-attendance">
+      <h2 style="color: #333;">ระบบเช็คชื่อ (รอเพิ่มโค้ด)</h2>
+      <p>กำลังเตรียมระบบตารางข้อมูล...</p>
+    </div>
+    
+    <div id="view-homework" style="display:none;"><h2 style="color: #333;">ระบบส่งการบ้าน</h2></div>
+    <div id="view-qrcode" style="display:none;"><h2 style="color: #333;">สร้าง QR Code</h2></div>
+    <div id="view-guidance" style="display:none;"><h2 style="color: #333;">ระบบงานแนะแนว</h2></div>
+    <div id="view-study" style="display:none;"><h2 style="color: #333;">ระบบการศึกษาต่อ</h2></div>
+    <div id="view-scholarship" style="display:none;"><h2 style="color: #333;">ระบบการรับทุนการศึกษา</h2></div>
+    <div id="view-pdf" style="display:none;"><h2 style="color: #333;">ดาวน์โหลดรายงาน PDF</h2></div>
+  </div>
+
+  <!-- โหลด JavaScript ของเรา (ต้องอยู่ด้านล่างสุด) -->
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  
+  <!-- ไฟล์เหล่านี้เดี๋ยวเรามาสร้างเพิ่มในขั้นตอนต่อไป -->
+  <!-- <script src="js/attendance.js"></script> -->
+  <!-- <script src="js/qr.js"></script> -->
+  <!-- <script src="js/scanner.js"></script> -->
+  <!-- <script src="js/pdf.js"></script> -->
+
+</body>
+</html>
