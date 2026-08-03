@@ -1,3 +1,11 @@
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top',
+  showConfirmButton: false,
+  timer: 1500,
+  customClass: { container: 'swal-on-top' }
+});
+
 let html5QrcodeScanner; 
 
 // -----------------------------------------
