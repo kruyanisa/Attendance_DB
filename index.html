@@ -31,11 +31,24 @@
   
   <!-- พื้นที่แสดงเนื้อหา -->
   <div class="content">
-    <div id="view-attendance">
-      <h2 style="color: #333;">ระบบเช็คชื่อ (รอเพิ่มโค้ด)</h2>
-      <p>กำลังเตรียมระบบตารางข้อมูล...</p>
-    </div>
-    
+    <!-- นำโค้ดนี้ไปแทนที่ <div id="view-attendance">...</div> ตัวเดิม -->
+<div id="view-attendance">
+  <h2 style="color: #333;">ระบบเช็คชื่อ</h2>
+  <div class="header-controls">
+    <select id="room-filter" class="room-selector"><option value="">กำลังโหลดชั้นเรียน...</option></select>
+    <select id="subject-dropdown"><option value="">กำลังโหลดวิชา...</option></select>
+    <button class="btn" id="load-btn" onclick="filterAndLoad()" disabled>🔄 โหลดรายชื่อ</button>
+    <button class="btn" id="scan-btn" onclick="openScanner()" style="background: linear-gradient(to bottom, #f6d365 0%, #fda085 100%); display:none;">📷 สแกน QR / ปืนยิง</button>
+  </div>
+
+  <table id="student-table" style="display:none;">
+    <thead>
+      <tr><th>เลขที่</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>สถิติเดิม</th><th>รวมขาด</th><th>สถานะ</th><th>จัดการ</th></tr>
+    </thead>
+    <tbody id="student-body"></tbody>
+  </table>
+  <button class="btn btn-save" id="save-btn" onclick="submitAttendance()" style="display:none;">💾 บันทึกข้อมูล</button>
+</div>
     <div id="view-homework" style="display:none;"><h2 style="color: #333;">ระบบส่งการบ้าน</h2></div>
     <div id="view-qrcode" style="display:none;"><h2 style="color: #333;">สร้าง QR Code</h2></div>
     <div id="view-guidance" style="display:none;"><h2 style="color: #333;">ระบบงานแนะแนว</h2></div>
@@ -49,10 +62,10 @@
   <script src="js/app.js"></script>
   
   <!-- ไฟล์เหล่านี้เดี๋ยวเรามาสร้างเพิ่มในขั้นตอนต่อไป -->
-  <!-- <script src="js/attendance.js"></script> -->
-  <!-- <script src="js/qr.js"></script> -->
-  <!-- <script src="js/scanner.js"></script> -->
-  <!-- <script src="js/pdf.js"></script> -->
+  <script src="js/attendance.js"></script>
+  <script src="js/qr.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="js/pdf.js"></script>
 
 </body>
 </html>
