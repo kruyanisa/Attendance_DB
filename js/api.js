@@ -13,7 +13,11 @@ async function fetchFromAPI(action, data = {}) {
   try {
     const response = await fetch(WEB_APP_URL, {
       method: 'POST',
-      body: JSON.stringify(payload)
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8' // บรรทัดนี้สำคัญมาก! ป้องกันเบราว์เซอร์บล็อกการเชื่อมต่อ (CORS)
+      },
+      body: JSON.stringify(payload),
+      redirect: 'follow' // บังคับให้วิ่งตามลิงก์ชั่วคราวของ Google ให้สุดทาง
     });
     const result = await response.json();
     return result;
