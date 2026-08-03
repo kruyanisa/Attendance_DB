@@ -75,7 +75,7 @@ function processScannedCode(scannedId) {
     if(statusSelect) statusSelect.value = "มา";
     
     document.getElementById(`row-${studentIndex}`).style.backgroundColor = "#d4edda";
-    Swal.fire({ icon: 'success', title: 'เช็คชื่อสำเร็จ', text: `รหัส: ${scannedId}`, timer: 1500, showConfirmButton: false });
+    Toast.fire({icon: 'success',title: `เช็คชื่อสำเร็จ รหัส: ${scannedId}`});
   } else {
     Swal.fire({ icon: 'error', title: 'ไม่พบรหัสนักเรียน', text: `รหัส: ${scannedId} ไม่อยู่ในห้องนี้`, timer: 1500, showConfirmButton: false });
   }
