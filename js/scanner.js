@@ -70,3 +70,13 @@ function processScannedCode(scannedId) {
     Swal.fire({ icon: 'error', title: 'ไม่พบรหัสนักเรียน', text: `รหัส: ${scannedId} ไม่อยู่ในห้องนี้`, timer: 1500, showConfirmButton: false });
   }
 }
+
+function openScanner() {
+  document.getElementById('qr-popup').style.display = 'flex'; // แสดง Popup
+  // ... (โค้ดเปิดกล้อง html5-qrcode ของเดิมของคุณ) ...
+}
+
+function closeScanner() {
+  document.getElementById('qr-popup').style.display = 'none'; // ซ่อน Popup
+  // ... (โค้ดหยุดกล้อง ของเดิมของคุณ) ...
+}
