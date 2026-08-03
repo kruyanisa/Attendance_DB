@@ -2,7 +2,7 @@ let allStudents = [];
 let displayedStudents = [];
 
 // โหลดข้อมูลจาก Google Sheets อัตโนมัติเมื่อเปิดหน้าเว็บ
-window.addEventListener('DOMContentLoaded', async () => {
+async function initSystem() {
   try {
     const res = await fetchFromAPI('getInitialData');
     if (res.success) {
@@ -25,7 +25,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   } catch (err) {
     Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลจาก Google Sheets ได้', 'error');
   }
-});
+}
 
 // ฟังก์ชันกดปุ่มโหลดรายชื่อเข้าตาราง
 function filterAndLoad() {
