@@ -7,7 +7,11 @@ async function fetchFromAPI(action, data = {}) {
   try {
     const response = await fetch(WEB_APP_URL, {
       method: 'POST',
-      body: JSON.stringify({ token: SECRET_TOKEN, action: action, ...data }) 
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8' // สำคัญมาก ห้ามเอาออก ป้องกัน CORS
+      },
+      body: JSON.stringify({ token: SECRET_TOKEN, action: action, ...data }),
+      redirect: 'follow' // บังคับตามลิงก์
     });
     const result = await response.json();
     return result;
