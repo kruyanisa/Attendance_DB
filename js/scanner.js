@@ -1,4 +1,5 @@
 const Toast = Swal.mixin({
+  let lastScannedId = "";let scanTimeout;
   toast: true,
   position: 'top',
   showConfirmButton: false,
@@ -57,6 +58,7 @@ function closeScanner() {
 }
 
 function onScanSuccess(decodedText, decodedResult) {
+  
   processScannedCode(decodedText);
 }
 
@@ -68,6 +70,11 @@ function onScanFailure(error) {
 // 3. ตัวประมวลผลเมื่อได้รหัส (ใช้ร่วมกันทั้งกล้องและปืนยิง)
 // -----------------------------------------
 function processScannedCode(scannedId) {
+  if (scannedId === lastScannedId) return; // ถ้ารหัสตรงกับอันเมื่อกี้ ให้หยุดการทำงาน (ไม่เด้ง Toast)
+  
+  lastScannedId = scannedId; // จำรหัสที่เพิ่งสแกน
+  clearTimeout(scanTimeout);
+  scanTimeout = setTimeout(() => { lastScannedId = ""; }, 3000); // ล้างความจำใน 3 วินาที (เปลี่ยนเลข 3000 ได้ตามต้องการ)
   let studentIndex = displayedStudents.findIndex(s => s[1] == scannedId);
   
   if (studentIndex !== -1) {
