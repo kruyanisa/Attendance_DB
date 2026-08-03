@@ -5,7 +5,7 @@ let displayedStudents = [];
 async function initSystem() {
   try {
     const res = await fetchFromAPI('getInitialData');
-    
+    console.log("คำตอบจากหลังบ้าน:", res); // เพิ่มบรรทัดนี้
     if (res.success) {
       allStudents = res.data.students;
       const subjects = res.data.subjects;
