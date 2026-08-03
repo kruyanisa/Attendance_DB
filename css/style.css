@@ -27,12 +27,16 @@ body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--te
 /* ===========================
    3. LAYOUT (Sidebar & Content)
 =========================== */
-.sidebar { width: 260px; background: linear-gradient(180deg, var(--primary), #1e3a8a); color: white; padding: 25px; overflow-y: auto; flex-shrink: 0; box-shadow: 4px 0 20px rgba(0,0,0,0.15); transition: var(--transition); }
-.sidebar h3 { text-align: center; margin-bottom: 25px; font-size: 22px; font-weight: 600; }
-.sidebar button { width: 100%; padding: 13px 15px; margin-bottom: 12px; border: none; border-radius: 12px; background: rgba(255,255,255,0.12); color: white; cursor: pointer; text-align: left; font-size: 15px; transition: var(--transition); }
-.sidebar button:hover { background: rgba(255,255,255,0.25); transform: translateX(4px); }
-.sidebar button.active { background: white; color: var(--primary); font-weight: 600; }
-.sidebar hr { margin: 20px 0; border: none; border-top: 1px solid rgba(255,255,255,0.2); }
+.sidebar { width: 260px; background: var(--card); border-right: 1px solid var(--border); padding: 25px; overflow-y: auto; flex-shrink: 0; box-shadow: 4px 0 20px rgba(0,0,0,0.05); transition: var(--transition); }
+.sidebar h3 { text-align: center; margin-bottom: 25px; font-size: 22px; font-weight: 600; color: var(--text); }
+.sidebar button { width: 100%; padding: 13px 15px; margin-bottom: 12px; border: none; border-radius: 12px; background: transparent; color: var(--text-light); cursor: pointer; text-align: left; font-size: 15px; transition: var(--transition); }
+.sidebar button:hover { background: rgba(0,0,0,0.05); transform: translateX(4px); }
+.sidebar button.active { background: #fee2e2; color: #ef4444; font-weight: 600; } /* ธีมส้มพาสเทล/แดงตอนกด Active */
+body.dark-mode .sidebar button.active { background: #374151; color: #fca5a5; }
+.sidebar hr { margin: 20px 0; border: none; border-top: 1px solid var(--border); }
+
+/* แก้ Toast ให้ลอยเหนือกล้อง */
+.swal-on-top { z-index: 10000 !important; }
 
 .content { flex: 1; padding: 30px; overflow-y: auto; }
 
@@ -79,18 +83,25 @@ select { min-width: 220px; padding: 12px 15px; border-radius: 12px; border: 1px 
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* ===========================
-   8. MOBILE RESPONSIVE
+8. MOBILE RESPONSIVE (Bottom Nav)
 =========================== */
 @media (max-width: 768px) {
   body { flex-direction: column; height: auto; }
-  .sidebar { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; }
-  .sidebar h3 { width: 100%; }
-  .sidebar button { width: 48%; margin: 1%; }
-  .content { padding: 15px; }
+  .content { padding: 15px; padding-bottom: 80px; } /* เว้นที่ให้เมนูด้านล่าง */
+  
+  .sidebar { 
+    position: fixed; bottom: 0; left: 0; width: 100%; 
+    display: flex; flex-direction: row; padding: 10px; 
+    border-right: none; border-top: 1px solid var(--border); 
+    z-index: 1000; overflow-x: auto; 
+  }
+  .sidebar h3, .sidebar hr, .sidebar small { display: none; }
+  .sidebar button { flex: 1; min-width: 80px; text-align: center; margin-bottom: 0; font-size: 13px; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .sidebar button:hover { transform: none; }
+  
   .header-controls { flex-direction: column; align-items: stretch; }
   select, .btn { width: 100%; }
   .summary-cards { grid-template-columns: 1fr 1fr; }
-  .page-header h1 { font-size: 24px; }
 }
 /* ===========================
    9. QR & EXTRA BUTTONS
