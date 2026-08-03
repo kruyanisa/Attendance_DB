@@ -48,9 +48,28 @@
     <tbody id="student-body"></tbody>
   </table>
   <button class="btn btn-save" id="save-btn" onclick="submitAttendance()" style="display:none;">💾 บันทึกข้อมูล</button>
+  <!-- กล่องแสดงกล้องสแกน -->
+  <div id="reader" style="display:none; width: 100%; max-width: 400px; margin: 20px auto; border-radius: 10px; overflow: hidden;"></div>
+  <button class="btn" id="close-scan-btn" onclick="closeScanner()" style="display:none; background: #dc3545; margin: 10px auto;">❌ ปิดกล้อง</button>
 </div>
+    
     <div id="view-homework" style="display:none;"><h2 style="color: #333;">ระบบส่งการบ้าน</h2></div>
-    <div id="view-qrcode" style="display:none;"><h2 style="color: #333;">สร้าง QR Code</h2></div>
+    <div id="view-qrcode" style="display:none;">
+      <h2 style="color: #333;">สร้าง QR Code ประจำตัว</h2>
+      <div class="header-controls">
+        <!-- เราจะใช้ข้อมูลห้องจากที่โหลดมาตอนแรกสุด (attendance.js) -->
+        <select id="qr-room-filter" class="room-selector" onchange="loadQRStudents()">
+          <option value="">-- พิมพ์ห้องเรียน (เช่น ม.1/1) --</option>
+          <option value="ม.1/1">ม.1/1</option>
+          <option value="ม.1/2">ม.1/2</option>
+          <option value="ม.2/1">ม.2/1</option>
+        </select>
+        <select id="qr-student-filter"><option value="ALL">ทั้งหมด (All)</option></select>
+        <button class="btn" onclick="generateQR()">🔲 สร้าง QR Code</button>
+        <button class="btn btn-save" id="print-btn" onclick="window.print()" style="display:none;">🖨️ พิมพ์</button>
+      </div>
+      <div id="qr-container" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
+    </div>
     <div id="view-guidance" style="display:none;"><h2 style="color: #333;">ระบบงานแนะแนว</h2></div>
     <div id="view-study" style="display:none;"><h2 style="color: #333;">ระบบการศึกษาต่อ</h2></div>
     <div id="view-scholarship" style="display:none;"><h2 style="color: #333;">ระบบการรับทุนการศึกษา</h2></div>
