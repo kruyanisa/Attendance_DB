@@ -1,19 +1,21 @@
-const Toast = Swal.mixin({
-  let lastScannedId = "";let scanTimeout;
-  toast: true,
-  position: 'top',
-  showConfirmButton: false,
-  timer: 1500,
-  customClass: { container: 'swal-on-top' }
-});
-
-let html5QrcodeScanner; 
-
 // -----------------------------------------
 // 1. ระบบสำหรับ "ปืนยิงบาร์โค้ด" (USB Scanner)
 // -----------------------------------------
-let barcodeBuffer = '';
+let lastScannedId = "";
+let scanTimeout;
+let barcodeBuffer = "";
 let barcodeTimer = null;
+let html5QrcodeScanner;
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: "top",
+  showConfirmButton: false,
+  timer: 1500,
+  customClass: {
+    container: "swal-on-top"
+  }
+});
 
 // ดักจับการกดแป้นพิมพ์ (ปืนยิงบาร์โค้ดจะทำงานเหมือนคนพิมพ์คีย์บอร์ดไวๆ)
 document.addEventListener('keydown', function(e) {
@@ -21,6 +23,20 @@ document.addEventListener('keydown', function(e) {
   if (document.getElementById('view-attendance').style.display === 'none' || displayedStudents.length === 0) return;
   
   // ถ้ากด Enter (ปืนยิงมักจะจบท้ายด้วย Enter เสมอ)
+if (e.key === 'Enter' && /[ก-๙]/.test(barcodeBuffer)) {
+
+    barcodeBuffer = "";
+
+    Swal.fire({
+        icon: "warning",
+        title: "⌨️ ภาษาแป้นพิมพ์ไม่ถูกต้อง",
+        text: "กรุณาเปลี่ยน Keyboard เป็น English (EN) แล้วสแกนใหม่",
+        confirmButtonText: "ตกลง"
+    });
+
+    return;
+}
+
   if (e.key === 'Enter' && barcodeBuffer.length > 0) {
     processScannedCode(barcodeBuffer);
     barcodeBuffer = ''; 
@@ -57,10 +73,7 @@ function closeScanner() {
   document.getElementById('close-scan-btn').style.display = 'none';
 }
 
-function onScanSuccess(decodedText, decodedResult) {
-  
-  processScannedCode(decodedText);
-}
+function onScanSuccess(decodedText, decodedResult){processScannedCode(decodedText);}
 
 function onScanFailure(error) {
   // ไม่ต้องทำอะไร ปล่อยกล้องหาสแกนต่อไป
@@ -69,21 +82,77 @@ function onScanFailure(error) {
 // -----------------------------------------
 // 3. ตัวประมวลผลเมื่อได้รหัส (ใช้ร่วมกันทั้งกล้องและปืนยิง)
 // -----------------------------------------
-function processScannedCode(scannedId) {
-  if (scannedId === lastScannedId) return; // ถ้ารหัสตรงกับอันเมื่อกี้ ให้หยุดการทำงาน (ไม่เด้ง Toast)
-  
-  lastScannedId = scannedId; // จำรหัสที่เพิ่งสแกน
-  clearTimeout(scanTimeout);
-  scanTimeout = setTimeout(() => { lastScannedId = ""; }, 3000); // ล้างความจำใน 3 วินาที (เปลี่ยนเลข 3000 ได้ตามต้องการ)
-  let studentIndex = displayedStudents.findIndex(s => s[1] == scannedId);
-  
-  if (studentIndex !== -1) {
+function processScannedCode(scannedId){
+
+    // ----------------------------
+    // กันสแกนซ้ำ
+    // ----------------------------
+    if(scannedId === lastScannedId) return;
+
+    lastScannedId = scannedId;
+
+    clearTimeout(scanTimeout);
+    scanTimeout = setTimeout(()=>{
+        lastScannedId = "";
+    },3000);
+
+    // ----------------------------
+    // แปลง QR
+    // ----------------------------
+    const uuid = scannedId.replace("SMS|","");
+
+    const studentIndex = displayedStudents.findIndex(s => s.id === uuid);
+
+    // ----------------------------
+    // ไม่พบในห้อง
+    // ----------------------------
+    if(studentIndex === -1){
+
+        closeScanner();
+
+        Swal.fire({
+            icon:"error",
+            title:"ไม่พบนักเรียน",
+            text:"QR Code นี้ไม่ได้อยู่ในห้องที่เลือก",
+            confirmButtonText:"ตกลง"
+        }).then(()=>{
+            openScanner();
+        });
+
+        return;
+    }
+
+    // ----------------------------
+    // พบ
+    // ----------------------------
+
     const statusSelect = document.getElementById(`status-${studentIndex}`);
-    if(statusSelect) statusSelect.value = "มา";
-    
-    document.getElementById(`row-${studentIndex}`).style.backgroundColor = "#d4edda";
-    Toast.fire({icon: 'success',title: `เช็คชื่อสำเร็จ รหัส: ${scannedId}`});
-  } else {
-    Swal.fire({ icon: 'error', title: 'ไม่พบรหัสนักเรียน', text: `รหัส: ${scannedId} ไม่อยู่ในห้องนี้`, timer: 1500, showConfirmButton: false });
-  }
+    const row = document.getElementById(`row-${studentIndex}`);
+    const isWaiting = statusSelect.value === "รอเช็ค";
+
+    // เปลี่ยนเฉพาะคนที่ยังรอเช็ก
+    if(statusSelect.value === "รอเช็ค"){
+        statusSelect.value = "มา";
+    }
+
+    updateSummaryCards();
+
+    // Highlight
+    row.style.backgroundColor="#d4edda";
+    row.classList.remove("scanner-highlight");
+    void row.offsetWidth;
+    row.classList.add("scanner-highlight");
+
+    // Scroll ไปหาแถว
+    row.scrollIntoView({
+        behavior:"smooth",
+        block:"center"
+    });
+
+    // Toast
+   Toast.fire({
+    icon: "success",
+    title: `${displayedStudents[studentIndex].student_code}<br>${displayedStudents[studentIndex].first_name} ${displayedStudents[studentIndex].last_name}`
+});
+
 }

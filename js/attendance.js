@@ -1,101 +1,305 @@
-let allStudents = [];
 let displayedStudents = [];
 
-// โหลดข้อมูลจาก Google Sheets อัตโนมัติเมื่อเปิดหน้าเว็บ
 async function initSystem() {
-  Swal.fire({
-    title: 'กำลังโหลดข้อมูล...',
-    allowOutsideClick: false,
-    didOpen: () => { Swal.showLoading(); }
-  });
+    Swal.fire({
+        title: 'กำลังโหลดข้อมูล...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
 
-  try {
-    const res = await fetchFromAPI('getInitialData');
-    console.log("คำตอบจากหลังบ้าน:", res); // เพิ่มบรรทัดนี้
-    if (res.success) {
-      allStudents = res.data.students;
-      const subjects = res.data.subjects;
-      
-      const roomFilter = document.getElementById('room-filter');
-      roomFilter.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>';
-      const rooms = [...new Set(allStudents.slice(1).map(r => r[3]))].filter(r => r);
-      rooms.forEach(room => roomFilter.innerHTML += `<option value="${room}">${room}</option>`);
+    try {
+        // ตั้งค่าวันที่เป็นวันนี้
+document.getElementById("attendance-date").value =
+    new Date().toISOString().split("T")[0];
+        const [rooms, subjects] = await Promise.all([
+            getRooms(),
+            getSubjects()
+        ]);
+        
+        const roomFilter = document.getElementById('room-filter');
+        roomFilter.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>';
+        
+        const roomFragment = document.createDocumentFragment();
+        rooms.forEach(room => {
+            const option = document.createElement('option');
+            option.value = room.id;
+            option.textContent = room.room_name;
+            roomFragment.appendChild(option);
+        });
+        roomFilter.appendChild(roomFragment);
+        const qrRoom=document.getElementById("qr-room-filter");
 
-      const subjDropdown = document.getElementById('subject-dropdown');
-      subjDropdown.innerHTML = '<option value="">-- เลือกวิชา --</option>';
-      subjects.slice(1).forEach(row => {
-        if(row[0] && row[1]) subjDropdown.innerHTML += `<option value="${row[0]}|${row[1]}">${row[0]} - ${row[1]}</option>`;
-      });
+if(qrRoom){
 
-      document.getElementById('load-btn').disabled = false;
-      Swal.close();
-    } else {
-      Swal.close();
-      Swal.fire('แจ้งเตือน', 'ดึงข้อมูลไม่สำเร็จ กรุณารีเฟรชหน้าเว็บอีกครั้งครับ', 'warning');
+    qrRoom.innerHTML='<option value="">-- เลือกห้องเรียน --</option>';
+
+    rooms.forEach(room=>{
+
+        const option=document.createElement("option");
+
+        option.value=room.id;
+
+        option.textContent=room.room_name;
+
+        qrRoom.appendChild(option);
+
+    });
+
+}
+
+        const subjDropdown = document.getElementById('subject-dropdown');
+        subjDropdown.innerHTML = '<option value="">-- เลือกวิชา --</option>';
+        
+        const subjFragment = document.createDocumentFragment();
+        subjects.forEach(subject => {
+            const option = document.createElement('option');
+            option.value = subject.id;
+            option.textContent = `${subject.subject_code} - ${subject.subject_name}`;
+            subjFragment.appendChild(option);
+        });
+        subjDropdown.appendChild(subjFragment);
+
+        document.getElementById('load-btn').disabled = false;
+        Swal.close();
+    } catch (error) {
+        console.error(error);
+        Swal.close();
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลเริ่มต้นได้', 'error');
     }
-  } catch (err) {
-    console.error("Fetch Error:", err); 
-    Swal.close();
-    Swal.fire('การเชื่อมต่อขัดข้อง', 'ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือลองใหม่อีกครั้งครับ', 'error');
-  }
 }
 
-initSystem();
+async function filterAndLoad() {
+    const roomId = document.getElementById('room-filter').value;
+    const subjId = document.getElementById('subject-dropdown').value;
+    const attendanceDate = document.getElementById("attendance-date").value;
 
-// ฟังก์ชันกดปุ่มโหลดรายชื่อเข้าตาราง
-function filterAndLoad() {
-  const room = document.getElementById('room-filter').value;
-  const subj = document.getElementById('subject-dropdown').value;
-  if (!room || !subj) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกห้องและวิชาก่อนโหลดครับ', 'warning');
+    if (!roomId || !subjId) {
+        return Swal.fire('แจ้งเตือน', 'กรุณาเลือกห้องและวิชาก่อนโหลดครับ', 'warning');
+    }
 
-  displayedStudents = allStudents.filter(r => r[3] === room);
-  const tbody = document.getElementById('student-body');
-  tbody.innerHTML = '';
-  
-  displayedStudents.forEach((row, i) => {
-    let statsStr = `มา:${row[4] || 0} | สาย:${row[5] || 0} | ป่วย:${row[6] || 0} | กิจ:${row[7] || 0} | ขาด:${row[8] || 0}`;
-    tbody.innerHTML += `
-      <tr id="row-${i}">
-        <td><b>${row[0]}</b></td>
-        <td>${row[1]}</td>
-        <td><b>${row[2]}</b></td>
-        <td><span class="stats">${statsStr}</span></td>
-        <td class="alert-text">${row[9] || 0} ครั้ง</td>
-        <td>
-          <select id="status-${i}" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-family: 'Prompt', sans-serif;">
-            <option value="รอเช็ค" selected>-- รอเช็ค --</option>
-            <option value="มา">มา</option>
-            <option value="สาย">สาย</option>
-            <option value="ลาป่วย">ลาป่วย</option>
-            <option value="ลากิจ">ลากิจ</option>
-            <option value="ขาด">ขาด</option>
-          </select>
-        </td>
-        <td><button class="btn-alert" disabled>🔔 Alert</button></td>
-      </tr>`;
-  });
+    try {
+        displayedStudents = await getStudentsByRoom(roomId);
+        const session = await getAttendanceSession(roomId,subjId,attendanceDate);
+        let attendanceMap = {};
 
-  document.getElementById('student-table').style.display = 'table';
-  document.getElementById('save-btn').style.display = 'block';
-  document.getElementById('scan-btn').style.display = 'inline-block';
+if (session) {
+
+    const attendanceData =
+        await getAttendanceBySession(session.id);
+
+    attendanceData.forEach(item => {
+        attendanceMap[item.student_id] = item.status;
+    });
+}
+        const tbody = document.getElementById('student-body');
+        tbody.innerHTML = '';
+        
+        const fragment = document.createDocumentFragment();
+
+        displayedStudents.forEach((row, i) => {
+            const tr = document.createElement('tr');
+            tr.id = `row-${i}`;
+            tr.dataset.studentId = row.id; 
+            const currentStatus = attendanceMap[row.id] ?? "";
+            tr.innerHTML = `
+                <td><b>${row.student_no ?? ''}</b></td>
+                <td>${row.student_code ?? ''}</td>
+                <td><b>${row.prefix ?? ''} ${row.first_name ?? ''} ${row.last_name ?? ''}</b></td>
+                <td><span class="stats">-</span></td>
+                <td class="alert-text">0 ครั้ง</td>
+                <td>
+                    <select id="status-${i}" onchange="updateSummaryCards()" style="padding:5px;border-radius:5px;border:1px solid #ccc;font-family:'Prompt',sans-serif;">
+                        <option value="รอเช็ค" ${currentStatus==="" ? "selected" : ""}>-- รอเช็ค --</option>
+
+<option value="มา" ${currentStatus==="PRESENT" ? "selected" : ""}>มา</option>
+
+<option value="สาย" ${currentStatus==="LATE" ? "selected" : ""}>สาย</option>
+
+<option value="ลาป่วย" ${currentStatus==="SICK" ? "selected" : ""}>ลาป่วย</option>
+
+<option value="ลากิจ" ${currentStatus==="PERSONAL" ? "selected" : ""}>ลากิจ</option>
+
+<option value="ขาด" ${currentStatus==="ABSENT" ? "selected" : ""}>ขาด</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="btn-alert" disabled data-student-id="${row.id}">🔔 Alert</button>
+                </td>
+            `;
+            fragment.appendChild(tr);
+        });
+
+        tbody.appendChild(fragment);
+
+        document.getElementById('student-table').style.display = 'table';
+        document.getElementById('save-btn').style.display = 'block';
+        document.getElementById('scan-btn').style.display = 'inline-block';
+        
+        updateSummaryCards();
+    } catch (error) {
+        console.error(error);
+        Swal.fire('ผิดพลาด', 'ไม่สามารถโหลดรายชื่อนักเรียนได้', 'error');
+    }
+}
+let attendanceCompleted = false;
+function updateSummaryCards() {
+
+    const total = displayedStudents.length;
+
+    let present = 0;
+    let late = 0;
+    let sick = 0;
+    let leave = 0;
+    let absent = 0;
+
+    displayedStudents.forEach((_, index) => {
+
+        const statusEl = document.getElementById(`status-${index}`);
+
+        if (!statusEl) return;
+
+        switch(statusEl.value){
+
+            case "มา":
+                present++;
+                break;
+
+            case "สาย":
+                late++;
+                break;
+
+            case "ลาป่วย":
+                sick++;
+                break;
+
+            case "ลากิจ":
+                leave++;
+                break;
+
+            case "ขาด":
+                absent++;
+                break;
+        }
+
+    });
+
+    document.getElementById("total-students").textContent = total;
+    document.getElementById("present-students").textContent = present;
+    document.getElementById("late-students").textContent = late;
+    document.getElementById("sick-students").textContent = sick;
+    document.getElementById("leave-students").textContent = leave;
+    document.getElementById("absent-students").textContent = absent;
+const checked = present + late + sick + leave + absent;
+
+if (!attendanceCompleted && checked === total) {
+
+    attendanceCompleted = true;
+
+    Swal.fire({
+        icon: "success",
+        title: "🎉 เช็กชื่อครบแล้ว",
+        text: 'กรุณาตรวจสอบข้อมูล แล้วกด "บันทึกข้อมูล"',
+        confirmButtonText: "ตกลง"
+    });
+
 }
 
-// ฟังก์ชันบันทึกข้อมูลส่งกลับไปหลังบ้าน
+}
+
 async function submitAttendance() {
-  const subjVal = document.getElementById('subject-dropdown').value.split('|');
-  const records = displayedStudents.map((row, i) => ({
-    no: row[0], id: row[1], name: row[2], room: row[3],
-    status: document.getElementById(`status-${i}`).value
-  }));
 
-  Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-  
-  const res = await fetchFromAPI('saveAttendance', { records, subjectCode: subjVal[0], subjectName: subjVal[1] });
-  
-  if(res.success) {
-    Swal.fire('สำเร็จ!', 'บันทึกการเช็คชื่อเข้าสู่ Google Sheets เรียบร้อย 🎉', 'success');
-    displayedStudents.forEach((_, i) => document.getElementById(`row-${i}`).style.backgroundColor = "");
-  } else {
-    Swal.fire('ผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
-  }
+    const roomId = document.getElementById('room-filter').value;
+    const subjectId = document.getElementById('subject-dropdown').value;
+    const attendanceDate = document.getElementById("attendance-date").value;
+    if (!roomId || !subjectId) {
+        return Swal.fire(
+            'แจ้งเตือน',
+            'กรุณาเลือกห้องและวิชาก่อนบันทึก',
+            'warning'
+        );
+    }
+
+    try {
+
+        Swal.fire({
+            title: 'กำลังบันทึกข้อมูล...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        // 1. สร้าง Attendance Session
+        let session = await getAttendanceSession(roomId,subjectId,attendanceDate);
+
+if (!session) {
+
+    session = await createAttendanceSession(roomId,subjectId,attendanceDate);
+
 }
+
+        // 2. เตรียมข้อมูล Attendance
+        const records = [];
+const deleteStudentIds = [];
+
+displayedStudents.forEach((student, index) => {
+
+    const uiStatus =
+        document.getElementById(`status-${index}`)?.value;
+
+    if (uiStatus === "รอเช็ค") {
+
+        deleteStudentIds.push(student.id);
+        return;
+
+    }
+
+    const statusMap = {
+        "มา": "PRESENT",
+        "สาย": "LATE",
+        "ลาป่วย": "SICK",
+        "ลากิจ": "PERSONAL",
+        "ขาด": "ABSENT"
+    };
+
+    records.push({
+
+        attendance_session_id: session.id,
+
+        student_id: student.id,
+
+        attendance_type: "MANUAL",
+
+        status: statusMap[uiStatus],
+
+        check_in_time: new Date().toISOString()
+
+    });
+
+});
+
+        // 3. บันทึก Attendance
+        await deleteAttendance(session.id,deleteStudentIds);
+const result = await saveAttendance(records);
+
+console.table(records);
+        Swal.fire(
+            'สำเร็จ',
+            'บันทึกการเช็คชื่อเรียบร้อย',
+            'success'
+        );
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        Swal.fire(
+            'ผิดพลาด',
+            error.message,
+            'error'
+        );
+
+    }
+
+}
+
+document.addEventListener('DOMContentLoaded', initSystem);

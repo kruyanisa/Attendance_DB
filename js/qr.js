@@ -1,44 +1,68 @@
-// ฟังก์ชันดึงรายชื่อเด็กมาใส่ Dropdown ตอนเลือกห้อง
-function loadQRStudents() {
-  const room = document.getElementById("qr-room-filter").value;
-  const studentDropdown = document.getElementById("qr-student-filter");
-  studentDropdown.innerHTML = '<option value="ALL">ทั้งหมด (All)</option>';
-  if (!room) return;
-  
-  const students = allStudents.filter(r => r[3] === room);
-  students.forEach(row => {
-      studentDropdown.innerHTML += `<option value="${row[1]}">${row[2]}</option>`;
-  });
+let qrStudents = [];
+
+// โหลดรายชื่อตามห้อง
+async function loadQRStudents(){
+    const roomId=document.getElementById("qr-room-filter").value;
+    const studentDropdown=document.getElementById("qr-student-filter");
+    studentDropdown.innerHTML='<option value="ALL">ทั้งหมด (All)</option>';
+    if(!roomId) return;
+    qrStudents=await getStudentsByRoom(roomId);
+    qrStudents.forEach(student=>{
+        const option=document.createElement("option");
+        option.value=student.id;
+        option.textContent=`${student.student_code ?? ""} - ${student.prefix ?? ""}${student.first_name ?? ""} ${student.last_name ?? ""}`;
+        studentDropdown.appendChild(option);
+    });
+
 }
 
-// ฟังก์ชันสร้าง QR Code
+// สร้าง QR Code
+// แทนที่ฟังก์ชัน generateQR เดิมใน qr.js
 function generateQR() {
-  const room = document.getElementById('qr-room-filter').value;
-  if (!room) return Swal.fire('แจ้งเตือน', 'กรุณาเลือกห้องเรียนก่อนครับ', 'warning');
-  
-  const selectedStudent = document.getElementById("qr-student-filter").value;
-  let students = allStudents.filter(r => r[3] === room);
-  if(selectedStudent !== "ALL") { 
-    students = students.filter(r => r[1] == selectedStudent); 
-  }
-  
-  const container = document.getElementById('qr-container');
-  container.innerHTML = '';
-  
-  // URL โลโก้โรงเรียน (เปลี่ยนเป็นลิงก์โลโก้จริงของโรงเรียนภรรยาได้เลยครับ)
-  const logoUrl = encodeURIComponent('https://cdn-icons-png.flaticon.com/512/3553/3553140.png'); 
+    const roomName = document.getElementById("qr-room-filter").selectedOptions[0].text;
+    const selected = document.getElementById("qr-student-filter").value;
 
-  students.forEach(row => {
-    // ใช้ API สร้าง QR แบบใส่โลโก้ตรงกลาง
-    const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(row[1])}&size=200&margin=0&centerImageUrl=${logoUrl}`; 
-    
-    container.innerHTML += `
-      <div class="qr-card" style="width: 2in; height: 2.5in; padding: 5px; margin: 10px; background: white; border: 2px dashed #ccc; border-radius: 10px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-sizing: border-box;">
-        <img src="${qrUrl}" alt="QR Code" style="width: 100%; max-height: 1.8in; object-fit: contain; margin-bottom: 5px;">
-        <div class="name" style="font-weight: bold; font-size: 12px; color: #333; margin-bottom: 2px; line-height: 1.1;">${row[2]}</div>
-        <div class="id" style="font-size: 10px; color: #777;">รหัส: ${row[1]}</div>
-      </div>`;
-  });
-  
-  document.getElementById('print-btn').style.display = 'inline-block';
+    let students = qrStudents;
+    if (selected !== "ALL") {
+        students = qrStudents.filter(s => s.id === selected);
+    }
+
+    document.getElementById("qr-title").textContent = `สร้าง QR Code ประจำตัว ${roomName} (${students.length} คน)`;
+
+    const container = document.getElementById("qr-container");
+    container.innerHTML = "";
+
+    const ITEMS_PER_PAGE = 12;
+
+    for (let i = 0; i < students.length; i += ITEMS_PER_PAGE) {
+        const chunk = students.slice(i, i + ITEMS_PER_PAGE);
+        
+        const page = document.createElement("div");
+        page.className = "print-page";
+        
+        chunk.forEach((student) => {
+            const card = document.createElement("div");
+            card.className = "qr-card";
+            card.innerHTML = `
+                <div class="qr-box" id="qr-${student.id}"></div>
+                <div class="student-code">${student.student_code}</div>
+                <div class="student-name">${student.prefix ?? ""}${student.first_name} ${student.last_name}</div>
+            `;
+            page.appendChild(card);
+        });
+
+        container.appendChild(page);
+
+        // สร้าง QR Code หลังจากที่ Element ถูกเพิ่มลงใน DOM แล้ว
+        chunk.forEach((student) => {
+            new QRCode(document.getElementById(`qr-${student.id}`), {
+                text: `SMS|${student.id}`,
+                width: 170,
+                height: 170,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        });
+    }
+
+    document.getElementById("print-btn").style.display = "inline-block";
 }

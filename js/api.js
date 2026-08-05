@@ -1,64 +1,134 @@
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwBUSwf2nuTYLFwFRg9wz3yoGPt58HveCupammbzWT-LszDGMApnubmDE4d1fCLRHDbtA/exec";
+async function getRooms() {
+    const { data, error } = await supabaseClient
+        .from('rooms')
+        .select('*')
+        .order('room_name', { ascending: true });
 
-const SECRET_TOKEN = "Kruyanisa_Secret_12345";
+    if (error) throw error;
+    return data;
+}
 
+async function getSubjects() {
+    const { data, error } = await supabaseClient
+        .from('subjects')
+        .select('*')
+        .order('subject_code', { ascending: true });
 
+    if (error) throw error;
+    return data;
+}
 
-async function fetchFromAPI(action, data = {}, retries = 1) {
+async function getStudentsByRoom(roomId) {
+    const { data, error } = await supabaseClient
+        .from('students')
+        .select('*')
+        .eq('current_room_id', roomId)
+        .order('student_no', { ascending: true });
 
-  try {
+    if (error) throw error;
+    return data;
+}
 
-    const response = await fetch(WEB_APP_URL, {
+// ==============================
+// Attendance Session
+// ==============================
 
-      method: 'POST',
+async function createAttendanceSession(roomId,subjectId,attendanceDate) {
 
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    const { data, error } = await supabaseClient
+        .from("attendance_sessions")
+        .insert({
+            room_id: roomId,
+            subject_id: subjectId,
+            attendance_date: attendanceDate,
+            session_status: "OPEN"
+        })
+        .select()
+        .single();
 
-      body: JSON.stringify({ token: SECRET_TOKEN, action: action, ...data })
+    if (error) throw error;
 
-    });
+    return data;
 
+}
 
+// ==============================
+// Attendance
+// ==============================
 
-    // Apps Script sometimes serves a Google HTML error page (404/redirect hiccup)
+async function saveAttendance(records) {
 
-    // instead of JSON. response.ok / status alone won't catch this reliably,
+    const { data, error } = await supabaseClient
+        .from("attendance")
+        .upsert(
+            records,
+            {
+                onConflict: "attendance_session_id,student_id"
+            }
+        )
+        .select();
 
-    // so we try to parse and treat a parse failure as a transient error.
+    if (error) throw error;
 
-    const text = await response.text();
+    return data;
 
-    try {
+}
 
-      return JSON.parse(text);
+async function getStudentById(studentId){
 
-    } catch (parseErr) {
+    const {data,error}=await supabaseClient
+        .from("students")
+        .select("*")
+        .eq("id",studentId)
+        .single();
 
-      throw new Error("Non-JSON response (likely a transient Apps Script redirect issue): " + text.slice(0, 100));
+    if(error) throw error;
 
-    }
+    return data;
 
+}
 
+async function getAttendanceSession(roomId, subjectId, attendanceDate) {
 
-  } catch (error) {
+    const { data, error } = await supabaseClient
+        .from("attendance_sessions")
+        .select("*")
+        .eq("room_id", roomId)
+        .eq("subject_id", subjectId)
+        .eq("attendance_date", attendanceDate)
+        .is("deleted_at", null)
+        .maybeSingle();
 
-    if (retries > 0) {
+    if (error) throw error;
 
-      // Wait briefly, then retry once before giving up.
+    return data;
 
-      await new Promise(res => setTimeout(res, 800));
+}
 
-      return fetchFromAPI(action, data, retries - 1);
+async function getAttendanceBySession(sessionId) {
 
-    }
+    const { data, error } = await supabaseClient
+        .from("attendance")
+        .select("*")
+        .eq("attendance_session_id", sessionId)
+        .is("deleted_at", null);
 
-    console.error("API Error:", error);
+    if (error) throw error;
 
-    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้งครับ', 'error');
+    return data;
 
-    throw error;
+}
 
-  }
+async function deleteAttendance(sessionId, studentIds) {
 
-} 
+    if (studentIds.length === 0) return;
 
+    const { error } = await supabaseClient
+        .from("attendance")
+        .delete()
+        .eq("attendance_session_id", sessionId)
+        .in("student_id", studentIds);
+
+    if (error) throw error;
+
+}
