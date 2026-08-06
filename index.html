@@ -18,9 +18,10 @@
   <div class="sidebar">
     <h3>✨ เมนูระบบ</h3>
     <button id="menu-attendance" class="active" onclick="switchView('attendance')">📋 1. เช็คชื่อ</button>
-    <button id="menu-hw" onclick="switchView('homework')">📝 2. การบ้าน</button>
+    <button id="menu-homework" onclick="switchView('homework')">📝 2. การบ้าน</button>
     <button id="menu-qrcode" onclick="switchView('qrcode')">🔲 3. QR Code</button>
     <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+    <button id="menu-settings" onclick="switchView('settings')">⚙️ ตั้งค่าระบบ</button>
     
     <hr>
     <small style="color: #ccc; display: block; text-align: center; margin-bottom: 10px;">เมนูใหม่ (เร็วๆ นี้)</small>
@@ -28,6 +29,11 @@
     <button id="menu-study" onclick="switchView('study')">🎓 ศึกษาต่อ</button>
     <button id="menu-scholarship" onclick="switchView('scholarship')">💰 รับทุน</button>
     <button id="menu-pdf" onclick="switchView('pdf')">📄 โหลดรายงาน PDF</button>
+
+    <hr>
+
+    <button id="logout-btn" onclick="logout()">🚪 ออกจากระบบ</button>
+
   </div>
   
   <!-- พื้นที่แสดงเนื้อหา -->
@@ -168,6 +174,106 @@
       ❌ ปิดกล้อง
 
   </button>
+
+</div>
+
+<div id="view-settings" style="display:none;">
+
+    <div class="page-header">
+        <div>
+            <h1>⚙️ Settings</h1>
+            <p>ตั้งค่าระบบ</p>
+        </div>
+    </div>
+
+    <div class="glass-card settings-layout">
+
+        <!-- เมนูซ้าย -->
+        <div class="settings-menu">
+
+            <button onclick="showSetting('profile')" class="setting-item active">
+                👤 ข้อมูลผู้ใช้
+            </button>
+
+            <button onclick="showSetting('clear')" class="setting-item">
+                🧹 ล้างข้อมูลเครื่อง
+            </button>
+
+            <button onclick="showSetting('refresh')" class="setting-item">
+                🔄 รีเฟรชข้อมูล
+            </button>
+
+            <button onclick="showSetting('about')" class="setting-item">
+                ℹ️ เกี่ยวกับระบบ
+            </button>
+
+        </div>
+
+        <!-- เนื้อหาขวา -->
+        <div class="settings-content">
+
+            <div id="setting-profile" class="setting-page">
+
+    <h2>👤 ข้อมูลผู้ใช้</h2>
+
+    <table class="profile-table">
+
+        <tr>
+            <td><b>ชื่อ</b></td>
+            <td id="profile-name">กำลังโหลด...</td>
+        </tr>
+
+        <tr>
+            <td><b>Email</b></td>
+            <td id="profile-email">กำลังโหลด...</td>
+        </tr>
+
+        <tr>
+            <td><b>Role</b></td>
+            <td id="profile-role">กำลังโหลด...</td>
+        </tr>
+
+    </table>
+
+</div>
+
+            <div id="setting-clear" class="setting-page">
+
+    <h2>🧹 ล้างข้อมูลเครื่อง</h2>
+
+    <p>
+        ใช้เมื่อระบบ Login ไม่ได้, JWT หมดอายุ,
+        หรือข้อมูลในเครื่องผิดปกติ
+    </p>
+
+    <br>
+
+    <button
+        class="btn"
+        style="background:#f59e0b;"
+        onclick="clearDeviceData()">
+
+        🧹 ล้างข้อมูลเครื่อง
+
+    </button>
+
+</div>
+
+            <div id="setting-refresh" class="setting-page" style="display:none;">
+                <h2>🔄 รีเฟรชข้อมูล</h2>
+                <p>โหลดข้อมูลใหม่จากฐานข้อมูล</p>
+                <button class="btn">รีเฟรช</button>
+            </div>
+
+            <div id="setting-about" class="setting-page" style="display:none;">
+                <h2>ℹ️ เกี่ยวกับระบบ</h2>
+                <p>School Management System</p>
+                <p>Version 1.1</p>
+            </div>
+
+        </div>
+
+    </div>
 
 </div>
     

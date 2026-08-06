@@ -7,6 +7,7 @@ let barcodeBuffer = "";
 let barcodeTimer = null;
 let html5QrcodeScanner;
 
+
 const Toast = Swal.mixin({
   toast: true,
   position: "top",
@@ -25,6 +26,9 @@ document.addEventListener('keydown', function(e) {
   // ถ้ากด Enter (ปืนยิงมักจะจบท้ายด้วย Enter เสมอ)
 if (e.key === 'Enter' && /[ก-๙]/.test(barcodeBuffer)) {
 
+    e.preventDefault();
+    e.stopPropagation();
+
     barcodeBuffer = "";
 
     Swal.fire({
@@ -37,10 +41,18 @@ if (e.key === 'Enter' && /[ก-๙]/.test(barcodeBuffer)) {
     return;
 }
 
-  if (e.key === 'Enter' && barcodeBuffer.length > 0) {
+if (e.key === 'Enter' && barcodeBuffer.length > 0) {
+
+    e.preventDefault();
+    e.stopPropagation();
+
     processScannedCode(barcodeBuffer);
-    barcodeBuffer = ''; 
-  } else {
+
+    barcodeBuffer = '';
+
+    return;
+}
+   else {
     // เก็บตัวอักษรที่พิมพ์เข้ามา
     if(e.key.length === 1) barcodeBuffer += e.key;
     
@@ -106,21 +118,19 @@ function processScannedCode(scannedId){
     // ----------------------------
     // ไม่พบในห้อง
     // ----------------------------
-    if(studentIndex === -1){
+    if (studentIndex === -1) {
 
-        closeScanner();
+    closeScanner();
 
-        Swal.fire({
-            icon:"error",
-            title:"ไม่พบนักเรียน",
-            text:"QR Code นี้ไม่ได้อยู่ในห้องที่เลือก",
-            confirmButtonText:"ตกลง"
-        }).then(()=>{
-            openScanner();
-        });
+    Swal.fire({
+        icon: "error",
+        title: "❌ ไม่สามารถเช็กชื่อได้",
+        text: "นักเรียนคนนี้ไม่ได้อยู่ในห้องที่เลือก",
+        confirmButtonText: "ตกลง"
+    });
 
-        return;
-    }
+    return;
+}
 
     // ----------------------------
     // พบ
@@ -136,6 +146,7 @@ function processScannedCode(scannedId){
     }
 
     updateSummaryCards();
+// ตรวจสอบว่าเช็กชื่อครบหรือยัง
 
     // Highlight
     row.style.backgroundColor="#d4edda";
@@ -154,5 +165,24 @@ function processScannedCode(scannedId){
     icon: "success",
     title: `${displayedStudents[studentIndex].student_code}<br>${displayedStudents[studentIndex].first_name} ${displayedStudents[studentIndex].last_name}`
 });
+
+// ตรวจสอบว่ายังมี "รอเช็ค" เหลือหรือไม่
+const pending = [...document.querySelectorAll("[id^='status-']")]
+    .filter(x => x.value === "รอเช็ค").length;
+
+if (pending === 0) {
+
+    setTimeout(() => {
+
+        Swal.fire({
+            icon: "success",
+            title: "🎉 เช็กชื่อครบแล้ว",
+            text: 'กรุณาตรวจสอบข้อมูล แล้วกด "บันทึกข้อมูล"',
+            confirmButtonText: "ตกลง"
+        });
+
+    }, 300);
+
+}
 
 }

@@ -132,3 +132,86 @@ async function deleteAttendance(sessionId, studentIds) {
     if (error) throw error;
 
 }
+async function logout() {
+
+    const result = await Swal.fire({
+        title: "🚪 ออกจากระบบ",
+        text: "คุณต้องการออกจากระบบหรือไม่?",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "ออกจากระบบ",
+        cancelButtonText: "ยกเลิก",
+        confirmButtonColor: "#dc2626",
+        cancelButtonColor: "#6b7280"
+    });
+
+    if (!result.isConfirmed) return;
+
+    await supabaseClient.auth.signOut();
+
+    sessionStorage.clear();
+
+    window.location.href = "login.html";
+
+}
+
+async function loadProfile() {
+
+    // ดึง User ที่ Login อยู่
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) return;
+
+    // Email
+    document.getElementById("profile-email").textContent = user.email;
+    // ดึงข้อมูลครู
+const { data: teacher, error } = await supabaseClient
+    .from("teachers")
+    .select(`
+        first_name,
+        last_name,
+        profile:profiles(
+            role:roles(name)
+        )
+    `)
+    .eq("profile_id", user.id)
+    .single();
+
+if (error) {
+    console.error(error);
+    return;
+}
+
+// ชื่อ
+document.getElementById("profile-name").textContent =
+    `${teacher.first_name} ${teacher.last_name}`;
+
+// Role
+document.getElementById("profile-role").textContent =
+    teacher.profile.role.name;
+
+}
+
+async function clearDeviceData() {
+
+    const confirmResult = await Swal.fire({
+        title: "ล้างข้อมูลเครื่อง?",
+        text: "ระบบจะออกจากระบบและล้างข้อมูลเฉพาะเว็บไซต์นี้",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "ล้างข้อมูล",
+        cancelButtonText: "ยกเลิก"
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    // Logout จาก Supabase
+    await supabaseClient.auth.signOut();
+
+    // ล้างเฉพาะ Session ของ Browser
+    sessionStorage.clear();
+
+    // กลับหน้า Login
+    window.location.href = "login.html";
+
+}

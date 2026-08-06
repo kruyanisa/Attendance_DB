@@ -1,6 +1,6 @@
 // ฟังก์ชันสลับหน้าจอ และไฮไลต์เมนูที่เลือก
 function switchView(view) {
-  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf'];
+  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings'];
   
   views.forEach(v => {
     // ซ่อน/แสดง เนื้อหา
@@ -16,6 +16,11 @@ function switchView(view) {
       else menuBtn.classList.remove('active');
     }
   });
+     if(view === "settings"){
+    showSetting("profile");
+    loadProfile();
+}
+  
 }
 
 function toggleTheme() {
@@ -31,4 +36,23 @@ function toggleTheme() {
   } else {
     btn.innerHTML = '🌙 Dark Mode';
   }
+}
+function showSetting(page) {
+
+    // ซ่อนทุกหน้า
+    document.querySelectorAll(".setting-page").forEach(p => {
+        p.style.display = "none";
+    });
+
+    // ลบ active ทุกปุ่ม
+    document.querySelectorAll(".setting-item").forEach(btn => {
+        btn.classList.remove("active");
+    });
+
+    // แสดงหน้าที่เลือก
+    document.getElementById("setting-" + page).style.display = "block";
+
+    // เติม active ให้ปุ่มที่กด
+    document.querySelector(`[onclick="showSetting('${page}')"]`).classList.add("active");
+
 }

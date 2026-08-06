@@ -220,6 +220,98 @@ async function submitAttendance() {
     }
 
     try {
+    
+// =========================
+// ตรวจสอบสถานะ "รอเช็ค"
+// =========================
+const pendingCount = displayedStudents.filter((_, index) => {
+    return document.getElementById(`status-${index}`)?.value === "รอเช็ค";
+}).length;
+
+if (pendingCount > 0) {
+    const result = await Swal.fire({
+    icon: "warning",
+    title: "⚠️ แจ้งเตือน",
+    html: `
+        ยังมีนักเรียน <b>${pendingCount}</b> คน<br>
+        ที่มีสถานะ <b>"รอเช็ค"</b><br><br>
+        คุณต้องการดำเนินการอย่างไร?
+    `,
+    showCancelButton: true,
+    confirmButtonText: "💾 ยืนยันบันทึก",
+    cancelButtonText: "🔍 กลับไปตรวจสอบ",
+    reverseButtons: true
+});
+
+// ถ้ากดกลับไปตรวจสอบ
+if (!result.isConfirmed) {
+    return;
+}
+
+}
+
+// =========================
+// สรุปผลก่อนบันทึก (Manual)
+// =========================
+
+if (pendingCount === 0) {
+
+    const summary = {
+        "มา": 0,
+        "สาย": 0,
+        "ลาป่วย": 0,
+        "ลากิจ": 0,
+        "ขาด": 0
+    };
+
+    displayedStudents.forEach((student, index) => {
+
+        const status =
+            document.getElementById(`status-${index}`)?.value;
+
+        if(summary[status] !== undefined){
+            summary[status]++;
+        }
+
+    });
+
+    const result = await Swal.fire({
+
+        icon: "question",
+
+        title: "📊 สรุปผลการเช็กชื่อ",
+
+        html: `
+            <div style="text-align:left;font-size:16px">
+
+            ✅ มา : <b>${summary["มา"]}</b> คน<br>
+            🟡 สาย : <b>${summary["สาย"]}</b> คน<br>
+            🤒 ลาป่วย : <b>${summary["ลาป่วย"]}</b> คน<br>
+            📝 ลากิจ : <b>${summary["ลากิจ"]}</b> คน<br>
+            ❌ ขาด : <b>${summary["ขาด"]}</b> คน
+
+            </div>
+
+            <br>
+
+            ต้องการบันทึกข้อมูลใช่หรือไม่?
+        `,
+
+        showCancelButton: true,
+
+        confirmButtonText: "💾 ยืนยันบันทึก",
+
+        cancelButtonText: "✏️ กลับไปแก้ไข",
+
+        reverseButtons: true
+
+    });
+
+    if (!result.isConfirmed) {
+        return;
+    }
+
+}
 
         Swal.fire({
             title: 'กำลังบันทึกข้อมูล...',
@@ -280,7 +372,6 @@ displayedStudents.forEach((student, index) => {
         await deleteAttendance(session.id,deleteStudentIds);
 const result = await saveAttendance(records);
 
-console.table(records);
         Swal.fire(
             'สำเร็จ',
             'บันทึกการเช็คชื่อเรียบร้อย',
