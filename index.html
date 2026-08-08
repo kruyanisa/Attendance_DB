@@ -18,8 +18,10 @@
   <div class="sidebar">
     <h3>✨ เมนูระบบ</h3>
     <button id="menu-attendance" class="active" onclick="switchView('attendance')">📋 1. เช็คชื่อ</button>
-    <button id="menu-homework" onclick="switchView('homework')">📝 2. การบ้าน</button>
-    <button id="menu-qrcode" onclick="switchView('qrcode')">🔲 3. QR Code</button>
+    <button id="menu-dashboard" onclick="switchView('dashboard')">📊 2. Dashboard</button>
+    <button id="menu-homework" onclick="switchView('homework')">📝 3. การบ้าน</button>
+    <button id="menu-qrcode" onclick="switchView('qrcode')">🔲 4. QR Code</button>
+    <button id="menu-portal" onclick="switchView('portal')">🌐 5. ศูนย์รวมระบบ</button>
     <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
     <button id="menu-settings" onclick="switchView('settings')">⚙️ ตั้งค่าระบบ</button>
     
@@ -177,6 +179,377 @@
 
 </div>
 
+<div id="view-dashboard" style="display:none;">
+
+    <div class="dashboard-header">
+
+    <div class="dashboard-title">
+
+        <div class="dashboard-icon">
+            📊
+        </div>
+
+        <div>
+
+            <h1>Dashboard</h1>
+
+            <p>ภาพรวมการเช็กชื่อนักเรียน</p>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Dashboard Filter -->
+<div class="dashboard-filter">
+
+    <div class="filter-group">
+    <label>📅 ตั้งแต่วันที่</label>
+    <input type="date" id="dashboard-start-date">
+</div>
+
+<div class="filter-group">
+    <label>📅 ถึงวันที่</label>
+    <input type="date" id="dashboard-end-date">
+</div>
+
+    <div class="filter-group">
+        <label>🏫 ห้อง</label>
+        <select id="dashboard-room">
+            <option value="">ทั้งหมด</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label>📚 วิชา</label>
+        <select id="dashboard-subject">
+            <option value="">ทั้งหมด</option>
+        </select>
+    </div>
+
+    <div class="filter-group filter-button">
+
+        <button id="btn-dashboard-load"
+                onclick="reloadDashboard()">
+
+            🔄 โหลดข้อมูล
+
+        </button>
+
+    </div>
+
+</div>
+
+<!-- KPI Cards -->
+<div class="dashboard-kpi">
+
+    <div class="kpi-card kpi-total">
+        <div class="kpi-title">👨‍🎓 นักเรียนทั้งหมด</div>
+        <div id="kpi-total" class="kpi-value">0</div>
+    </div>
+
+    <div class="kpi-card kpi-present">
+        <div class="kpi-title">✅ มาเรียน</div>
+        <div id="kpi-present" class="kpi-value">0</div>
+    </div>
+
+    <div class="kpi-card kpi-late"><div class="kpi-title">⏰ สาย</div><div id="kpi-late" class="kpi-value" onclick="showAttendanceList('LATE')">0</div></div>
+    <div class="kpi-card kpi-personal"><div class="kpi-title">📝 ลากิจ</div><div id="kpi-personal" class="kpi-value" onclick="showAttendanceList('PERSONAL')">0</div></div>
+    <div class="kpi-card kpi-sick"><div class="kpi-title">🤒 ลาป่วย</div><div id="kpi-sick" class="kpi-value" onclick="showAttendanceList('SICK')">0</div></div>
+    <div class="kpi-card kpi-absent"><div class="kpi-title">❌ ขาด</div><div id="kpi-absent" class="kpi-value" onclick="showAttendanceList('ABSENT')">0</div></div>
+
+</div>
+<div class="glass-card" style="margin-top:20px;">
+    <h2>📊 สถิติการเข้าเรียน</h2>
+    <canvas id="attendance-chart" style="max-height:350px;"></canvas>
+</div>
+
+<!-- Dashboard View Switcher -->
+
+<div class="dashboard-view-switcher">
+
+    <button
+        type="button"
+        class="dashboard-view-btn active"
+        data-view="student"
+        onclick="switchDashboardView('student')">
+
+        👤 รายบุคคล
+
+    </button>
+
+    <button
+        type="button"
+        class="dashboard-view-btn"
+        data-view="session"
+        onclick="switchDashboardView('session')">
+
+        📚 รายคาบเรียน
+
+    </button>
+
+</div>
+
+<!-- Dashboard Student View -->
+
+<div id="dashboard-student-view" class="dashboard-view-content">
+
+    <div class="glass-card">
+
+        <h2>👤 รายบุคคล</h2>
+
+        <p class="dashboard-section-subtitle">
+            สรุปการเข้าเรียนของนักเรียนตามช่วงวันที่เลือก
+        </p>
+
+        <div class="dashboard-student-kpi">
+
+            <div class="kpi-card kpi-total">
+                <div class="kpi-title">👨‍🎓 นักเรียนทั้งหมด</div>
+                <div id="student-total" class="kpi-value">0</div>
+            </div>
+
+             <div class="kpi-card kpi-present">
+    <div class="kpi-title">🟢 มาเรียนอย่างน้อย 1 ครั้ง</div>
+    <div id="student-present" class="kpi-value">0</div>
+</div>
+
+<div class="kpi-card kpi-late">
+    <div class="kpi-title">⏰ สายอย่างน้อย 1 ครั้ง</div>
+    <div id="student-late" class="kpi-value">0</div>
+</div>
+
+<div class="kpi-card kpi-absent">
+    <div class="kpi-title">❌ ขาดอย่างน้อย 1 ครั้ง</div>
+    <div id="student-absent" class="kpi-value">0</div>
+</div>
+
+        </div>
+
+        <div class="dashboard-student-table">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>นักเรียน</th>
+                        <th>มาเรียน</th>
+                        <th>สาย</th>
+                        <th>ลากิจ</th>
+                        <th>ลาป่วย</th>
+                        <th>ขาด</th>
+                        <th>สถานะ</th>
+                    </tr>
+                </thead>
+
+                <tbody id="student-attendance-body">
+
+                    <tr>
+                        <td colspan="7">
+                            ยังไม่มีข้อมูล
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- Dashboard Session View -->
+
+<div id="dashboard-session-view"
+     class="dashboard-view-content"
+     style="display:none;">
+
+    <div class="glass-card">
+
+        <h2>📚 รายคาบเรียน</h2>
+
+        <p class="dashboard-section-subtitle">
+            สรุปการเข้าเรียนแยกตามคาบเรียน
+        </p>
+
+        <div id="dashboard-session-content">
+
+            ยังไม่ได้สร้างข้อมูลรายคาบเรียน
+
+        </div>
+
+    </div>
+    <div class="dashboard-session-table">
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>วันที่</th>
+                <th>คาบ</th>
+                <th>เวลา</th>
+                <th>ห้อง</th>
+                <th>วิชา</th>
+                <th>ครูผู้สอน</th>
+                <th>มาเรียน</th>
+                <th>สาย</th>
+                <th>ลากิจ</th>
+                <th>ลาป่วย</th>
+                <th>ขาด</th>
+                <th>สถานะ</th>
+            </tr>
+        </thead>
+
+        <tbody id="session-attendance-body">
+
+            <tr>
+                <td colspan="12">
+                    ยังไม่มีข้อมูล
+                </td>
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</div>
+
+</div>
+
+<!-- ==========================================
+     Dashboard Analytics
+========================================== -->
+
+<div class="dashboard-analytics">
+
+    <!-- Attendance Trend -->
+
+    <div class="analytics-card analytics-trend">
+
+        <div class="analytics-card-header">
+
+            <div>
+                <h2>📈 แนวโน้มการมาเรียน</h2>
+
+                <p>
+                    ย้อนหลัง 7 วัน
+                </p>
+            </div>
+
+        </div>
+
+        <div class="analytics-chart-wrap">
+
+            <canvas
+                id="attendance-trend-chart">
+            </canvas>
+
+        </div>
+
+    </div>
+
+
+    <!-- Attendance Rate -->
+
+    <div class="analytics-card analytics-rate-card">
+
+        <div class="analytics-card-header">
+
+            <div>
+                <h2>📊 Attendance Rate</h2>
+
+                <p>
+                    อัตราการมาเรียน
+                </p>
+            </div>
+
+        </div>
+
+        <div
+            id="analytics-rate"
+            class="analytics-rate-value">
+            0%
+        </div>
+
+        <div
+            id="analytics-rate-detail"
+            class="analytics-rate-detail">
+            0 / 0 คน
+        </div>
+
+    </div>
+
+
+    <!-- Class Comparison -->
+
+    <div class="analytics-card analytics-class">
+
+        <div class="analytics-card-header">
+
+            <div>
+                <h2>🏫 เปรียบเทียบห้องเรียน</h2>
+
+                <p>
+                    Attendance Rate ของแต่ละห้อง
+                </p>
+            </div>
+
+        </div>
+
+        <div class="analytics-chart-wrap analytics-class-chart">
+
+            <canvas
+                id="attendance-class-chart">
+            </canvas>
+
+        </div>
+
+    </div>
+
+
+    <!-- Best / Watch -->
+
+    <div class="analytics-summary-grid">
+
+        <div class="analytics-summary-card best">
+
+            <div class="analytics-summary-title">
+                🏆 ห้อง Attendance ดีที่สุด
+            </div>
+
+            <div
+                id="analytics-best-class"
+                class="analytics-summary-value">
+                ไม่มีข้อมูล
+            </div>
+
+        </div>
+
+
+        <div class="analytics-summary-card watch">
+
+            <div class="analytics-summary-title">
+                ⚠️ ห้องที่ควรเฝ้าระวัง
+            </div>
+
+            <div
+                id="analytics-watch-class"
+                class="analytics-summary-value">
+                ไม่มีข้อมูล
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+</div>
+
 <div id="view-settings" style="display:none;">
 
     <div class="page-header">
@@ -277,6 +650,40 @@
 
 </div>
     
+<!-- ========================================= -->
+<!-- ศูนย์รวมระบบ -->
+<!-- ========================================= -->
+
+<div id="view-portal" class="view" style="display:none;">
+
+    <h2>🌐 ศูนย์รวมระบบ</h2>
+
+    <p>รวมระบบที่ใช้งานร่วมกับระบบเช็กชื่อนักเรียน</p>
+
+    <div class="portal-grid">
+
+        <div class="portal-card" onclick="openHomeVisit()">
+            <div class="portal-icon">🏠</div>
+            <h3>ระบบเยี่ยมบ้าน</h3>
+            <p>บันทึกข้อมูลการเยี่ยมบ้าน</p>
+        </div>
+
+        <div class="portal-card" onclick="openClassroomOnline()">
+            <div class="portal-icon">🎓</div>
+            <h3>Classroom Online</h3>
+            <p>สื่อการเรียนออนไลน์สำหรับนักเรียน</p>
+        </div>
+
+        <div class="portal-card portal-coming">
+            <div class="portal-icon">🚀</div>
+            <h3>Coming Soon</h3>
+            <p>ระบบใหม่ในอนาคต</p>
+        </div>
+
+    </div>
+
+</div>
+
     <div id="view-homework" style="display:none;"><h2 style="color: #333;">ระบบส่งการบ้าน</h2></div>
     <div id="view-qrcode" style="display:none;">
       <h2 id="qr-title">สร้าง QR Code ประจำตัว</h2>
@@ -317,6 +724,7 @@
 <script src="js/api.js"></script>
 <script src="js/app.js"></script>
 <script src="js/attendance.js"></script>
+<script src="js/dashboard.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="js/dashboard_analytics.js"></script>
 <script src="js/qr.js"></script>
 <script src="js/scanner.js"></script>
 

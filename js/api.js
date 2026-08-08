@@ -119,6 +119,184 @@ async function getAttendanceBySession(sessionId) {
 
 }
 
+async function getAttendanceSessionsByDate(attendanceDate){
+
+    const { data, error } = await supabaseClient
+        .from("attendance_sessions")
+        .select("*")
+        .eq("attendance_date", attendanceDate)
+        .is("deleted_at", null);
+
+    if(error) throw error;
+
+    return data;
+
+}
+
+async function getDashboardAttendance(attendanceDate, roomId = "", subjectId = ""){
+
+    let query = supabaseClient
+        .from("attendance")
+        .select(`
+            status,
+            attendance_sessions!inner(
+                attendance_date,
+                room_id,
+                subject_id
+            )
+        `)
+        .eq("attendance_sessions.attendance_date", attendanceDate)
+        .is("deleted_at", null);
+    if (roomId !== "") query = query.eq("attendance_sessions.room_id", roomId);
+    if (subjectId !== "") query = query.eq("attendance_sessions.subject_id", subjectId);
+const { data, error } = await query;
+
+if(error) throw error;
+
+return data;
+
+}
+
+async function getDashboardStudentAttendance(
+    startDate,
+    endDate,
+    roomId = "",
+    subjectId = ""
+){
+
+    let query = supabaseClient
+        .from("attendance")
+        .select(`
+            student_id,
+            status,
+            students!student_id(
+    id,
+    student_code,
+                student_no,
+                prefix,
+                first_name,
+                last_name,
+                nickname
+            ),
+            attendance_sessions!inner(
+                attendance_date,
+                room_id,
+                subject_id
+            )
+        `)
+        .gte(
+            "attendance_sessions.attendance_date",
+            startDate
+        )
+        .lte(
+            "attendance_sessions.attendance_date",
+            endDate
+        )
+        .is("deleted_at", null)
+        .is(
+            "attendance_sessions.deleted_at",
+            null
+        );
+
+    if(roomId !== ""){
+        query = query.eq(
+            "attendance_sessions.room_id",
+            roomId
+        );
+    }
+
+    if(subjectId !== ""){
+        query = query.eq(
+            "attendance_sessions.subject_id",
+            subjectId
+        );
+    }
+
+    const { data, error } = await query;
+
+    if(error) throw error;
+
+    return data;
+
+}
+
+async function getDashboardSessionAttendance(
+    startDate,
+    endDate,
+    roomId = "",
+    subjectId = ""
+){
+
+    let query = supabaseClient
+        .from("attendance_sessions")
+        .select(`
+            id,
+            attendance_date,
+            open_time,
+            close_time,
+            session_status,
+            room_id,
+            subject_id,
+
+class_schedules!class_schedule_id(
+    lesson_no,
+    start_time,
+    end_time,
+
+    subject_assignments!subject_assignment_id(
+        teacher_id,
+
+        teachers!teacher_id(
+            first_name,
+            last_name,
+            nickname
+        )
+    )
+),
+
+rooms!room_id(
+    room_name
+),
+            subjects!subject_id(
+                subject_code,
+                subject_name
+            ),
+            attendance(
+                status
+            )
+        `)
+        .gte(
+            "attendance_date",
+            startDate
+        )
+        .lte(
+            "attendance_date",
+            endDate
+        )
+        .is("deleted_at", null);
+
+    if(roomId !== ""){
+        query = query.eq(
+            "room_id",
+            roomId
+        );
+    }
+
+    if(subjectId !== ""){
+        query = query.eq(
+            "subject_id",
+            subjectId
+        );
+    }
+
+    const { data, error } = await query;
+
+    if(error) throw error;
+
+    return data;
+
+}
+
 async function deleteAttendance(sessionId, studentIds) {
 
     if (studentIds.length === 0) return;
@@ -214,4 +392,61 @@ async function clearDeviceData() {
     // กลับหน้า Login
     window.location.href = "login.html";
 
+}
+async function getAttendanceByStatus(attendanceDate, roomId="", subjectId="", status){
+    let query=supabaseClient.from("attendance").select(`status,students(student_code,prefix,first_name,last_name),attendance_sessions!inner(attendance_date,room_id,subject_id)`).eq("attendance_sessions.attendance_date",attendanceDate).eq("status",status).is("deleted_at",null);
+    if(roomId!=="") query=query.eq("attendance_sessions.room_id",roomId);
+    if(subjectId!=="") query=query.eq("attendance_sessions.subject_id",subjectId);
+    const {data,error}=await query;
+    if(error) throw error;
+    return data;
+}
+// ==============================
+// Dashboard Analytics
+// ==============================
+
+async function getDashboardAnalytics(
+    startDate,
+    endDate,
+    roomId = "",
+    subjectId = ""
+){
+
+    let query = supabaseClient
+        .from("attendance_sessions")
+        .select(`
+            attendance_date,
+            room_id,
+            subject_id,
+
+            rooms!room_id(
+                room_name
+            ),
+
+            subjects!subject_id(
+                subject_code,
+                subject_name
+            ),
+
+            attendance(
+                status
+            )
+        `)
+        .gte("attendance_date", startDate)
+        .lte("attendance_date", endDate)
+        .is("deleted_at", null);
+
+    if(roomId !== ""){
+        query = query.eq("room_id", roomId);
+    }
+
+    if(subjectId !== ""){
+        query = query.eq("subject_id", subjectId);
+    }
+
+    const { data, error } = await query;
+
+    if(error) throw error;
+
+    return data;
 }
