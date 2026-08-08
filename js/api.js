@@ -393,12 +393,47 @@ async function clearDeviceData() {
     window.location.href = "login.html";
 
 }
-async function getAttendanceByStatus(attendanceDate, roomId="", subjectId="", status){
-    let query=supabaseClient.from("attendance").select(`status,students(student_code,prefix,first_name,last_name),attendance_sessions!inner(attendance_date,room_id,subject_id)`).eq("attendance_sessions.attendance_date",attendanceDate).eq("status",status).is("deleted_at",null);
-    if(roomId!=="") query=query.eq("attendance_sessions.room_id",roomId);
-    if(subjectId!=="") query=query.eq("attendance_sessions.subject_id",subjectId);
-    const {data,error}=await query;
+async function getAttendanceByStatus(startDate, endDate, roomId="", subjectId="", status){
+
+    let query = supabaseClient
+        .from("attendance")
+        .select(`
+            status,
+            students(
+                student_code,
+                prefix,
+                first_name,
+                last_name
+            ),
+            attendance_sessions!inner(
+                attendance_date,
+                room_id,
+                subject_id
+            )
+        `)
+        .gte("attendance_sessions.attendance_date", startDate)
+        .lte("attendance_sessions.attendance_date", endDate)
+        .eq("status", status)
+        .is("deleted_at", null);
+
+    if(roomId !== ""){
+        query = query.eq(
+            "attendance_sessions.room_id",
+            roomId
+        );
+    }
+
+    if(subjectId !== ""){
+        query = query.eq(
+            "attendance_sessions.subject_id",
+            subjectId
+        );
+    }
+
+    const { data, error } = await query;
+
     if(error) throw error;
+
     return data;
 }
 // ==============================

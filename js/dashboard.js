@@ -231,12 +231,53 @@ await loadDashboardSessionView(
 }
 async function showAttendanceList(status){
 
-    const attendanceDate=document.getElementById("dashboard-date").value;
-    const roomId=document.getElementById("dashboard-room").value;
-    const subjectId=document.getElementById("dashboard-subject").value;
+    const startDate = document.getElementById("dashboard-start-date").value;
+    const endDate = document.getElementById("dashboard-end-date").value;
+    const roomId = document.getElementById("dashboard-room").value;
+    const subjectId = document.getElementById("dashboard-subject").value;
 
-    const data=await getAttendanceByStatus(attendanceDate,roomId,subjectId,status);
+    const data = await getAttendanceByStatus(
+        startDate,
+        endDate,
+        roomId,
+        subjectId,
+        status
+    );
 
-    Swal.fire({title:`${status==="LATE"?"นักเรียนมาสาย":status==="PERSONAL"?"นักเรียนลากิจ":status==="SICK"?"นักเรียนลาป่วย":"นักเรียนขาด"} (${data.length} คน)`,html:`<div style="max-height:400px;overflow-y:auto;text-align:left;">${data.sort((a,b)=>a.students.student_code.localeCompare(b.students.student_code)).map(s=>`<div style="padding:8px 12px;border-bottom:1px solid #eee;">${s.students.student_code} ${s.students.prefix}${s.students.first_name} ${s.students.last_name}</div>`).join("")}</div>`,width:600});
+    const title =
+        status === "LATE" ? "นักเรียนมาสาย" :
+        status === "PERSONAL" ? "นักเรียนลากิจ" :
+        status === "SICK" ? "นักเรียนลาป่วย" :
+        "นักเรียนขาด";
+
+    const studentList = data
+        .sort((a,b) =>
+            a.students.student_code.localeCompare(
+                b.students.student_code
+            )
+        )
+        .map(s => `
+            <div style="padding:8px 12px;border-bottom:1px solid #eee;">
+                ${s.students.student_code}
+                ${s.students.prefix || ""}
+                ${s.students.first_name}
+                ${s.students.last_name}
+            </div>
+        `)
+        .join("");
+
+    Swal.fire({
+        title: `${title} (${data.length} คน)`,
+        html: `
+            <div style="
+                max-height:400px;
+                overflow-y:auto;
+                text-align:left;
+            ">
+                ${studentList || "ไม่พบข้อมูล"}
+            </div>
+        `,
+        width: 600
+    });
 }
 function updateAttendanceChart(present,late,personal,sick,absent){const ctx=document.getElementById("attendance-chart");if(window.attendanceChart)window.attendanceChart.destroy();window.attendanceChart=new Chart(ctx,{type:"doughnut",data:{labels:["มาเรียน","สาย","ลากิจ","ลาป่วย","ขาด"],datasets:[{data:[present,late,personal,sick,absent],backgroundColor:["#10b981","#f59e0b","#facc15","#8b5cf6","#991b1b"]}]},options:{responsive:true,plugins:{legend:{position:"bottom"}}}});}
