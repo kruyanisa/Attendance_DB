@@ -4,6 +4,7 @@
 
 let analyticsTrendChart = null;
 let analyticsClassChart = null;
+let analyticsSubjectChart = null;
 
 
 /* =========================================================
@@ -33,8 +34,8 @@ async function loadDashboardAnalytics(
         );
 
         renderAttendanceRate(data);
-
         renderClassComparison(data);
+        renderSubjectComparison(data);
 
     } catch(error){
 
@@ -290,7 +291,7 @@ document.getElementById(
                 </td>
 
                 <td>
-                    -
+                   -
                 </td>
 
             `;
@@ -647,6 +648,133 @@ function calculateAttendanceStats(records){
 /* =========================================================
    1. Attendance Trend
    ========================================================= */
+function buildTrendData(data,startDate,endDate){
+
+    const start=new Date(startDate+"T00:00:00");
+    const end=new Date(endDate+"T00:00:00");
+    const days=Math.round((end-start)/86400000)+1;
+
+    const daily={};
+
+    for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+        const date=formatAnalyticsDate(d);
+        const records=[];
+
+        data.forEach(session=>{
+            if(session.attendance_date===date && session.attendance){
+                records.push(...session.attendance);
+            }
+        });
+
+        if(records.length){
+            const s=calculateAttendanceStats(records);
+            daily[date]={
+                present:s.present,
+                late:s.late,
+                personal:s.personal,
+                sick:s.sick,
+                absent:s.absent,
+                rate:s.rate,
+                total:s.total
+            };
+        }
+    }
+
+    if(days<=60){
+        return {
+            mode:"daily",
+            labels:Object.keys(daily),
+            stats:Object.values(daily)
+        };
+    }
+
+    const groups={};
+
+if(days<=180){
+
+    for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+        const day=d.getDay()||7;
+        const monday=new Date(d);
+        monday.setDate(d.getDate()-day+1);
+        const key=formatAnalyticsDate(monday);
+
+        if(!groups[key]){
+            groups[key]={present:0,late:0,personal:0,sick:0,absent:0,total:0,hasData:false};
+        }
+    }
+
+}else{
+
+    for(let d=new Date(start.getFullYear(),start.getMonth(),1);
+        d<=end;
+        d.setMonth(d.getMonth()+1)){
+
+        const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+
+        groups[key]={present:0,late:0,personal:0,sick:0,absent:0,total:0,hasData:false};
+    }
+}
+
+Object.entries(daily).forEach(([date,s])=>{
+
+    const d=new Date(date+"T00:00:00");
+    let key;
+
+    if(days<=180){
+
+        const day=d.getDay()||7;
+        const monday=new Date(d);
+        monday.setDate(d.getDate()-day+1);
+        key=formatAnalyticsDate(monday);
+
+    }else{
+
+        key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    }
+
+    if(groups[key]){
+        groups[key].present+=s.present;
+        groups[key].late+=s.late;
+        groups[key].personal+=s.personal;
+        groups[key].sick+=s.sick;
+        groups[key].absent+=s.absent;
+        groups[key].total+=s.total;
+        groups[key].hasData=true;
+    }
+});
+
+const stats=Object.values(groups).map(s=>{
+
+    if(!s.hasData){
+        return {
+            present:null,
+            late:null,
+            personal:null,
+            sick:null,
+            absent:null,
+            rate:null
+        };
+    }
+
+    return {
+        present:s.present,
+        late:s.late,
+        personal:s.personal,
+        sick:s.sick,
+        absent:s.absent,
+        rate:s.total
+            ? ((s.present+s.late)/s.total)*100
+            : null
+    };
+});
+
+    return {
+        mode:days<=180?"weekly":"monthly",
+        labels:Object.keys(groups),
+        stats
+    };
+}
+
 
 function renderAttendanceTrend(
     data,
@@ -685,32 +813,9 @@ function renderAttendanceTrend(
 
     }
 
-    const rates = dates.map(date => {
-
-        const records = [];
-
-        data.forEach(session => {
-
-            if(
-                session.attendance_date === date
-            ){
-
-                if(session.attendance){
-
-                    records.push(
-                        ...session.attendance
-                    );
-
-                }
-
-            }
-
-        });
-
-        return calculateAttendanceStats(records).rate;
-
-    });
-
+    const trend=buildTrendData(data,startDate,endDate);
+const labels=trend.labels;
+const stats=trend.stats;
 
     analyticsTrendChart = new Chart(
         canvas,
@@ -719,24 +824,156 @@ function renderAttendanceTrend(
 
             data: {
 
-                labels: dates.map(
-                    date => formatShortThaiDate(date)
-                ),
+                labels:labels.map(date=>{
+    if(trend.mode==="daily")
+        return formatShortThaiDate(date);
+
+    if(trend.mode==="weekly"){
+        const d=new Date(date+"T00:00:00");
+        return `สัปดาห์ ${d.getDate()}/${d.getMonth()+1}`;
+    }
+
+    const [y,m]=date.split("-");
+    return `${m}/${Number(y)+543}`;
+}),
 
                 datasets: [
                     {
-                        label: "Attendance Rate (%)",
+    label: "มาเรียน",
 
-                        data: rates,
+        data:stats.map(item=>item.present),
 
-                        tension: 0.35,
+    yAxisID: "y",
 
-                        fill: false,
+    borderColor: "#22C55E",
+    backgroundColor: "#22C55E",
 
-                        borderWidth: 3,
+    tension: 0.35,
 
-                        pointRadius: 4
-                    }
+    fill: false,
+
+    borderWidth: 2.5,
+
+    pointRadius: 3,
+
+    pointHoverRadius: 5,
+
+    spanGaps: false
+},
+
+{
+    label: "สาย",
+
+    data:stats.map(item=>item.late),
+
+    yAxisID: "y",
+
+    borderColor: "#F97316",
+    backgroundColor: "#F97316",
+
+    tension: 0.35,
+
+    fill: false,
+
+    borderWidth: 2.5,
+
+    pointRadius: 3,
+
+    pointHoverRadius: 5,
+
+    spanGaps: false
+},
+
+{
+    label: "ลากิจ",
+
+    data:stats.map(item=>item.personal),
+
+    yAxisID: "y",
+
+    borderColor: "#EAB308",
+    backgroundColor: "#EAB308",
+
+    tension: 0.35,
+
+    fill: false,
+
+    borderWidth: 2.5,
+
+    pointRadius: 3,
+
+    pointHoverRadius: 5,
+
+    spanGaps: false
+},
+
+{
+    label: "ลาป่วย",
+
+    data:stats.map(item=>item.sick),
+
+    yAxisID: "y",
+
+    borderColor: "#8B5CF6",
+    backgroundColor: "#8B5CF6",
+
+    tension: 0.35,
+
+    fill: false,
+
+    borderWidth: 2.5,
+
+    pointRadius: 3,
+
+    pointHoverRadius: 5,
+
+    spanGaps: false
+},
+
+{
+    label: "ขาด",
+
+    data:stats.map(item=>item.absent),
+
+    yAxisID: "y",
+
+    borderColor: "#EF4444",
+    backgroundColor: "#EF4444",
+
+    tension: 0.35,
+
+    fill: false,
+
+    borderWidth: 2.5,
+
+    pointRadius: 3,
+
+    pointHoverRadius: 5,
+
+    spanGaps: false
+},
+
+{
+    label: "อัตราการเข้าเรียน",
+
+    data:stats.map(item=>item.rate),
+    yAxisID: "yRate",
+
+    borderColor: "#3B82F6",
+    backgroundColor: "#3B82F6",
+
+    tension: 0.35,
+
+    fill: false,
+
+    borderWidth: 3,
+
+    pointRadius: 3.5,
+
+    pointHoverRadius: 5,
+
+    spanGaps: false
+}
                 ]
 
             },
@@ -749,49 +986,154 @@ function renderAttendanceTrend(
 
                 scales: {
 
-                    y: {
+    /* =========================
+       X AXIS — วันที่
+       ========================= */
 
-                        beginAtZero: true,
+    x:{
+    title:{display:true,text:"วันที่"},
+    ticks:{
+        autoSkip:true,
+        maxTicksLimit:trend.mode==="daily"?14:12
+    }
+},
 
-                        max: 100,
 
-                        ticks: {
+    /* =========================
+       Y AXIS LEFT — จำนวนคน
+       ========================= */
 
-                            callback: value =>
-                                value + "%"
+    y:{
+    type:"linear",
+    position:"left",
+    beginAtZero:true,
+    title:{display:true,text:"จำนวนคน"},
+    ticks:{precision:0}
+},
 
-                        }
 
-                    }
+    /* =========================
+       Y AXIS RIGHT — %
+       ========================= */
 
-                },
+    yRate: {
+
+        type: "linear",
+
+        position: "right",
+
+        beginAtZero: true,
+
+        max: 100,
+
+        title: {
+
+            display: true,
+
+            text: "อัตราการเข้าเรียน (%)"
+
+        },
+
+        ticks: {
+
+            callback:
+                value =>
+                    value + "%"
+
+        },
+
+        grid: {
+
+            drawOnChartArea: false
+
+        }
+
+    }
+
+},
 
                 plugins: {
 
                     legend: {
-                        display: false
-                    },
+
+    display: true,
+
+    position: "bottom"
+
+},
 
                     tooltip: {
 
-                        callbacks: {
+    mode: "index",
 
-                            label: context =>
-                                ` ${context.parsed.y.toFixed(1)}%`
+    intersect: false,
 
-                        }
+    callbacks: {
 
-                    }
+        title: tooltipItems => {
 
-                }
+            if(!tooltipItems.length){
+                return "";
+            }
+
+            return tooltipItems[0].label;
+
+        },
+
+
+        label: context => {
+
+            const value =
+                context.parsed.y;
+
+
+            /* =========================
+               ไม่มีข้อมูล
+               ========================= */
+
+            if(
+                value === null ||
+                value === undefined
+            ){
+
+                return null;
+
+            }
+
+
+            /* =========================
+               Attendance Rate
+               ========================= */
+
+            if(
+                context.dataset.yAxisID ===
+                "yRate"
+            ){
+
+                return ` ${context.dataset.label}: ${value.toFixed(1)}%`;
+
+            }
+
+
+            /* =========================
+               Student Count
+               ========================= */
+
+            return ` ${context.dataset.label}: ${value} ${trend.mode==="daily"?"คน":"ครั้ง"}`;
+
+        }
+
+    }
+
+}
 
             }
 
         }
-    );
 
+    }
+);
 }
-
 
 /* =========================================================
    2. Attendance Rate
@@ -1065,7 +1407,121 @@ function renderClassComparison(data){
     }
 
 }
+/* =========================================================
+   4. Subject Comparison
+   ========================================================= */
 
+function renderSubjectComparison(data){
+
+    const canvas=document.getElementById("attendance-subject-chart");
+    if(!canvas) return;
+
+    if(analyticsSubjectChart){
+        analyticsSubjectChart.destroy();
+    }
+
+    const subjectMap={};
+
+    data.forEach(session=>{
+
+        const subject=session.subjects;
+        if(!subject) return;
+
+        const key=session.subject_id || subject.subject_code;
+
+        if(!subjectMap[key]){
+            subjectMap[key]={
+                subjectName:`${subject.subject_code} ${subject.subject_name}`,
+                records:[]
+            };
+        }
+
+        if(session.attendance){
+            subjectMap[key].records.push(...session.attendance);
+        }
+
+    });
+
+    const subjects=Object.values(subjectMap)
+        .map(subject=>{
+
+            const stats=calculateAttendanceStats(
+                subject.records
+            );
+
+            return {
+                subjectName:subject.subjectName,
+                rate:stats.rate,
+                total:stats.total
+            };
+
+        })
+        .filter(subject=>subject.total>0)
+        .sort((a,b)=>b.rate-a.rate);
+
+    analyticsSubjectChart=new Chart(canvas,{
+        type:"bar",
+
+        data:{
+            labels:subjects.map(
+                subject=>subject.subjectName
+            ),
+
+            datasets:[{
+                label:"Attendance Rate (%)",
+
+                data:subjects.map(
+                    subject=>subject.rate
+                ),
+
+                borderWidth:1
+            }]
+        },
+
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+
+            indexAxis:"y",
+
+            scales:{
+                x:{
+                    beginAtZero:true,
+                    max:100,
+
+                    title:{
+                        display:true,
+                        text:"Attendance Rate (%)"
+                    },
+
+                    ticks:{
+                        callback:value=>value+"%"
+                    }
+                },
+
+                y:{
+                    title:{
+                        display:true,
+                        text:"รายวิชา"
+                    }
+                }
+            },
+
+            plugins:{
+                legend:{
+                    display:false
+                },
+
+                tooltip:{
+                    callbacks:{
+                        label:context=>
+                            ` ${context.parsed.x.toFixed(1)}%`
+                    }
+                }
+            }
+        }
+    });
+}
 
 /* =========================================================
    Date Display

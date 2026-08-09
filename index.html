@@ -428,61 +428,51 @@
 
     <!-- Attendance Trend -->
 
-    <div class="analytics-card analytics-trend">
+<div class="analytics-card analytics-trend">
 
-        <div class="analytics-card-header">
+    <div class="analytics-card-header">
 
-            <div>
-                <h2>📈 แนวโน้มการมาเรียน</h2>
+        <div>
 
-                <p>
-                    ย้อนหลัง 7 วัน
-                </p>
-            </div>
+            <h2>📈 แนวโน้มการมาเรียน</h2>
 
-        </div>
-
-        <div class="analytics-chart-wrap">
-
-            <canvas
-                id="attendance-trend-chart">
-            </canvas>
+            <p>
+                ย้อนหลัง 7 วัน
+            </p>
 
         </div>
 
-    </div>
 
+        <!-- Attendance Rate Summary -->
 
-    <!-- Attendance Rate -->
+        <div class="analytics-trend-rate-summary">
 
-    <div class="analytics-card analytics-rate-card">
+            <span
+                id="analytics-rate"
+                class="analytics-trend-rate-value">
+                0%
+            </span>
 
-        <div class="analytics-card-header">
+            <span
+                id="analytics-rate-detail"
+                class="analytics-trend-rate-detail">
+                0 / 0 คน
+            </span>
 
-            <div>
-                <h2>📊 Attendance Rate</h2>
-
-                <p>
-                    อัตราการมาเรียน
-                </p>
-            </div>
-
-        </div>
-
-        <div
-            id="analytics-rate"
-            class="analytics-rate-value">
-            0%
-        </div>
-
-        <div
-            id="analytics-rate-detail"
-            class="analytics-rate-detail">
-            0 / 0 คน
         </div>
 
     </div>
 
+
+    <div class="analytics-chart-wrap">
+
+        <canvas
+            id="attendance-trend-chart">
+        </canvas>
+
+    </div>
+
+</div>
 
     <!-- Class Comparison -->
 
@@ -510,6 +500,29 @@
 
     </div>
 
+    <div class="analytics-card analytics-subject">
+
+    <div class="analytics-card-header">
+
+        <div>
+            <h2>📚 เปรียบเทียบรายวิชา</h2>
+
+            <p>
+                Attendance Rate ของแต่ละรายวิชา
+            </p>
+        </div>
+
+    </div>
+
+    <div class="analytics-chart-wrap analytics-subject-chart">
+
+        <canvas
+            id="attendance-subject-chart">
+        </canvas>
+
+    </div>
+
+</div>
 
     <!-- Best / Watch -->
 

@@ -674,17 +674,16 @@ select { min-width: 220px; padding: 12px 15px; border-radius: 12px; border: 1px 
 
 .analytics-trend{
 
-    grid-column:span 1;
+    grid-column:span 2;
 
 }
 
 
 .analytics-chart-wrap{
-
     position:relative;
-
     height:300px;
-
+    overflow-x:auto;
+    overflow-y:hidden;
 }
 
 
@@ -700,7 +699,13 @@ select { min-width: 220px; padding: 12px 15px; border-radius: 12px; border: 1px 
     height:360px;
 
 }
+.analytics-subject{
+    grid-column:span 2;
+}
 
+.analytics-subject-chart{
+    height:360px;
+}
 
 .analytics-rate-card{
 
@@ -839,6 +844,10 @@ select { min-width: 220px; padding: 12px 15px; border-radius: 12px; border: 1px 
         grid-column:span 1;
 
     }
+
+    .analytics-subject{
+    grid-column:span 1;
+}
 
     .analytics-summary-grid{
 
