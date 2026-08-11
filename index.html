@@ -15,28 +15,393 @@
 <body>
 
   <!-- เมนูด้านข้าง -->
-  <div class="sidebar">
-    <h3>✨ เมนูระบบ</h3>
-    <button id="menu-attendance" class="active" onclick="switchView('attendance')">📋 1. เช็คชื่อ</button>
-    <button id="menu-dashboard" onclick="switchView('dashboard')">📊 2. Dashboard</button>
-    <button id="menu-homework" onclick="switchView('homework')">📝 3. การบ้าน</button>
-    <button id="menu-qrcode" onclick="switchView('qrcode')">🔲 4. QR Code</button>
-    <button id="menu-portal" onclick="switchView('portal')">🌐 5. ศูนย์รวมระบบ</button>
-    <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
-    <button id="menu-settings" onclick="switchView('settings')">⚙️ ตั้งค่าระบบ</button>
-    
-    <hr>
-    <small style="color: #ccc; display: block; text-align: center; margin-bottom: 10px;">เมนูใหม่ (เร็วๆ นี้)</small>
-    <button id="menu-guidance" onclick="switchView('guidance')">🧭 งานแนะแนว</button>
-    <button id="menu-study" onclick="switchView('study')">🎓 ศึกษาต่อ</button>
-    <button id="menu-scholarship" onclick="switchView('scholarship')">💰 รับทุน</button>
-    <button id="menu-pdf" onclick="switchView('pdf')">📄 โหลดรายงาน PDF</button>
+  <div class="sidebar" id="main-sidebar">
 
-    <hr>
+    <div class="sidebar-header">
+        <h3>✨ เมนูระบบ</h3>
+    </div>
 
-    <button id="logout-btn" onclick="logout()">🚪 ออกจากระบบ</button>
+    <nav class="sidebar-nav">
 
-  </div>
+        <!-- ภาพรวม -->
+        <button
+            id="menu-dashboard"
+            class="menu-btn"
+            onclick="switchView('dashboard')"
+        >
+            <span class="menu-icon">🏠</span>
+            <span class="menu-text">ภาพรวม</span>
+        </button>
+
+
+        <!-- การเรียนการสอน -->
+        <div class="nav-group" id="nav-group-teaching">
+
+            <button
+                type="button"
+                class="nav-group-btn"
+                onclick="toggleNavGroup('teaching')"
+            >
+                <span class="menu-icon">📚</span>
+                <span class="menu-text">การเรียนการสอน</span>
+                <span class="nav-arrow">▼</span>
+            </button>
+
+            <div
+                class="nav-submenu"
+                id="nav-submenu-teaching"
+            >
+
+                <button
+                    id="menu-attendance"
+                    class="menu-btn submenu-btn active"
+                    onclick="switchView('attendance')"
+                >
+                    <span class="menu-icon">📝</span>
+                    <span class="menu-text">เช็คชื่อ</span>
+                </button>
+
+                <button
+                    id="menu-schedule"
+                    class="menu-btn submenu-btn"
+                    onclick="switchView('schedule')"
+                >
+                    <span class="menu-icon">📅</span>
+                    <span class="menu-text">ตารางสอน</span>
+                </button>
+
+                <button
+                    id="menu-homework"
+                    class="menu-btn submenu-btn"
+                    onclick="switchView('homework')"
+                >
+                    <span class="menu-icon">📚</span>
+                    <span class="menu-text">การบ้าน</span>
+                </button>
+
+            </div>
+        </div>
+
+
+        <!-- นักเรียน -->
+        <div class="nav-group" id="nav-group-students">
+
+            <button
+                type="button"
+                class="nav-group-btn"
+                onclick="toggleNavGroup('students')"
+            >
+                <span class="menu-icon">👨‍🎓</span>
+                <span class="menu-text">นักเรียน</span>
+                <span class="nav-arrow">▼</span>
+            </button>
+
+            <div
+                class="nav-submenu"
+                id="nav-submenu-students"
+            >
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('รายชื่อนักเรียน')"
+                >
+                    <span class="menu-icon">👥</span>
+                    <span class="menu-text">รายชื่อนักเรียน</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('ห้องเรียน')"
+                >
+                    <span class="menu-icon">🏫</span>
+                    <span class="menu-text">ห้องเรียน</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('นำเข้าข้อมูล')"
+                >
+                    <span class="menu-icon">📥</span>
+                    <span class="menu-text">นำเข้าข้อมูล</span>
+                </button>
+
+                <button
+                    id="menu-qrcode"
+                    class="menu-btn submenu-btn"
+                    onclick="switchView('qrcode')"
+                >
+                    <span class="menu-icon">▣</span>
+                    <span class="menu-text">QR Code</span>
+                </button>
+
+            </div>
+        </div>
+
+
+        <!-- บุคลากร -->
+        <div class="nav-group" id="nav-group-staff">
+
+            <button
+                type="button"
+                class="nav-group-btn"
+                onclick="toggleNavGroup('staff')"
+            >
+                <span class="menu-icon">👨‍🏫</span>
+                <span class="menu-text">บุคลากร</span>
+                <span class="nav-arrow">▼</span>
+            </button>
+
+            <div
+                class="nav-submenu"
+                id="nav-submenu-staff"
+            >
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('ครู')"
+                >
+                    <span class="menu-icon">👨‍🏫</span>
+                    <span class="menu-text">ครู</span>
+                </button>
+
+            </div>
+        </div>
+
+
+        <!-- รายงาน -->
+        <div class="nav-group" id="nav-group-reports">
+
+            <button
+                type="button"
+                class="nav-group-btn"
+                onclick="toggleNavGroup('reports')"
+            >
+                <span class="menu-icon">📊</span>
+                <span class="menu-text">รายงาน</span>
+                <span class="nav-arrow">▼</span>
+            </button>
+
+            <div
+                class="nav-submenu"
+                id="nav-submenu-reports"
+            >
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('การเข้าเรียน')"
+                >
+                    <span class="menu-icon">📋</span>
+                    <span class="menu-text">การเข้าเรียน</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('นักเรียน')"
+                >
+                    <span class="menu-icon">👨‍🎓</span>
+                    <span class="menu-text">นักเรียน</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('ห้องเรียน')"
+                >
+                    <span class="menu-icon">🏫</span>
+                    <span class="menu-text">ห้องเรียน</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('วิชา / ครู')"
+                >
+                    <span class="menu-icon">📚</span>
+                    <span class="menu-text">วิชา / ครู</span>
+                </button>
+
+            </div>
+        </div>
+
+
+        <!-- ศูนย์รวมระบบ -->
+        <button
+            id="menu-portal"
+            class="menu-btn"
+            onclick="switchView('portal')"
+        >
+            <span class="menu-icon">🌐</span>
+            <span class="menu-text">ศูนย์รวมระบบ</span>
+        </button>
+
+
+        <!-- ตั้งค่าระบบ -->
+        <div class="nav-group" id="nav-group-settings">
+
+            <button
+                type="button"
+                class="nav-group-btn"
+                onclick="toggleNavGroup('settings')"
+            >
+                <span class="menu-icon">⚙️</span>
+                <span class="menu-text">ตั้งค่าระบบ</span>
+                <span class="nav-arrow">▼</span>
+            </button>
+
+            <div
+                class="nav-submenu"
+                id="nav-submenu-settings"
+            >
+
+                <button
+                    id="menu-settings"
+                    class="menu-btn submenu-btn"
+                    onclick="switchView('settings')"
+                >
+                    <span class="menu-icon">👤</span>
+                    <span class="menu-text">ข้อมูลผู้ใช้</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('ผู้ใช้งานและบัญชี')"
+                >
+                    <span class="menu-icon">👥</span>
+                    <span class="menu-text">ผู้ใช้งานและบัญชี</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('บทบาท / สิทธิ์')"
+                >
+                    <span class="menu-icon">🔐</span>
+                    <span class="menu-text">บทบาท / สิทธิ์</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('ปีการศึกษา / ภาคเรียน')"
+                >
+                    <span class="menu-icon">📅</span>
+                    <span class="menu-text">ปีการศึกษา / ภาคเรียน</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('วิชา')"
+                >
+                    <span class="menu-icon">📚</span>
+                    <span class="menu-text">วิชา</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('การมอบหมายการสอน')"
+                >
+                    <span class="menu-icon">👨‍🏫</span>
+                    <span class="menu-text">การมอบหมายการสอน</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('ห้องสอน')"
+                >
+                    <span class="menu-icon">🏫</span>
+                    <span class="menu-text">ห้องสอน</span>
+                </button>
+
+                <button
+                    class="menu-btn submenu-btn"
+                    onclick="showNavigationPlaceholder('ตั้งค่าระบบ')"
+                >
+                    <span class="menu-icon">⚙️</span>
+                    <span class="menu-text">ตั้งค่าระบบ</span>
+                </button>
+
+            </div>
+        </div>
+
+    </nav>
+
+
+    <!-- เมนูด้านล่าง -->
+    <div class="sidebar-bottom">
+
+        <button
+            id="theme-toggle"
+            class="menu-btn"
+            onclick="toggleTheme()"
+        >
+            <span class="menu-icon">🌙</span>
+            <span class="menu-text">Dark Mode</span>
+        </button>
+
+        <div class="nav-group" id="nav-group-services">
+
+            <button
+                type="button"
+                class="nav-group-btn"
+                onclick="toggleNavGroup('services')"
+            >
+                <span class="menu-icon">✨</span>
+                <span class="menu-text">บริการเสริม</span>
+                <span class="nav-arrow">▼</span>
+            </button>
+
+            <div
+                class="nav-submenu"
+                id="nav-submenu-services"
+            >
+
+                <button
+                    id="menu-guidance"
+                    class="menu-btn submenu-btn"
+                    onclick="switchView('guidance')"
+                >
+                    <span class="menu-icon">🧭</span>
+                    <span class="menu-text">งานแนะแนว</span>
+                </button>
+
+                <button
+                    id="menu-study"
+                    class="menu-btn submenu-btn"
+                    onclick="switchView('study')"
+                >
+                    <span class="menu-icon">🎓</span>
+                    <span class="menu-text">ศึกษาต่อ</span>
+                </button>
+
+                <button
+                    id="menu-scholarship"
+                    class="menu-btn submenu-btn"
+                    onclick="switchView('scholarship')"
+                >
+                    <span class="menu-icon">💰</span>
+                    <span class="menu-text">รับทุน</span>
+                </button>
+
+            </div>
+        </div>
+
+        <button
+            id="menu-pdf"
+            class="menu-btn"
+            onclick="switchView('pdf')"
+        >
+            <span class="menu-icon">📄</span>
+            <span class="menu-text">รายงาน PDF</span>
+        </button>
+
+        <button
+            id="logout-btn"
+            class="menu-btn logout-btn"
+            onclick="logout()"
+        >
+            <span class="menu-icon">🚪</span>
+            <span class="menu-text">ออกจากระบบ</span>
+        </button>
+
+    </div>
+
+</div>
   
   <!-- พื้นที่แสดงเนื้อหา -->
   <div class="content">
@@ -179,7 +544,97 @@
 
 </div>
 
+<!-- ===========================
+     SCHEDULE VIEW
+     =========================== -->
+<div id="view-schedule" style="display:none;">
+
+    <div class="schedule-page">
+
+        <!-- Schedule Header -->
+        <div class="schedule-header">
+
+            <div class="schedule-header-title">
+
+                <div class="schedule-header-icon">
+                    📅
+                </div>
+
+                <div>
+                    <h1>ตารางสอน</h1>
+                    <p>จัดการและดูตารางเรียนของคุณ</p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Schedule Tabs -->
+        <div class="schedule-tabs">
+
+            <button
+                type="button"
+                class="schedule-tab active"
+                data-schedule-tab="timetable"
+                onclick="switchScheduleTab('timetable')"
+            >
+                📅 ตารางเรียน
+            </button>
+
+            <button
+                type="button"
+                class="schedule-tab"
+                data-schedule-tab="manage"
+                onclick="switchScheduleTab('manage')"
+            >
+                🗂️ จัดการตาราง
+            </button>
+
+            <button
+                type="button"
+                class="schedule-tab"
+                data-schedule-tab="groups"
+                onclick="switchScheduleTab('groups')"
+            >
+                👥 กลุ่มการสอน
+            </button>
+
+        </div>
+
+
+        <!-- Schedule Content -->
+        <div
+            id="schedule-content"
+            class="schedule-content"
+        >
+
+            <div class="schedule-empty-state">
+
+                <div class="schedule-empty-icon">
+                    📅
+                </div>
+
+                <h2>ตารางเรียน</h2>
+
+                <p>
+                    ตารางสอนของคุณจะแสดงที่นี่
+                </p>
+
+                <span class="schedule-status-badge">
+                    เตรียมเชื่อมต่อข้อมูล
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
 <div id="view-dashboard" style="display:none;">
+
 
     <div class="dashboard-header">
 
@@ -723,7 +1178,54 @@
     <div id="view-study" style="display:none;"><h2 style="color: #333;">ระบบการศึกษาต่อ</h2></div>
     <div id="view-scholarship" style="display:none;"><h2 style="color: #333;">ระบบการรับทุนการศึกษา</h2></div>
     <div id="view-pdf" style="display:none;"><h2 style="color: #333;">ดาวน์โหลดรายงาน PDF</h2></div>
-  </div>
+  
+    <!-- ========================================= -->
+<!-- Navigation Placeholder -->
+<!-- ========================================= -->
+
+<div id="view-navigation-placeholder"
+     class="navigation-placeholder"
+     style="display:none;">
+
+    <div class="page-header">
+
+        <div>
+            <h1 id="navigation-placeholder-title">
+                🚧 กำลังพัฒนา
+            </h1>
+
+            <p id="navigation-placeholder-subtitle">
+                ฟังก์ชันนี้กำลังเตรียมพัฒนา
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="glass-card navigation-placeholder-card">
+
+        <div class="navigation-placeholder-icon">
+            🚧
+        </div>
+
+        <h2 id="navigation-placeholder-heading">
+            ฟังก์ชันนี้กำลังพัฒนา
+        </h2>
+
+        <p id="navigation-placeholder-description">
+            ระบบส่วนนี้อยู่ในแผนการพัฒนา
+            และจะเปิดใช้งานในลำดับถัดไป
+        </p>
+
+        <div class="navigation-placeholder-status">
+            <span>ROADMAP</span>
+        </div>
+
+    </div>
+
+</div>
+
+</div>
 
   <!-- โหลด JavaScript ของเรา (ต้องอยู่ด้านล่างสุด) -->
   <!-- Supabase -->

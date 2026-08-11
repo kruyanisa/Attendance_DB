@@ -485,3 +485,346 @@ async function getDashboardAnalytics(
 
     return data;
 }
+
+// ============================================================
+// Class Schedule
+// STEP 5B.7.2 — Read Schedule + Teaching Room
+// ============================================================
+
+async function getClassSchedules() {
+
+    const { data, error } = await supabaseClient
+        .from("class_schedules")
+        .select(`
+            id,
+            subject_assignment_id,
+            weekday,
+            lesson_no,
+            start_time,
+            end_time,
+            valid_from,
+            valid_until,
+            schedule_group_id,
+            teaching_room_id,
+
+            teaching_rooms!teaching_room_id(
+                room_code,
+                room_name
+            ),
+
+            subject_assignments!subject_assignment_id(
+                teacher_id,
+                subject_id,
+                room_id,
+
+                teachers!teacher_id(
+                    first_name,
+                    last_name,
+                    nickname
+                ),
+
+                subjects!subject_id(
+                    subject_code,
+                    subject_name
+                ),
+
+                rooms!room_id(
+                    room_name
+                )
+            )
+        `)
+        .order("weekday", { ascending: true })
+        .order("lesson_no", { ascending: true });
+
+    if (error) throw error;
+
+    return data;
+}
+// ============================================================
+// Class Schedule
+// STEP 5B.8.10A — Create Schedule
+// ============================================================
+
+async function createClassSchedule(scheduleData) {
+
+    const { data, error } = await supabaseClient
+        .from("class_schedules")
+        .insert({
+            subject_assignment_id:
+                scheduleData.subjectAssignmentId,
+
+            weekday:
+                scheduleData.weekday,
+
+            lesson_no:
+                scheduleData.lessonNo,
+
+            start_time:
+                scheduleData.startTime,
+
+            end_time:
+                scheduleData.endTime,
+
+            valid_from:
+                scheduleData.validFrom,
+
+            valid_until:
+                scheduleData.validUntil || null,
+
+            schedule_group_id:
+                scheduleData.scheduleGroupId || null,
+
+            teaching_room_id:
+                scheduleData.teachingRoomId
+        })
+        .select()
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
+// ============================================================
+// SUBJECT ASSIGNMENT
+// STEP 17 — Get or Create Subject Assignment
+// ============================================================
+
+async function getOrCreateSubjectAssignment({
+    teacherId,
+    subjectId,
+    roomId,
+    academicYearId,
+    semesterId
+}) {
+
+    // --------------------------------------------------------
+    // 1. ตรวจข้อมูล
+    // --------------------------------------------------------
+
+    if (
+        !teacherId ||
+        !subjectId ||
+        !roomId ||
+        !academicYearId ||
+        !semesterId
+    ) {
+
+        throw new Error(
+            "ข้อมูลสำหรับสร้างกลุ่มการสอนไม่ครบ"
+        );
+
+    }
+
+
+    // --------------------------------------------------------
+    // 2. ค้นหา Subject Assignment เดิม
+    // --------------------------------------------------------
+
+    const {
+        data: existingAssignment,
+        error: findError
+    } = await supabaseClient
+
+        .from("subject_assignments")
+
+        .select("*")
+
+        .eq(
+            "teacher_id",
+            teacherId
+        )
+
+        .eq(
+            "subject_id",
+            subjectId
+        )
+
+        .eq(
+            "room_id",
+            roomId
+        )
+
+        .eq(
+            "academic_year_id",
+            academicYearId
+        )
+
+        .eq(
+            "semester_id",
+            semesterId
+        )
+
+        .maybeSingle();
+
+
+    if (findError) {
+        throw findError;
+    }
+
+
+    // --------------------------------------------------------
+    // 3. ถ้ามีอยู่แล้ว → ใช้ของเดิม
+    // --------------------------------------------------------
+
+    if (existingAssignment) {
+
+        return existingAssignment;
+
+    }
+
+
+    // --------------------------------------------------------
+    // 4. ยังไม่มี → สร้างใหม่
+    // --------------------------------------------------------
+
+    const {
+        data: newAssignment,
+        error: createError
+    } = await supabaseClient
+
+        .from("subject_assignments")
+
+        .insert({
+
+            teacher_id:
+                teacherId,
+
+            subject_id:
+                subjectId,
+
+            room_id:
+                roomId,
+
+            academic_year_id:
+                academicYearId,
+
+            semester_id:
+                semesterId
+
+        })
+
+        .select()
+
+        .single();
+
+
+    if (createError) {
+        throw createError;
+    }
+
+
+    // --------------------------------------------------------
+    // 5. คืน Assignment ที่สร้าง
+    // --------------------------------------------------------
+
+    return newAssignment;
+
+}
+
+async function updateClassSchedule(scheduleId, scheduleData) {
+
+    const { data, error } = await supabaseClient
+        .from("class_schedules")
+        .update({
+            subject_assignment_id:
+                scheduleData.subjectAssignmentId,
+
+            weekday:
+                scheduleData.weekday,
+
+            lesson_no:
+                scheduleData.lessonNo,
+
+            start_time:
+                scheduleData.startTime,
+
+            end_time:
+                scheduleData.endTime,
+
+            valid_from:
+                scheduleData.validFrom,
+
+            valid_until:
+                scheduleData.validUntil || null,
+
+            schedule_group_id:
+                scheduleData.scheduleGroupId || null,
+
+            teaching_room_id:
+                scheduleData.teachingRoomId
+        })
+        .eq(
+            "id",
+            scheduleId
+        )
+        .select()
+        .single();
+
+
+    if (error) {
+
+        throw error;
+
+    }
+
+
+    return data;
+}
+
+async function deleteClassSchedule(scheduleId) {
+
+    const { error } = await supabaseClient
+        .from("class_schedules")
+        .delete()
+        .eq(
+            "id",
+            scheduleId
+        );
+
+
+    if (error) {
+
+        throw error;
+
+    }
+
+
+    return true;
+}
+// ============================================================
+// DELETE SCHEDULE GROUP
+// STEP 3 — Delete all schedules in one Card
+// ============================================================
+
+async function deleteClassScheduleGroup(scheduleGroupId) {
+
+    if (!scheduleGroupId) {
+        throw new Error(
+            "ไม่พบ Schedule Group ID"
+        );
+    }
+
+
+    const { error } =
+        await supabaseClient
+
+            .from("class_schedules")
+
+            .delete()
+
+            .eq(
+                "schedule_group_id",
+                scheduleGroupId
+            );
+
+
+    if (error) {
+        throw error;
+    }
+
+
+    return true;
+}
