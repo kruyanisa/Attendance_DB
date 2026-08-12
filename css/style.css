@@ -2371,3 +2371,155 @@ body.dark-mode .schedule-status-badge {
     }
 
 }
+/* ============================================================
+   ATTENDANCE SCHEDULE AREA
+   UI ONLY — ไม่แตะ Attendance Logic
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Schedule Info Card
+   ------------------------------------------------------------ */
+
+#attendance-schedule-info {
+    order: 10;
+
+    flex: 0 0 100%;
+    width: 100%;
+    min-height: 145px;
+
+    box-sizing: border-box;
+
+    margin: 8px 0 0 0;
+    padding: 18px 22px;
+
+    border: 2px solid #2563eb;
+    border-radius: 16px;
+
+    background: linear-gradient(
+        135deg,
+        #eff6ff 0%,
+        #ffffff 100%
+    );
+
+    box-shadow:
+        0 6px 18px rgba(37, 99, 235, 0.10);
+
+    color: #1e293b;
+
+    display: block !important;
+}
+
+
+/* ------------------------------------------------------------
+   หัวข้อ Card
+   ------------------------------------------------------------ */
+
+#attendance-schedule-info::before {
+    content: "📚  รายละเอียดคาบเรียน";
+
+    display: block;
+
+    margin-bottom: 10px;
+
+    font-size: 17px;
+    font-weight: 700;
+
+    color: #1d4ed8;
+}
+
+
+/* ------------------------------------------------------------
+   รายละเอียดด้านใน
+   ------------------------------------------------------------ */
+
+#attendance-schedule-details {
+    font-size: 15px;
+    line-height: 1.65;
+}
+
+
+/* ------------------------------------------------------------
+   ถ้ายังไม่มีข้อมูล
+   ------------------------------------------------------------ */
+
+#attendance-schedule-details:empty::before {
+    content: "ยังไม่มีข้อมูลคาบเรียน กรุณาเลือกคาบเรียนก่อน";
+
+    display: block;
+
+    padding: 8px 0;
+
+    color: #64748b;
+    font-size: 14px;
+}
+
+
+/* ------------------------------------------------------------
+   ข้อมูลคาบ
+   ------------------------------------------------------------ */
+
+#attendance-schedule-details > div {
+    margin-bottom: 5px;
+}
+
+#attendance-schedule-details > div:first-child {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+
+/* ------------------------------------------------------------
+   ปุ่มโหลด / QR
+   ให้เป็นแถวเดียวกัน ตำแหน่งคงที่
+   ------------------------------------------------------------ */
+
+#load-btn {
+    order: 20;
+
+    flex: 0 0 auto;
+
+    width: 170px;
+    min-width: 170px;
+}
+
+#scan-btn {
+    order: 21;
+
+    flex: 0 0 auto;
+
+    width: 190px;
+    min-width: 190px;
+}
+
+
+/* ------------------------------------------------------------
+   ป้องกันปุ่มถูกยืดจาก Layout
+   ------------------------------------------------------------ */
+
+#load-btn,
+#scan-btn {
+    box-sizing: border-box;
+    margin-top: 4px;
+}
+
+
+/* ------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------ */
+
+@media (max-width: 768px) {
+
+    #attendance-schedule-info {
+        flex-basis: 100%;
+        width: 100%;
+        min-width: 0;
+    }
+
+    #load-btn,
+    #scan-btn {
+        width: 100%;
+        min-width: 0;
+    }
+
+}

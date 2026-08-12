@@ -333,6 +333,287 @@ async function logout() {
 
 }
 
+// ============================================================
+// CURRENT TEACHER CONTEXT
+// STEP 4.1 — Identity Foundation
+// ============================================================
+
+async function getCurrentTeacherContext() {
+
+    // 1. ตรวจสอบ Supabase Auth User ปัจจุบัน
+    const {
+        data: { user },
+        error: authError
+    } = await supabaseClient.auth.getUser();
+
+    if (authError) {
+        throw authError;
+    }
+
+    if (!user) {
+        throw new Error("No authenticated user.");
+    }
+
+
+    // 2. หา Teacher จาก Auth User
+    const { data: teacher, error: teacherError } =
+        await supabaseClient
+            .from("teachers")
+            .select(`
+                id,
+                profile_id,
+                first_name,
+                last_name,
+                nickname,
+
+                profile:profiles(
+                    role:roles(
+                        name
+                    )
+                )
+            `)
+            .eq("profile_id", user.id)
+            .single();
+
+    if (teacherError) {
+        throw teacherError;
+    }
+
+    if (!teacher) {
+        throw new Error(
+            "Teacher profile not found for authenticated user."
+        );
+    }
+
+
+    // 3. สร้าง Current Teacher Context
+    return {
+
+        authUserId:
+            user.id,
+
+        teacherId:
+            teacher.id,
+
+        role:
+            teacher.profile?.role?.name || "",
+
+        firstName:
+            teacher.first_name || "",
+
+        lastName:
+            teacher.last_name || "",
+
+        nickname:
+            teacher.nickname || "",
+
+        email:
+            user.email || ""
+    };
+}
+
+// ============================================================
+// ATTENDANCE SCHEDULE ADAPTER
+// STEP 4.3A — Load Teacher Schedules for Attendance
+// ============================================================
+
+async function getAttendanceSchedules(date) {
+
+    if (!date) {
+        throw new Error("Attendance schedule date is required.");
+    }
+const dateObject =
+    new Date(`${date}T00:00:00`);
+
+const weekday =
+    dateObject.getDay();
+
+    // ============================================
+    // 1. Current Teacher Context
+    // ============================================
+
+    const context =
+        await getCurrentTeacherContext();
+
+    const isAdmin =
+        context.role === "Admin";
+
+    const teacherId =
+        context.teacherId;
+
+
+    // ============================================
+    // 2. หา Schedule ของครูในวันที่เลือก
+    // ============================================
+
+    let query =
+    supabaseClient
+        .from("class_schedules")
+        .select(`
+            id,
+            weekday,
+            lesson_no,
+            start_time,
+            end_time,
+            valid_from,
+            valid_until,
+            schedule_group_id,
+            teaching_room_id,
+
+            teaching_rooms!teaching_room_id(
+                room_code,
+                room_name
+            ),
+
+            subject_assignments!subject_assignment_id!inner(
+                id,
+                teacher_id,
+                subject_id,
+                room_id,
+
+                subjects!subject_id(
+                    subject_code,
+                    subject_name
+                ),
+
+                rooms!room_id(
+                    room_name
+                ),
+
+                teachers!teacher_id(
+                    first_name,
+                    last_name,
+                    nickname
+                )
+            )
+        `)
+        .eq(
+            "weekday",
+            weekday
+        )
+        .lte(
+            "valid_from",
+            date
+        )
+        .or(
+            `valid_until.is.null,valid_until.gte.${date}`
+        );
+
+
+// ============================================
+// Teacher Scope
+// Admin → ทุกครู
+// Teacher → เฉพาะตารางของตัวเอง
+// ============================================
+
+if (!isAdmin) {
+
+    query = query.eq(
+        "subject_assignments.teacher_id",
+        teacherId
+    );
+
+}
+
+
+const { data, error } =
+    await query.order(
+        "lesson_no",
+        { ascending: true }
+    );
+
+    if (error) {
+        throw error;
+    }
+
+
+    // ============================================
+    // 3. แปลงข้อมูลให้ Attendance ใช้ง่าย
+    // ============================================
+
+    return (data || []).map(schedule => {
+
+        const assignment =
+            schedule.subject_assignments || {};
+
+        const subject =
+            assignment.subjects || {};
+
+        const room =
+            assignment.rooms || {};
+
+        const teacher =
+            assignment.teachers || {};
+
+        const teachingRoom =
+            schedule.teaching_rooms || {};
+
+        const teacherName = [
+            teacher.first_name,
+            teacher.last_name
+        ]
+            .filter(Boolean)
+            .join(" ");
+
+
+        return {
+
+            scheduleId:
+                schedule.id,
+
+            scheduleGroupId:
+                schedule.schedule_group_id,
+
+            subjectAssignmentId:
+                schedule.subject_assignments
+                    ? schedule.subject_assignments.id
+                    : null,
+
+            lessonNo:
+                schedule.lesson_no,
+
+            startTime:
+                schedule.start_time,
+
+            endTime:
+                schedule.end_time,
+
+            validFrom:
+                schedule.valid_from,
+
+            validUntil:
+                schedule.valid_until,
+
+            roomId:
+                assignment.room_id || "",
+
+            className:
+                room.room_name || "",
+
+            subjectId:
+                assignment.subject_id || "",
+
+            subjectCode:
+                subject.subject_code || "",
+
+            subjectName:
+                subject.subject_name || "",
+
+            teacherId:
+                assignment.teacher_id || "",
+
+            teacherName:
+                teacherName,
+
+            teachingRoomId:
+                schedule.teaching_room_id || "",
+
+            teachingRoom:
+                teachingRoom.room_name || ""
+        };
+    });
+}
+
 async function loadProfile() {
 
     // ดึง User ที่ Login อยู่

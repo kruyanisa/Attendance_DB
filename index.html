@@ -451,37 +451,97 @@
 
   <div class="glass-card">
 
-      <div class="header-controls">
+    <div class="header-controls">
 
-    <input type="date" id="attendance-date">
+        <!-- วันที่เช็คชื่อ -->
+        <div class="attendance-filter-group">
+            <label for="attendance-date">
+                📅 วันที่
+            </label>
 
-    <select id="room-filter" class="room-selector">
-        <option value="">กำลังโหลดชั้นเรียน...</option>
-    </select>
+            <input
+                type="date"
+                id="attendance-date">
+        </div>
 
-    <select id="subject-dropdown">
-        <option value="">กำลังโหลดวิชา...</option>
-    </select>
 
-    <button
-        class="btn"
-        id="load-btn"
-        onclick="filterAndLoad()"
-        disabled>
-        🔄 โหลดรายชื่อ
-    </button>
+        <!-- คาบเรียน -->
+        <div class="attendance-filter-group">
+            <label for="attendance-schedule">
+                📚 คาบเรียน
+            </label>
 
-    <button
-        class="btn"
-        id="scan-btn"
-        onclick="openScanner()"
-        style="display:none;background:#f59e0b;">
-        📷 สแกน QR / ปืนยิง
-    </button>
+            <select id="attendance-schedule">
+                <option value="">
+                    กำลังโหลดคาบเรียน...
+                </option>
+            </select>
+        </div>
+
+
+        <!-- ชั้นเรียน -->
+        <div
+            class="attendance-filter-group"
+            id="attendance-class-group"
+            style="display:none;">
+
+            <label for="attendance-class">
+                🏫 ชั้นเรียน
+            </label>
+
+            <select id="attendance-class">
+                <option value="">
+                    -- เลือกชั้นเรียน --
+                </option>
+            </select>
+
+        </div>
+
+
+        <!-- รายละเอียดคาบ -->
+        <div
+            id="attendance-schedule-info"
+            class="attendance-schedule-info"
+            style="display:none;">
+
+            <div class="attendance-schedule-info-title">
+                📚 รายละเอียดคาบเรียน
+            </div>
+
+            <div
+                id="attendance-schedule-details"
+                class="attendance-schedule-details">
+            </div>
+
+        </div>
+
+
+        <!-- โหลดรายชื่อ -->
+        <button
+            class="btn"
+            id="load-btn"
+            onclick="filterAndLoad()"
+            disabled>
+
+            🔄 โหลดรายชื่อ
+
+        </button>
+
+
+        <!-- Scanner -->
+        <button
+            class="btn"
+            id="scan-btn"
+            onclick="openScanner()"
+            style="display:none;background:#f59e0b;">
+
+            📷 สแกน QR / ปืนยิง
+
+        </button>
+
+    </div>
 
 </div>
-
-  </div>
 
   <table id="student-table" style="display:none;">
 

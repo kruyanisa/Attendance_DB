@@ -1,146 +1,1166 @@
 let displayedStudents = [];
 
 async function initSystem() {
+
     Swal.fire({
         title: 'กำลังโหลดข้อมูล...',
         allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
+        didOpen: () => {
+            Swal.showLoading();
+        }
     });
 
     try {
-        // ตั้งค่าวันที่เป็นวันนี้
-document.getElementById("attendance-date").value =
-    new Date().toISOString().split("T")[0];
-        const [rooms, subjects] = await Promise.all([
-            getRooms(),
-            getSubjects()
-        ]);
-        
-        const roomFilter = document.getElementById('room-filter');
-        roomFilter.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>';
-        
-        const roomFragment = document.createDocumentFragment();
-        rooms.forEach(room => {
-            const option = document.createElement('option');
-            option.value = room.id;
-            option.textContent = room.room_name;
-            roomFragment.appendChild(option);
-        });
-        roomFilter.appendChild(roomFragment);
-        const qrRoom=document.getElementById("qr-room-filter");
 
-if(qrRoom){
+        // ============================================
+        // 1. ตั้งค่าวันที่เป็นวันนี้
+        // ============================================
 
-    qrRoom.innerHTML='<option value="">-- เลือกห้องเรียน --</option>';
+        const attendanceDate =
+            new Date().toISOString().split("T")[0];
 
-    rooms.forEach(room=>{
+        document.getElementById("attendance-date").value =
+            attendanceDate;
 
-        const option=document.createElement("option");
+        // ============================================
+        // 2. โหลดข้อมูลที่ยังจำเป็น
+        //    - Schedule สำหรับ Attendance
+        //    - Rooms สำหรับ QR
+        // ============================================
 
-        option.value=room.id;
+        const [schedules, rooms] =
+            await Promise.all([
+                getAttendanceSchedules(attendanceDate),
+                getRooms()
+            ]);
 
-        option.textContent=room.room_name;
+        // ============================================
+        // 3. เตรียม Schedule สำหรับเลือกคาบ
+        // ============================================
 
-        qrRoom.appendChild(option);
+        const scheduleSelect =
+            document.getElementById(
+                "attendance-schedule"
+            );
+
+        scheduleSelect.onchange =
+    handleAttendanceScheduleChange;
+
+        const classSelect =
+       document.getElementById(
+        "attendance-class"
+    );
+
+        classSelect.onchange =
+    handleAttendanceClassChange;
+
+    // ============================================
+// Reload Schedule เมื่อเปลี่ยนวันที่
+// ============================================
+
+document.getElementById("attendance-date")
+    .addEventListener("change", async function () {
+
+        const newDate = this.value;
+
+        if (!newDate) {
+            return;
+        }
+
+        try {
+
+            Swal.fire({
+                title: "กำลังโหลดตารางสอน...",
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // --------------------------------------------
+            // โหลด Schedule ของวันที่ใหม่
+            // --------------------------------------------
+
+            const schedules =
+                await getAttendanceSchedules(newDate);
+
+            // --------------------------------------------
+            // เก็บ Schedule ใหม่
+            // --------------------------------------------
+
+            window.attendanceSchedules =
+                schedules || [];
+
+            // --------------------------------------------
+            // ล้าง Schedule ที่เลือกไว้เดิม
+            // --------------------------------------------
+
+            window.selectedAttendanceSchedule =
+                null;
+// ============================================
+// ล้าง Attendance เดิมเมื่อเปลี่ยนวันที่
+// ============================================
+
+displayedStudents = [];
+
+attendanceCompleted = false;
+
+// ล้างตารางนักเรียน
+const tbody =
+    document.getElementById("student-body");
+
+if (tbody) {
+    tbody.innerHTML = "";
+}
+
+// ซ่อนตาราง
+const studentTable =
+    document.getElementById("student-table");
+
+if (studentTable) {
+    studentTable.style.display = "none";
+}
+
+// ซ่อนปุ่มบันทึก
+const saveButton =
+    document.getElementById("save-btn");
+
+if (saveButton) {
+    saveButton.style.display = "none";
+}
+
+// ซ่อนปุ่ม Scanner
+const scanButton =
+    document.getElementById("scan-btn");
+
+if (scanButton) {
+    scanButton.style.display = "none";
+}
+            // --------------------------------------------
+            // Reset คาบ
+            // --------------------------------------------
+
+            scheduleSelect.innerHTML =
+                '<option value="">-- เลือกคาบเรียน --</option>';
+
+            // --------------------------------------------
+            // Reset ชั้นเรียน
+            // --------------------------------------------
+
+            classSelect.innerHTML =
+                '<option value="">-- เลือกชั้นเรียน --</option>';
+
+            // --------------------------------------------
+// Reset รายละเอียดคาบ
+// --------------------------------------------
+
+document.getElementById(
+    "attendance-class-group"
+).style.display = "none";
+
+const scheduleInfo =
+    document.getElementById(
+        "attendance-schedule-info"
+    );
+
+const scheduleDetails =
+    document.getElementById(
+        "attendance-schedule-details"
+    );
+
+// ล้างรายละเอียดคาบเดิม
+if (scheduleDetails) {
+    scheduleDetails.innerHTML = "";
+}
+
+// Card ยังอยู่ แต่แสดงสถานะว่ายังไม่มีข้อมูล
+if (scheduleInfo) {
+    scheduleInfo.style.display = "block";
+}
+
+            // --------------------------------------------
+            // ปิดปุ่มโหลดรายชื่อ
+            // --------------------------------------------
+
+            document.getElementById(
+                "load-btn"
+            ).disabled = true;
+
+            // --------------------------------------------
+            // สร้างรายการคาบใหม่
+            // --------------------------------------------
+
+            const lessonMap =
+                new Map();
+
+            (schedules || []).forEach(
+                schedule => {
+
+                    if (
+                        !lessonMap.has(
+                            schedule.lessonNo
+                        )
+                    ) {
+
+                        lessonMap.set(
+                            schedule.lessonNo,
+                            schedule
+                        );
+
+                    }
+
+                }
+            );
+
+            [...lessonMap.entries()]
+                .sort(
+                    ([lessonA], [lessonB]) =>
+                        lessonA - lessonB
+                )
+                .forEach(
+                    ([lessonNo]) => {
+
+                        const option =
+                            document.createElement(
+                                "option"
+                            );
+
+                        option.value =
+                            lessonNo;
+
+                        option.textContent =
+                            `คาบ ${lessonNo}`;
+
+                        scheduleSelect.appendChild(
+                            option
+                        );
+
+                    }
+                );
+
+            Swal.close();
+
+            console.log(
+                "ATTENDANCE SCHEDULE RELOADED:",
+                {
+                    date: newDate,
+                    count: schedules?.length || 0,
+                    schedules: schedules
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                "RELOAD ATTENDANCE SCHEDULE ERROR:",
+                error
+            );
+
+            Swal.close();
+
+            Swal.fire(
+                "เกิดข้อผิดพลาด",
+                "ไม่สามารถโหลดตารางสอนของวันที่เลือกได้",
+                "error"
+            );
+
+        }
 
     });
 
+        scheduleSelect.innerHTML =
+            '<option value="">-- เลือกคาบเรียน --</option>';
+
+
+        // เก็บ Schedule ทั้งหมดไว้ใช้ตอนเลือกคาบ
+        window.attendanceSchedules =
+            schedules || [];
+
+
+        // หาเฉพาะ "คาบ" ที่มี Schedule จริง
+        const lessonMap =
+            new Map();
+
+        (schedules || []).forEach(schedule => {
+
+            if (!lessonMap.has(schedule.lessonNo)) {
+
+                lessonMap.set(
+                    schedule.lessonNo,
+                    schedule
+                );
+
+            }
+
+        });
+
+
+        // เรียงคาบจากน้อยไปมาก
+        const lessons =
+            [...lessonMap.entries()]
+                .sort(
+                    ([lessonA], [lessonB]) =>
+                        lessonA - lessonB
+                );
+
+
+        lessons.forEach(
+            ([lessonNo, schedule]) => {
+
+                const option =
+                    document.createElement("option");
+
+                option.value =
+                    lessonNo;
+
+                option.textContent =
+                    `คาบ ${lessonNo}`;
+
+                scheduleSelect.appendChild(
+                    option
+                );
+
+            }
+        );
+
+
+        // ============================================
+        // 4. โหลดห้องสำหรับระบบ QR
+        //    ส่วนนี้คง Logic เดิมไว้
+        // ============================================
+
+        const qrRoom =
+            document.getElementById(
+                "qr-room-filter"
+            );
+
+        if (qrRoom) {
+
+            qrRoom.innerHTML =
+                '<option value="">-- เลือกห้องเรียน --</option>';
+
+            rooms.forEach(room => {
+
+                const option =
+                    document.createElement("option");
+
+                option.value =
+                    room.id;
+
+                option.textContent =
+                    room.room_name;
+
+                qrRoom.appendChild(
+                    option
+                );
+
+            });
+
+        }
+
+
+        // ============================================
+        // 5. สถานะเริ่มต้น
+        // ============================================
+
+        const classGroup =
+            document.getElementById(
+                "attendance-class-group"
+            );
+
+        const scheduleInfo =
+            document.getElementById(
+                "attendance-schedule-info"
+            );
+
+        if (classGroup) {
+            classGroup.style.display =
+                "none";
+        }
+
+        if (scheduleInfo) {
+            scheduleInfo.style.display =
+                "none";
+        }
+
+
+        document.getElementById(
+            "load-btn"
+        ).disabled = false;
+
+
+        Swal.close();
+
+    } catch (error) {
+
+        console.error(
+            "initSystem ERROR:",
+            error
+        );
+
+        Swal.close();
+
+        Swal.fire(
+            'เกิดข้อผิดพลาด',
+            'ไม่สามารถโหลดข้อมูลเริ่มต้นได้',
+            'error'
+        );
+
+    }
+
+}
+// ============================================================
+// Reset รายชื่อนักเรียนเมื่อเปลี่ยนเงื่อนไข
+// ต้องกด "โหลดรายชื่อ" ใหม่ทุกครั้ง
+// ============================================================
+
+function resetAttendanceList() {
+
+    // ล้างข้อมูลนักเรียนในตัวแปร
+    displayedStudents = [];
+
+    // Reset สถานะเช็คชื่อครบ
+    attendanceCompleted = false;
+
+    // ล้างตารางนักเรียน
+    const tbody =
+        document.getElementById("student-body");
+
+    if (tbody) {
+        tbody.innerHTML = "";
+    }
+
+    // ซ่อนตาราง
+    const studentTable =
+        document.getElementById("student-table");
+
+    if (studentTable) {
+        studentTable.style.display = "none";
+    }
+
+    // ซ่อนปุ่มบันทึก
+    const saveButton =
+        document.getElementById("save-btn");
+
+    if (saveButton) {
+        saveButton.style.display = "none";
+    }
+
+    // ซ่อนปุ่ม Scanner
+    const scanButton =
+        document.getElementById("scan-btn");
+
+    if (scanButton) {
+        scanButton.style.display = "none";
+    }
+
+    // Reset Summary Cards
+    if (typeof updateSummaryCards === "function") {
+        updateSummaryCards();
+    }
 }
 
-        const subjDropdown = document.getElementById('subject-dropdown');
-        subjDropdown.innerHTML = '<option value="">-- เลือกวิชา --</option>';
-        
-        const subjFragment = document.createDocumentFragment();
-        subjects.forEach(subject => {
-            const option = document.createElement('option');
-            option.value = subject.id;
-            option.textContent = `${subject.subject_code} - ${subject.subject_name}`;
-            subjFragment.appendChild(option);
-        });
-        subjDropdown.appendChild(subjFragment);
+// ============================================================
+// Attendance — Schedule Selection
+// เลือกคาบ → แสดงชั้นเรียนที่มี Schedule ในคาบนั้น
+// ============================================================
 
-        document.getElementById('load-btn').disabled = false;
-        Swal.close();
-    } catch (error) {
-        console.error(error);
-        Swal.close();
-        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลเริ่มต้นได้', 'error');
+function handleAttendanceScheduleChange() {
+    resetAttendanceList();
+
+    const lessonNo =
+        Number(
+            document.getElementById(
+                "attendance-schedule"
+            ).value
+        );
+
+    const classGroup =
+        document.getElementById(
+            "attendance-class-group"
+        );
+
+    const classSelect =
+        document.getElementById(
+            "attendance-class"
+        );
+
+    const scheduleInfo =
+        document.getElementById(
+            "attendance-schedule-info"
+        );
+
+    const scheduleDetails =
+        document.getElementById(
+            "attendance-schedule-details"
+        );
+
+    const loadButton =
+        document.getElementById(
+            "load-btn"
+        );
+
+
+    // ============================================
+    // ยังไม่ได้เลือกคาบ
+    // ============================================
+
+    if (!lessonNo) {
+
+        classGroup.style.display = "none";
+
+        scheduleInfo.style.display = "none";
+
+        classSelect.innerHTML =
+            '<option value="">-- เลือกชั้นเรียน --</option>';
+
+        loadButton.disabled = true;
+        window.selectedAttendanceSchedule = null;
+        return;
     }
+
+
+    // ============================================
+    // หา Schedule ของคาบที่เลือก
+    // ============================================
+       window.selectedAttendanceSchedule = null;
+    const schedules =
+        (window.attendanceSchedules || [])
+            .filter(
+                schedule =>
+                    Number(schedule.lessonNo) === lessonNo
+            );
+
+
+    // ============================================
+    // สร้างรายการชั้นเรียน
+    // ============================================
+
+    classSelect.innerHTML =
+        '<option value="">-- เลือกชั้นเรียน --</option>';
+
+
+    const uniqueClasses =
+        new Map();
+
+
+    schedules.forEach(schedule => {
+
+        if (!schedule.roomId) {
+            return;
+        }
+
+        if (!uniqueClasses.has(schedule.roomId)) {
+
+            uniqueClasses.set(
+                schedule.roomId,
+                schedule
+            );
+
+        }
+
+    });
+
+
+    [...uniqueClasses.values()]
+        .sort(
+            (a, b) =>
+                a.className.localeCompare(
+                    b.className,
+                    "th"
+                )
+        )
+        .forEach(schedule => {
+
+            const option =
+                document.createElement("option");
+
+            option.value =
+                schedule.roomId;
+
+            option.textContent =
+                schedule.className;
+
+            classSelect.appendChild(
+                option
+            );
+
+        });
+
+
+    // ============================================
+    // แสดงรายละเอียดของคาบ
+    // ============================================
+
+    if (schedules.length > 0) {
+
+        const firstSchedule =
+            schedules[0];
+
+        scheduleDetails.innerHTML = `
+            <div>
+                <strong>คาบ ${lessonNo}</strong>
+                ${firstSchedule.startTime || ""}
+                -
+                ${firstSchedule.endTime || ""}
+            </div>
+
+            <div>
+                ครูผู้สอน:
+                ${firstSchedule.teacherName || "-"}
+            </div>
+
+            <div>
+                ${schedules.length} ห้องเรียน
+            </div>
+        `;
+
+        scheduleInfo.style.display =
+            "block";
+
+    }
+
+
+    // ============================================
+    // แสดงตัวเลือกชั้นเรียน
+    // ============================================
+
+    classGroup.style.display =
+        "block";
+
+    loadButton.disabled = false;
+
+}
+// ============================================================
+// Attendance — Class Selection
+// เลือกชั้นเรียน → แสดงรายละเอียด Schedule
+// ============================================================
+
+function handleAttendanceClassChange() {
+    resetAttendanceList();
+    const lessonNo =
+        Number(
+            document.getElementById(
+                "attendance-schedule"
+            ).value
+        );
+
+    const roomId =
+        document.getElementById(
+            "attendance-class"
+        ).value;
+
+    const scheduleInfo =
+        document.getElementById(
+            "attendance-schedule-info"
+        );
+
+    const scheduleDetails =
+        document.getElementById(
+            "attendance-schedule-details"
+        );
+
+    const loadButton =
+        document.getElementById(
+            "load-btn"
+        );
+
+
+    // ============================================
+    // ยังเลือกข้อมูลไม่ครบ
+    // ============================================
+
+    if (!lessonNo || !roomId) {
+
+        scheduleInfo.style.display =
+            "none";
+
+        loadButton.disabled =
+            true;
+
+        return;
+    }
+
+
+    // ============================================
+    // หา Schedule ที่ตรงกับ
+    // คาบ + ชั้นเรียน
+    // ============================================
+
+    const schedule =
+        (window.attendanceSchedules || [])
+            .find(item =>
+                Number(item.lessonNo) === lessonNo &&
+                item.roomId === roomId
+            );
+
+
+    // ============================================
+    // ไม่พบ Schedule
+    // ============================================
+
+    if (!schedule) {
+
+        console.warn(
+            "Attendance schedule not found:",
+            {
+                lessonNo,
+                roomId
+            }
+        );
+
+        scheduleInfo.style.display =
+            "none";
+
+        loadButton.disabled =
+            true;
+
+        return;
+    }
+
+
+    // ============================================
+    // เก็บ Schedule ที่เลือกไว้
+    // ============================================
+
+    window.selectedAttendanceSchedule =
+        schedule;
+
+
+    // ============================================
+    // แสดงรายละเอียด
+    // ============================================
+
+    scheduleDetails.innerHTML = `
+
+        <div>
+            <strong>
+                คาบ ${schedule.lessonNo}
+            </strong>
+
+            ${schedule.startTime || ""}
+            -
+            ${schedule.endTime || ""}
+        </div>
+
+        <div>
+            <strong>
+                ชั้นเรียน:
+            </strong>
+
+            ${schedule.className || "-"}
+        </div>
+
+        <div>
+            <strong>
+                วิชา:
+            </strong>
+
+            ${schedule.subjectCode || "-"}
+            -
+            ${schedule.subjectName || "-"}
+        </div>
+
+        <div>
+            <strong>
+                ครู:
+            </strong>
+
+            ${schedule.teacherName || "-"}
+        </div>
+
+        <div>
+            <strong>
+                ห้องสอน:
+            </strong>
+
+            ${schedule.teachingRoom || "-"}
+        </div>
+
+    `;
+
+
+    scheduleInfo.style.display =
+        "block";
+
+
+    // ============================================
+    // พร้อมเข้าสู่ Attendance Engine
+    // ============================================
+
+    loadButton.disabled =
+        false;
+
 }
 
 async function filterAndLoad() {
-    const roomId = document.getElementById('room-filter').value;
-    const subjId = document.getElementById('subject-dropdown').value;
-    const attendanceDate = document.getElementById("attendance-date").value;
+
+    const attendanceDate =
+        document.getElementById(
+            "attendance-date"
+        ).value;
+
+    const selectedSchedule =
+        window.selectedAttendanceSchedule;
+
+    const lessonNo =
+        document.getElementById(
+            "attendance-schedule"
+        ).value;
+
+    const selectedRoomId =
+        document.getElementById(
+            "attendance-class"
+        ).value;
+
+
+    // ============================================
+    // 1. ตรวจสอบการเลือกคาบ
+    // ============================================
+
+    if (!lessonNo) {
+
+        return Swal.fire(
+            'แจ้งเตือน',
+            'กรุณาเลือกคาบเรียนก่อนโหลดรายชื่อครับ',
+            'warning'
+        );
+
+    }
+
+
+    // ============================================
+    // 2. ตรวจสอบการเลือกชั้นเรียน
+    // ============================================
+
+    if (!selectedRoomId) {
+
+        return Swal.fire(
+            'แจ้งเตือน',
+            'กรุณาเลือกชั้นเรียนที่ต้องการก่อนโหลดรายชื่อครับ',
+            'warning'
+        );
+
+    }
+
+
+    // ============================================
+    // 3. ตรวจสอบ Schedule Context
+    // ============================================
+
+    if (!selectedSchedule) {
+
+        console.error(
+            "Attendance Schedule Context Missing:",
+            {
+                attendanceDate,
+                lessonNo,
+                selectedRoomId
+            }
+        );
+
+        return Swal.fire(
+            'ผิดพลาด',
+            'ไม่พบข้อมูลตารางสอนของคาบและชั้นเรียนที่เลือก กรุณาเลือกใหม่ครับ',
+            'error'
+        );
+
+    }
+
+
+    // ============================================
+    // 4. ใช้ข้อมูลจาก Schedule จริง
+    // ============================================
+
+    const roomId =
+        selectedSchedule.roomId;
+
+    const subjId =
+        selectedSchedule.subjectId;
+
 
     if (!roomId || !subjId) {
-        return Swal.fire('แจ้งเตือน', 'กรุณาเลือกห้องและวิชาก่อนโหลดครับ', 'warning');
+
+        console.error(
+            "Invalid attendance schedule:",
+            selectedSchedule
+        );
+
+        return Swal.fire(
+            'ผิดพลาด',
+            'ข้อมูลตารางสอนไม่ครบ ไม่สามารถโหลดรายชื่อได้',
+            'error'
+        );
+
     }
+
+
+    console.log(
+        "ATTENDANCE CONTEXT:",
+        {
+            date: attendanceDate,
+            lessonNo: selectedSchedule.lessonNo,
+            roomId: roomId,
+            className: selectedSchedule.className,
+            subjectId: subjId,
+            subjectCode: selectedSchedule.subjectCode,
+            subjectName: selectedSchedule.subjectName,
+            scheduleId: selectedSchedule.scheduleId
+        }
+    );
+
 
     try {
-        displayedStudents = await getStudentsByRoom(roomId);
-        const session = await getAttendanceSession(roomId,subjId,attendanceDate);
+
+        // ============================================
+        // 5. โหลดนักเรียน
+        // ============================================
+
+        displayedStudents =
+            await getStudentsByRoom(roomId);
+
+
+        // ============================================
+        // 6. โหลด Attendance Session
+        // ============================================
+
+        const session =
+            await getAttendanceSession(
+                roomId,
+                subjId,
+                attendanceDate
+            );
+
+
         let attendanceMap = {};
 
-if (session) {
 
-    const attendanceData =
-        await getAttendanceBySession(session.id);
+        if (session) {
 
-    attendanceData.forEach(item => {
-        attendanceMap[item.student_id] = item.status;
-    });
-}
-        const tbody = document.getElementById('student-body');
+            const attendanceData =
+                await getAttendanceBySession(
+                    session.id
+                );
+
+
+            attendanceData.forEach(item => {
+
+                attendanceMap[item.student_id] =
+                    item.status;
+
+            });
+
+        }
+
+
+        // ============================================
+        // 7. สร้างตารางนักเรียน
+        // ============================================
+
+        const tbody =
+            document.getElementById(
+                'student-body'
+            );
+
         tbody.innerHTML = '';
-        
-        const fragment = document.createDocumentFragment();
 
-        displayedStudents.forEach((row, i) => {
-            const tr = document.createElement('tr');
-            tr.id = `row-${i}`;
-            tr.dataset.studentId = row.id; 
-            const currentStatus = attendanceMap[row.id] ?? "";
-            tr.innerHTML = `
-                <td><b>${row.student_no ?? ''}</b></td>
-                <td>${row.student_code ?? ''}</td>
-                <td><b>${row.prefix ?? ''} ${row.first_name ?? ''} ${row.last_name ?? ''}</b></td>
-                <td><span class="stats">-</span></td>
-                <td class="alert-text">0 ครั้ง</td>
-                <td>
-                    <select id="status-${i}" onchange="updateSummaryCards()" style="padding:5px;border-radius:5px;border:1px solid #ccc;font-family:'Prompt',sans-serif;">
-                        <option value="รอเช็ค" ${currentStatus==="" ? "selected" : ""}>-- รอเช็ค --</option>
 
-<option value="มา" ${currentStatus==="PRESENT" ? "selected" : ""}>มา</option>
+        const fragment =
+            document.createDocumentFragment();
 
-<option value="สาย" ${currentStatus==="LATE" ? "selected" : ""}>สาย</option>
 
-<option value="ลาป่วย" ${currentStatus==="SICK" ? "selected" : ""}>ลาป่วย</option>
+        displayedStudents.forEach(
+            (row, i) => {
 
-<option value="ลากิจ" ${currentStatus==="PERSONAL" ? "selected" : ""}>ลากิจ</option>
+                const tr =
+                    document.createElement(
+                        'tr'
+                    );
 
-<option value="ขาด" ${currentStatus==="ABSENT" ? "selected" : ""}>ขาด</option>
-                    </select>
-                </td>
-                <td>
-                    <button class="btn-alert" disabled data-student-id="${row.id}">🔔 Alert</button>
-                </td>
-            `;
-            fragment.appendChild(tr);
-        });
+                tr.id =
+                    `row-${i}`;
 
-        tbody.appendChild(fragment);
+                tr.dataset.studentId =
+                    row.id;
 
-        document.getElementById('student-table').style.display = 'table';
-        document.getElementById('save-btn').style.display = 'block';
-        document.getElementById('scan-btn').style.display = 'inline-block';
-        
+
+                const currentStatus =
+                    attendanceMap[row.id] ?? "";
+
+
+                tr.innerHTML = `
+
+                    <td>
+                        <b>
+                            ${row.student_no ?? ''}
+                        </b>
+                    </td>
+
+                    <td>
+                        ${row.student_code ?? ''}
+                    </td>
+
+                    <td>
+                        <b>
+                            ${row.prefix ?? ''}
+                            ${row.first_name ?? ''}
+                            ${row.last_name ?? ''}
+                        </b>
+                    </td>
+
+                    <td>
+                        <span class="stats">
+                            -
+                        </span>
+                    </td>
+
+                    <td class="alert-text">
+                        0 ครั้ง
+                    </td>
+
+                    <td>
+
+                        <select
+                            id="status-${i}"
+                            onchange="updateSummaryCards()"
+                            style="
+                                padding:5px;
+                                border-radius:5px;
+                                border:1px solid #ccc;
+                                font-family:'Prompt',sans-serif;
+                            "
+                        >
+
+                            <option
+                                value="รอเช็ค"
+                                ${currentStatus === ""
+                                    ? "selected"
+                                    : ""}
+                            >
+                                -- รอเช็ค --
+                            </option>
+
+                            <option
+                                value="มา"
+                                ${currentStatus === "PRESENT"
+                                    ? "selected"
+                                    : ""}
+                            >
+                                มา
+                            </option>
+
+                            <option
+                                value="สาย"
+                                ${currentStatus === "LATE"
+                                    ? "selected"
+                                    : ""}
+                            >
+                                สาย
+                            </option>
+
+                            <option
+                                value="ลาป่วย"
+                                ${currentStatus === "SICK"
+                                    ? "selected"
+                                    : ""}
+                            >
+                                ลาป่วย
+                            </option>
+
+                            <option
+                                value="ลากิจ"
+                                ${currentStatus === "PERSONAL"
+                                    ? "selected"
+                                    : ""}
+                            >
+                                ลากิจ
+                            </option>
+
+                            <option
+                                value="ขาด"
+                                ${currentStatus === "ABSENT"
+                                    ? "selected"
+                                    : ""}
+                            >
+                                ขาด
+                            </option>
+
+                        </select>
+
+                    </td>
+
+                    <td>
+
+                        <button
+                            class="btn-alert"
+                            disabled
+                            data-student-id="${row.id}"
+                        >
+                            🔔 Alert
+                        </button>
+
+                    </td>
+
+                `;
+
+
+                fragment.appendChild(tr);
+
+            }
+        );
+
+
+        tbody.appendChild(
+            fragment
+        );
+
+
+        // ============================================
+        // 8. แสดง Attendance UI
+        // ============================================
+
+        document.getElementById(
+            'student-table'
+        ).style.display =
+            'table';
+
+
+        document.getElementById(
+            'save-btn'
+        ).style.display =
+            'block';
+
+
+        document.getElementById(
+            'scan-btn'
+        ).style.display =
+            'inline-block';
+
+
+        attendanceCompleted =
+            false;
+
+
         updateSummaryCards();
+
+
     } catch (error) {
-        console.error(error);
-        Swal.fire('ผิดพลาด', 'ไม่สามารถโหลดรายชื่อนักเรียนได้', 'error');
+
+        console.error(
+            "FILTER AND LOAD ERROR:",
+            error
+        );
+
+        Swal.fire(
+            'ผิดพลาด',
+            'ไม่สามารถโหลดรายชื่อนักเรียนได้',
+            'error'
+        );
+
     }
+
 }
+
 let attendanceCompleted = false;
 function updateSummaryCards() {
 
@@ -191,7 +1211,7 @@ function updateSummaryCards() {
     document.getElementById("absent-students").textContent = absent;
 const checked = present + late + sick + leave + absent;
 
-if (!attendanceCompleted && checked === total) {
+if (total > 0 && !attendanceCompleted && checked === total) {
 
     attendanceCompleted = true;
 
@@ -208,16 +1228,67 @@ if (!attendanceCompleted && checked === total) {
 
 async function submitAttendance() {
 
-    const roomId = document.getElementById('room-filter').value;
-    const subjectId = document.getElementById('subject-dropdown').value;
-    const attendanceDate = document.getElementById("attendance-date").value;
-    if (!roomId || !subjectId) {
+    const selectedSchedule =
+        window.selectedAttendanceSchedule;
+
+    const attendanceDate =
+        document.getElementById(
+            "attendance-date"
+        ).value;
+
+
+    // ============================================
+    // ต้องมี Schedule Context
+    // ============================================
+
+    if (!selectedSchedule) {
+
         return Swal.fire(
             'แจ้งเตือน',
-            'กรุณาเลือกห้องและวิชาก่อนบันทึก',
+            'กรุณาเลือกคาบเรียนและชั้นเรียนก่อนบันทึก',
             'warning'
         );
+
     }
+
+
+    // ============================================
+    // ใช้ข้อมูลจาก Schedule
+    // 🔒 ยังคงใช้ Attendance Engine เดิม
+    // ============================================
+
+    const roomId =
+        selectedSchedule.roomId;
+
+    const subjectId =
+        selectedSchedule.subjectId;
+
+
+    if (!roomId || !subjectId) {
+
+        return Swal.fire(
+            'ผิดพลาด',
+            'ข้อมูลตารางสอนไม่ครบ ไม่สามารถบันทึกข้อมูลได้',
+            'error'
+        );
+
+    }
+
+
+    console.log(
+        "SUBMIT ATTENDANCE CONTEXT:",
+        {
+            date: attendanceDate,
+            lessonNo: selectedSchedule.lessonNo,
+            roomId: roomId,
+            className: selectedSchedule.className,
+            subjectId: subjectId,
+            subjectCode: selectedSchedule.subjectCode,
+            subjectName: selectedSchedule.subjectName,
+            scheduleId: selectedSchedule.scheduleId
+        }
+    );
+
 
     try {
     
