@@ -51,6 +51,111 @@ async function createAttendanceSession(roomId,subjectId,attendanceDate) {
     return data;
 
 }
+// ============================================================
+// Activity Attendance Session
+// STEP 3.5.7 — Create / Get Activity Attendance Session
+// ============================================================
+async function createActivityAttendanceSession(
+    activityScheduleId,
+    attendanceDate
+) {
+
+    // --------------------------------------------------------
+    // ตรวจว่ามี Session ของกิจกรรมวันนี้อยู่แล้วหรือไม่
+    // --------------------------------------------------------
+
+    const existing =
+        await getActivityAttendanceSession(
+            activityScheduleId,
+            attendanceDate
+        );
+
+    if (existing) {
+        return existing;
+    }
+
+    // --------------------------------------------------------
+    // สร้าง Activity Attendance Session ใหม่
+    // --------------------------------------------------------
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("attendance_sessions")
+        .insert({
+            activity_schedule_id:
+                activityScheduleId,
+
+            attendance_date:
+                attendanceDate,
+
+            session_status:
+                "OPEN"
+        })
+        .select()
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
+// ============================================================
+// Get Activity Attendance Session
+// ============================================================
+async function getActivityAttendanceSession(
+    activityScheduleId,
+    attendanceDate
+) {
+
+    if (!attendanceDate) {
+        throw new Error(
+            "Attendance date is required."
+        );
+    }
+
+    let query = supabaseClient
+        .from("attendance_sessions")
+        .select("*")
+        .eq(
+            "attendance_date",
+            attendanceDate
+        )
+        .is(
+            "deleted_at",
+            null
+        );
+
+    if (activityScheduleId) {
+
+        query = query.eq(
+            "activity_schedule_id",
+            activityScheduleId
+        );
+
+    } else {
+
+        query = query.is(
+            "activity_schedule_id",
+            null
+        );
+
+    }
+
+    const {
+        data,
+        error
+    } = await query.maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
 
 // ==============================
 // Attendance
@@ -822,6 +927,108 @@ async function getClassSchedules() {
     return data;
 }
 // ============================================================
+// Activity Schedule
+// ใช้สำหรับแสดงกิจกรรมในตารางสอน
+// ============================================================
+
+async function getActivitySchedules() {
+
+    const { data, error } =
+        await supabaseClient
+            .from("activities")
+            .select(`
+                id,
+                activity_name,
+
+                activity_types!activity_type_id(
+                    code,
+                    name
+                ),
+
+                activity_teachers!activity_id(
+                    teacher_id
+                ),
+
+                activity_schedules!activity_id(
+                    id,
+                    weekday,
+                    lesson_no,
+                    start_time,
+                    end_time,
+                    valid_from,
+                    valid_until
+                )
+            `)
+            .is("deleted_at", null);
+
+    if (error) {
+        throw error;
+    }
+
+    const result = [];
+
+    (data || []).forEach(activity => {
+
+        const activityType =
+            activity.activity_types || {};
+
+        const teachers =
+            activity.activity_teachers || [];
+
+        const schedules =
+            activity.activity_schedules || [];
+
+        schedules.forEach(schedule => {
+
+            result.push({
+
+                activityId:
+                    activity.id,
+
+                activityName:
+                    activity.activity_name || "",
+
+                activityTypeCode:
+                    activityType.code || "",
+
+                activityTypeName:
+                    activityType.name || "",
+
+                teacherIds:
+                    teachers.map(
+                        teacher => teacher.teacher_id
+                    ),
+
+                scheduleId:
+                    schedule.id,
+
+                weekday:
+                    schedule.weekday,
+
+                lessonNo:
+                    schedule.lesson_no,
+
+                startTime:
+                    schedule.start_time,
+
+                endTime:
+                    schedule.end_time,
+
+                validFrom:
+                    schedule.valid_from,
+
+                validUntil:
+                    schedule.valid_until
+
+            });
+
+        });
+
+    });
+
+    return result;
+}
+// ============================================================
 // Class Schedule
 // STEP 5B.8.10A — Create Schedule
 // ============================================================
@@ -1108,4 +1315,414 @@ async function deleteClassScheduleGroup(scheduleGroupId) {
 
 
     return true;
+}
+// ============================================================
+// ACTIVITY ATTENDANCE
+// STEP 3.5.1 — Get Activities for Attendance
+// ============================================================
+
+async function getAttendanceActivities(date) {
+
+    if (!date) {
+        throw new Error("Activity date is required.");
+    }
+
+    // ============================================
+    // 1. Current Teacher
+    // ============================================
+
+    const context =
+        await getCurrentTeacherContext();
+
+    const isAdmin =
+        context.role === "Admin";
+
+    const teacherId =
+        context.teacherId;
+
+
+    // ============================================
+    // 2. แปลงวันที่ → weekday ของ Database
+    //
+    // JS:
+    // Sunday = 0
+    // Monday = 1
+    // ...
+    // Saturday = 6
+    //
+    // DB:
+    // Monday = 1
+    // ...
+    // Sunday = 7
+    // ============================================
+
+    const dateObject =
+        new Date(`${date}T00:00:00`);
+
+    const jsWeekday =
+        dateObject.getDay();
+
+    const dbWeekday =
+        jsWeekday === 0
+            ? 7
+            : jsWeekday;
+
+
+    // ============================================
+    // 3. Query Activities
+    // ============================================
+
+    let query =
+        supabaseClient
+            .from("activities")
+            .select(`
+                id,
+                activity_name,
+
+                activity_types!activity_type_id(
+                    code,
+                    name
+                ),
+
+                academic_years!academic_year_id(
+                    year,
+                    is_current
+                ),
+
+                semesters!semester_id(
+                    semester_no,
+                    start_date,
+                    end_date
+                ),
+
+                activity_teachers!activity_id(
+                    teacher_id,
+
+                    teachers!teacher_id(
+                        id,
+                        teacher_code,
+                        first_name,
+                        last_name,
+                        nickname
+                    )
+                ),
+
+                activity_schedules!activity_id(
+                    id,
+                    weekday,
+                    lesson_no,
+                    start_time,
+                    end_time,
+                    valid_from,
+                    valid_until
+                )
+            `)
+            .is("deleted_at", null);
+
+
+    // ============================================
+    // 4. Teacher Scope
+    //
+    // Admin → ทุกกิจกรรม
+    // Teacher → เฉพาะกิจกรรมของตัวเอง
+    // ============================================
+
+    if (!isAdmin) {
+
+        query =
+            query.eq(
+                "activity_teachers.teacher_id",
+                teacherId
+            );
+
+    }
+
+
+    const {
+        data,
+        error
+    } = await query;
+
+
+    if (error) {
+        throw error;
+    }
+
+
+    // ============================================
+    // 5. กรอง Schedule ตามวันที่
+    // ============================================
+
+    return (data || [])
+        .map(activity => {
+
+            const schedules =
+                activity.activity_schedules || [];
+
+
+            const validSchedules =
+                schedules.filter(schedule => {
+
+                    // วันไม่ตรง
+                    if (
+                        schedule.weekday !== dbWeekday
+                    ) {
+                        return false;
+                    }
+
+
+                    // ยังไม่ถึงวันเริ่มกิจกรรม
+                    if (
+                        schedule.valid_from &&
+                        date < schedule.valid_from
+                    ) {
+                        return false;
+                    }
+
+
+                    // หมดอายุแล้ว
+                    if (
+                        schedule.valid_until &&
+                        date > schedule.valid_until
+                    ) {
+                        return false;
+                    }
+
+
+                    return true;
+
+                });
+
+            const activityType =
+                activity.activity_types || {};
+
+           // เฉพาะกิจกรรมหน้าเสาธง
+
+if (
+    validSchedules.length === 0 &&
+    activityType.code !== "FLAG"
+) {
+    return null;
+}
+
+            const academicYear =
+                activity.academic_years || {};
+
+            const semester =
+                activity.semesters || {};
+
+
+            const teacherLinks =
+                activity.activity_teachers || [];
+
+
+            const teachers =
+                teacherLinks
+                    .map(link =>
+                        link.teachers
+                    )
+                    .filter(Boolean);
+
+
+            return {
+
+                activityId:
+                    activity.id,
+
+                activityName:
+                    activity.activity_name || "",
+
+                activityTypeCode:
+                    activityType.code || "",
+
+                activityTypeName:
+                    activityType.name || "",
+
+                academicYear:
+                    academicYear.year || null,
+
+                semesterNo:
+                    semester.semester_no || null,
+
+                teachers,
+
+                schedules:
+                    validSchedules
+
+            };
+
+        })
+        .filter(Boolean);
+
+}
+// ============================================================
+// ACTIVITY ATTENDANCE
+// STEP 3.5.3 — Get Activity Participants
+// ============================================================
+
+async function getActivityParticipants(activityId) {
+
+    if (!activityId) {
+        throw new Error("Activity ID is required.");
+    }
+
+
+    // ========================================================
+    // 1. ดึง Participants + Student
+    //    ไม่ JOIN rooms ตรงนี้
+    // ========================================================
+
+    const {
+        data: participants,
+        error: participantError
+    } = await supabaseClient
+        .from("activity_participants")
+        .select(`
+            id,
+
+            student:students!student_id(
+                id,
+                student_code,
+                student_no,
+                prefix,
+                first_name,
+                last_name,
+                nickname,
+                current_room_id
+            )
+        `)
+        .eq(
+            "activity_id",
+            activityId
+        )
+        .order(
+            "student_id",
+            {
+                ascending: true
+            }
+        );
+
+
+    if (participantError) {
+        throw participantError;
+    }
+
+
+    if (!participants || participants.length === 0) {
+        return [];
+    }
+
+
+    // ========================================================
+    // 2. รวบรวม current_room_id
+    // ========================================================
+
+    const roomIds =
+        [
+            ...new Set(
+                participants
+                    .map(item =>
+                        item.student?.current_room_id
+                    )
+                    .filter(Boolean)
+            )
+        ];
+
+
+    // ========================================================
+    // 3. ดึง Rooms แยกต่างหาก
+    // ========================================================
+
+    let roomsById = {};
+
+
+    if (roomIds.length > 0) {
+
+        const {
+            data: rooms,
+            error: roomError
+        } = await supabaseClient
+            .from("rooms")
+            .select(`
+                id,
+                room_name,
+                grade_level
+            `)
+            .in(
+                "id",
+                roomIds
+            );
+
+
+        if (roomError) {
+            throw roomError;
+        }
+
+
+        roomsById =
+            Object.fromEntries(
+                (rooms || []).map(room => [
+                    room.id,
+                    room
+                ])
+            );
+
+    }
+
+
+    // ========================================================
+    // 4. รวม Student + Room กลับเป็นข้อมูลสำหรับ Attendance
+    // ========================================================
+
+    return participants
+        .map(item => {
+
+            const student =
+                item.student || {};
+
+            const room =
+                roomsById[
+                    student.current_room_id
+                ] || {};
+
+
+            return {
+
+                participantId:
+                    item.id,
+
+                studentId:
+                    student.id || "",
+
+                studentCode:
+                    student.student_code || "",
+
+                studentNo:
+                    student.student_no ?? null,
+
+                prefix:
+                    student.prefix || "",
+
+                firstName:
+                    student.first_name || "",
+
+                lastName:
+                    student.last_name || "",
+
+                nickname:
+                    student.nickname || "",
+
+                roomId:
+                    room.id || "",
+
+                roomName:
+                    room.room_name || "",
+
+                gradeLevel:
+                    room.grade_level ?? null
+
+            };
+
+        });
+
 }

@@ -381,11 +381,21 @@ async function loadScheduleView() {
 
     try {
 
-        const rawSchedules = await getClassSchedules();
+        const [
+    rawSchedules,
+    activitySchedules
+] = await Promise.all([
+    getClassSchedules(),
+    getActivitySchedules()
+]);
 
-        const schedules = rawSchedules.map(mapScheduleData);
+const schedules =
+    rawSchedules.map(mapScheduleData);
 
-        renderScheduleTimetable(schedules);
+renderScheduleTimetable(
+    schedules,
+    activitySchedules
+);
 
     } catch (error) {
 
@@ -2543,7 +2553,10 @@ async function deleteScheduleClassFromGroup(
 
 }
 
-function renderScheduleTimetable(schedules) {
+function renderScheduleTimetable(
+    schedules,
+    activitySchedules = []
+) {
 
     const content = document.getElementById('schedule-content');
 
@@ -2555,25 +2568,62 @@ function renderScheduleTimetable(schedules) {
 
     const lessonTimes = {};
 
-    schedules.forEach(schedule => {
+// ============================================================
+// CLASS SCHEDULE → เวลาแต่ละคาบ
+// ============================================================
 
-        if (!lessonTimes[schedule.lessonNo]) {
+schedules.forEach(schedule => {
 
-            lessonTimes[schedule.lessonNo] = {
-                lessonNo: schedule.lessonNo,
-                startTime: schedule.startTime,
-                endTime: schedule.endTime
-            };
+    if (
+        schedule.lessonNo &&
+        !lessonTimes[schedule.lessonNo]
+    ) {
 
-        }
+        lessonTimes[schedule.lessonNo] = {
+            lessonNo: schedule.lessonNo,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime
+        };
 
-    });
+    }
 
-    const lessonNumbers = [1, 2, 3, 4, 6, 7, 8];
+});
 
-    const lessons = lessonNumbers
-        .filter(no => lessonTimes[no])
-        .map(no => lessonTimes[no]);
+
+// ============================================================
+// ACTIVITY SCHEDULE → เติมคาบที่อาจไม่มีใน Class Schedule
+// ============================================================
+
+activitySchedules.forEach(activity => {
+
+    if (
+        activity.lessonNo &&
+        !lessonTimes[activity.lessonNo]
+    ) {
+
+        lessonTimes[activity.lessonNo] = {
+            lessonNo: activity.lessonNo,
+            startTime: activity.startTime,
+            endTime: activity.endTime
+        };
+
+    }
+
+});
+
+    const lessonNumbers = [1, 2, 3, 4, 6, 7, 8, 9];
+
+if (!lessonTimes[9]) {
+    lessonTimes[9] = {
+        lessonNo: 9,
+        startTime: "15:30",
+        endTime: "16:00"
+    };
+}
+
+const lessons = lessonNumbers
+    .filter(no => lessonTimes[no])
+    .map(no => lessonTimes[no]);
 
 
     // ============================================================
@@ -2636,6 +2686,46 @@ function renderScheduleTimetable(schedules) {
 
     }
 
+// ============================================================
+// ACTIVITY CARDS
+// แสดง Activity แยกจาก Class Schedule
+// ห้ามแตะ Logic ของวิชาปกติ
+// ============================================================
+
+function renderActivityCards(dayActivities, lessonNo) {
+
+    return dayActivities
+        .filter(activity =>
+            Number(activity.lessonNo) === Number(lessonNo) &&
+            activity.activityTypeCode !== "FLAG" &&
+            activity.activityTypeCode !== "HOMEROOM"
+        )
+        .map(activity => `
+            <div
+                class="schedule-card schedule-activity-card"
+                data-activity-id="${activity.activityId}"
+            >
+                <div class="schedule-card-subject">
+                    ${activity.activityTypeCode || "ACTIVITY"}
+                </div>
+
+                <div class="schedule-card-name">
+                    ${activity.activityName || "-"}
+                </div>
+
+                <div class="schedule-card-class">
+                    🎯 กิจกรรม
+                </div>
+
+                <div class="schedule-card-room">
+                    🕐 ${activity.startTime?.slice(0, 5) || "-"}
+                    –
+                    ${activity.endTime?.slice(0, 5) || "-"}
+                </div>
+            </div>
+        `)
+        .join("");
+}
     // ============================================================
 // SCHEDULE MANAGE GROUP
 // STEP 5B.9.3A
@@ -2758,6 +2848,11 @@ function groupScheduleManageRecords(daySchedules) {
                             วัน
                         </th>
 
+                        <th class="schedule-flag-column">
+                            🚩 หน้าเสาธง
+                        <span>08:00–08:20</span>
+                        </th>
+
                         <th class="schedule-special-column">
                             🏫 โฮมรูม
                             <span>08:20–08:30</span>
@@ -2829,15 +2924,6 @@ function groupScheduleManageRecords(daySchedules) {
 
     // กิจกรรม
     html += `
-        <th class="schedule-activity-column">
-
-            <div>📋 กิจกรรม</div>
-
-            <span>
-                15:30–16:00
-            </span>
-
-        </th>
 
                     </tr>
 
@@ -2853,6 +2939,12 @@ function groupScheduleManageRecords(daySchedules) {
 
     weekdays.forEach(day => {
 
+        const dayActivities =
+    activitySchedules.filter(
+        activity =>
+            activity.weekday === day.value
+    );
+
         html += `
             <tr>
 
@@ -2860,16 +2952,42 @@ function groupScheduleManageRecords(daySchedules) {
                     ${day.label}
                 </th>
 
+                <!-- FLAG -->
+<td class="schedule-special-cell">
+    ${
+        dayActivities
+            .filter(activity =>
+                activity.activityTypeCode === "FLAG"
+            )
+            .map(activity => `
+                <div class="schedule-mini-activity">
+                    🚩 ${activity.activityName}
+                </div>
+            `)
+            .join("") || "—"
+    }
+</td>
 
                 <!-- HOMEROOM -->
 
-                <td class="schedule-special-cell">
+<td class="schedule-special-cell">
 
-                    <div class="schedule-mini-activity">
-                        🏫 โฮมรูม
-                    </div>
+    ${
+        dayActivities
+            .filter(activity =>
+                activity.activityTypeCode === "HOMEROOM"
+            )
+            .map(activity => `
 
-                </td>
+                <div class="schedule-mini-activity">
+                    🏫 ${activity.activityName}
+                </div>
+
+            `)
+            .join("") || "—"
+    }
+
+</td>
         `;
 
 
@@ -2891,8 +3009,16 @@ function groupScheduleManageRecords(daySchedules) {
             `;
 
             const groupedSchedules = groupScheduleCards(daySchedules);
+            const activityCards =
+    renderActivityCards(
+        dayActivities,
+        lesson.lessonNo
+    );
 
-if (groupedSchedules.length === 0) {
+if (
+    groupedSchedules.length === 0 &&
+    !activityCards
+) {
 
     html += `
         <div class="schedule-slot-empty">
@@ -2931,16 +3057,9 @@ if (groupedSchedules.length === 0) {
         `;
 
     });
-
+html += activityCards;
 }
-
-            html += `
-                </td>
-            `;
-
-        });
-
-
+});
         // ========================================================
         // LUNCH
         // ========================================================
@@ -2974,86 +3093,67 @@ if (groupedSchedules.length === 0) {
             `;
 
             const groupedSchedules = groupScheduleCards(daySchedules);
-           
-            if (groupedSchedules.length === 0) {
+            const activityCards =
+    renderActivityCards(
+        dayActivities,
+        lesson.lessonNo
+    );
 
-                html += `
-                    <div class="schedule-slot-empty">
-                        —
-                    </div>
-                `;
+if (
+    groupedSchedules.length === 0 &&
+    !activityCards
+) {
 
-            } else {
+    html += `
+        <div class="schedule-slot-empty">
+            —
+        </div>
+    `;
 
-                groupedSchedules.forEach(schedule => {
+} else {
 
-                    html += `
-                        <div class="schedule-card">
+    groupedSchedules.forEach(schedule => {
 
-                            <div class="schedule-card-subject">
-                                ${schedule.subjectCode}
-                            </div>
+        html += `
+            <div class="schedule-card">
 
-                            <div class="schedule-card-name">
-                                ${schedule.subjectName}
-                            </div>
+                <div class="schedule-card-subject">
+                    ${schedule.subjectCode}
+                </div>
 
-                            <div class="schedule-card-class">
-                               👨‍🎓 ${schedule.classNames.join(", ")}
-                            </div>
+                <div class="schedule-card-name">
+                    ${schedule.subjectName}
+                </div>
 
-                            <div class="schedule-card-room">
-                               🏫 ห้องสอน ${schedule.teachingRoom}
-                            </div>
+                <div class="schedule-card-class">
+                    👨‍🎓 ${schedule.classNames.join(", ")}
+                </div>
 
-                            <div class="schedule-card-teacher">
-                                👤 ${schedule.teacherName}
-                            </div>
+                <div class="schedule-card-room">
+                    🏫 ห้องสอน ${schedule.teachingRoom}
+                </div>
 
-                        </div>
-                    `;
+                <div class="schedule-card-teacher">
+                    👤 ${schedule.teacherName}
+                </div>
 
-                });
+            </div>
+        `;
 
-            }
-
-            html += `
-                </td>
-            `;
-
-        });
+    });
+html += activityCards;
+}
 
 
         // ========================================================
         // END-OF-DAY ACTIVITY
         // ========================================================
 
-        let activity = "";
-
-        if (day.value >= 1 && day.value <= 4) {
-
-            activity = "📋 PLC";
-
-        } else if (day.value === 5) {
-
-            activity = "⭐ ส่งเสริมคุณธรรม";
-
-        }
-
         html += `
-                <td class="schedule-activity-cell">
-
-                    <div class="schedule-mini-activity">
-                        ${activity}
-                    </div>
-
-                </td>
-
-            </tr>
-        `;
+`;
 
     });
-
+});
 
     html += `
                 </tbody>

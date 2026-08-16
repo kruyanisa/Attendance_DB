@@ -1,4 +1,5 @@
 let displayedStudents = [];
+let attendanceMode = "class";
 
 async function initSystem() {
 
@@ -66,6 +67,18 @@ document.getElementById("attendance-date")
         if (!newDate) {
             return;
         }
+        // ============================================
+// Activity Mode
+// เปลี่ยนวันที่แล้วให้โหลด Activity แทน
+// ไม่ให้ Logic ตารางสอนเขียนทับ Dropdown
+// ============================================
+
+if (attendanceMode === "activity") {
+
+    await loadActivityAttendanceOptions();
+
+    return;
+}
 
         try {
 
@@ -459,6 +472,171 @@ function resetAttendanceList() {
         updateSummaryCards();
     }
 }
+// ============================================================
+// Attendance — Activity Options
+// โหลดรายการกิจกรรมสำหรับวันที่เลือก
+// ============================================================
+
+async function loadActivityAttendanceOptions() {
+
+    const attendanceDate =
+        document.getElementById(
+            "attendance-date"
+        ).value;
+
+    const scheduleSelect =
+        document.getElementById(
+            "attendance-schedule"
+        );
+
+    const classGroup =
+        document.getElementById(
+            "attendance-class-group"
+        );
+
+    const scheduleInfo =
+        document.getElementById(
+            "attendance-schedule-info"
+        );
+
+    const scheduleDetails =
+        document.getElementById(
+            "attendance-schedule-details"
+        );
+
+    const loadButton =
+        document.getElementById(
+            "load-btn"
+        );
+
+
+    // ============================================
+    // Reset UI
+    // ============================================
+
+    scheduleSelect.innerHTML =
+        '<option value="">-- เลือกกิจกรรม --</option>';
+
+    classGroup.style.display = "none";
+
+    scheduleInfo.style.display = "none";
+
+    scheduleDetails.innerHTML = "";
+
+    loadButton.disabled = true;
+
+
+    if (!attendanceDate) {
+        return;
+    }
+
+
+    try {
+
+        Swal.fire({
+            title: "กำลังโหลดกิจกรรม...",
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+
+        // ============================================
+        // โหลดกิจกรรมของวันที่เลือก
+        // ============================================
+
+        const activities =
+            await getAttendanceActivities(
+                attendanceDate
+            );
+
+
+        console.log(
+            "ATTENDANCE ACTIVITIES:",
+            activities
+        );
+
+
+        // ============================================
+        // ไม่มี Activity
+        // ============================================
+
+        if (
+            !activities ||
+            activities.length === 0
+        ) {
+
+            scheduleSelect.innerHTML =
+                '<option value="">-- ไม่มีกิจกรรม --</option>';
+
+            Swal.close();
+
+            return;
+        }
+
+
+        // ============================================
+        // เก็บข้อมูล Activity
+        // ============================================
+
+        window.attendanceActivities =
+            activities;
+
+
+        // ============================================
+        // สร้างรายการ Activity
+        // ============================================
+
+        activities.forEach(activity => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                activity.activityId;
+
+            option.textContent =
+                activity.activityName;
+
+            scheduleSelect.appendChild(
+                option
+            );
+
+        });
+
+
+        Swal.close();
+
+
+        // ============================================
+        // เปลี่ยน Event ของ Select
+        // ============================================
+
+        scheduleSelect.onchange =
+            handleAttendanceActivityChange;
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD ACTIVITY ATTENDANCE OPTIONS ERROR:",
+            error
+        );
+
+        Swal.close();
+
+        Swal.fire(
+            "เกิดข้อผิดพลาด",
+            "ไม่สามารถโหลดกิจกรรมได้",
+            "error"
+        );
+
+    }
+
+}
 
 // ============================================================
 // Attendance — Schedule Selection
@@ -632,6 +810,198 @@ function handleAttendanceScheduleChange() {
 
 }
 // ============================================================
+// Attendance — Activity Selection
+// เลือกกิจกรรม → เตรียม Context สำหรับเช็กชื่อกิจกรรม
+// ============================================================
+
+async function handleAttendanceActivityChange() {
+
+    // ล้างรายชื่อนักเรียนเดิมก่อน
+    resetAttendanceList();
+
+    const activityId =
+        document.getElementById(
+            "attendance-schedule"
+        ).value;
+
+    if (!activityId) {
+        window.selectedAttendanceActivity = null;
+        return;
+    }
+
+    // หา Activity จากข้อมูลที่โหลดไว้
+    const activity =
+        (window.attendanceActivities || [])
+            .find(
+                item =>
+                    item.activityId === activityId
+            );
+
+    if (!activity) {
+        console.error(
+            "Activity not found:",
+            activityId
+        );
+
+        window.selectedAttendanceActivity = null;
+
+        return;
+    }
+
+    // เก็บ Activity Context
+    window.selectedAttendanceActivity =
+        activity;
+
+    console.log(
+        "ATTENDANCE ACTIVITY SELECTED:",
+        activity
+    );
+    console.log(
+    "ACTIVITY TEACHERS:",
+    activity.teachers
+);
+
+    // แสดงรายละเอียดกิจกรรม
+    const scheduleInfo =
+        document.getElementById(
+            "attendance-schedule-info"
+        );
+
+    const scheduleDetails =
+        document.getElementById(
+            "attendance-schedule-details"
+        );
+
+    // ============================================
+// Activity Details
+// ============================================
+
+if (scheduleDetails) {
+
+    const activitySchedule =
+        activity.schedules &&
+        activity.schedules.length > 0
+            ? activity.schedules[0]
+            : null;
+
+    const teacherNames =
+    activity.teachers &&
+    activity.teachers.length > 0
+
+        ? activity.teachers
+            .map(t => {
+
+                const firstName =
+                    t.first_name || "";
+
+                const lastName =
+                    t.last_name || "";
+
+                return `${firstName} ${lastName}`.trim();
+
+            })
+            .filter(Boolean)
+            .join(", ")
+
+        : "-";
+
+    const participantCount = "-";
+
+    const startTime =
+        activitySchedule?.startTime ||
+        activitySchedule?.start_time ||
+        "-";
+
+
+    const endTime =
+        activitySchedule?.endTime ||
+        activitySchedule?.end_time ||
+        "-";
+
+
+    const lessonNo =
+        activitySchedule?.lessonNo ??
+        activitySchedule?.lesson_no ??
+        "-";
+
+
+    const weekdayMap = {
+
+        1: "จันทร์",
+        2: "อังคาร",
+        3: "พุธ",
+        4: "พฤหัสบดี",
+        5: "ศุกร์",
+        6: "เสาร์",
+        7: "อาทิตย์"
+
+    };
+
+
+    const weekday =
+        activitySchedule?.weekday
+            ? weekdayMap[
+                activitySchedule.weekday
+            ]
+            : "-";
+
+
+    scheduleDetails.innerHTML = `
+
+        <div>
+            <strong>กิจกรรม:</strong>
+            ${activity.activityName || "-"}
+        </div>
+
+        <div>
+            <strong>ประเภท:</strong>
+            ${activity.activityTypeName || "-"}
+        </div>
+
+        <div>
+            <strong>ครูผู้รับผิดชอบ:</strong>
+            ${teacherNames}
+        </div>
+
+        <div>
+            <strong>วัน:</strong>
+            ${weekday}
+        </div>
+
+        <div>
+            <strong>คาบ:</strong>
+            ${lessonNo}
+        </div>
+
+        <div>
+            <strong>เวลา:</strong>
+            ${startTime}
+            -
+            ${endTime}
+        </div>
+
+        <div>
+            <strong>จำนวนสมาชิก:</strong>
+            <span id="activity-participant-count">
+            ${participantCount} </span>
+        </div>
+
+    `;
+}
+
+    if (scheduleInfo) {
+        scheduleInfo.style.display = "block";
+    }
+
+    // เปิดปุ่มโหลดรายชื่อ
+    const loadButton =
+        document.getElementById("load-btn");
+
+    if (loadButton) {
+        loadButton.disabled = false;
+    }
+}
+// ============================================================
 // Attendance — Class Selection
 // เลือกชั้นเรียน → แสดงรายละเอียด Schedule
 // ============================================================
@@ -792,8 +1162,511 @@ function handleAttendanceClassChange() {
         false;
 
 }
+// ============================================================
+// Attendance — Activity Participants
+// โหลดนักเรียนที่เป็นสมาชิกของกิจกรรม
+// ============================================================
 
+async function loadActivityParticipantsAndRender() {
+
+    const activity =
+        window.selectedAttendanceActivity;
+
+    if (!activity || !activity.activityId) {
+
+        return Swal.fire(
+            "แจ้งเตือน",
+            "กรุณาเลือกกิจกรรมก่อนโหลดรายชื่อครับ",
+            "warning"
+        );
+
+    }
+
+
+    try {
+
+        Swal.fire({
+            title: "กำลังโหลดรายชื่อสมาชิก...",
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+
+        console.log(
+            "LOADING ACTIVITY PARTICIPANTS:",
+            activity.activityId
+        );
+
+
+        // ============================================
+        // โหลดสมาชิกกิจกรรม
+        // ============================================
+
+        displayedStudents =
+            await getActivityParticipants(
+                activity.activityId
+            );
+
+
+        console.log(
+            "ACTIVITY PARTICIPANTS:",
+            displayedStudents
+        );
+// อัปเดตจำนวนสมาชิกจริง
+const participantCountEl =
+    document.getElementById(
+        "activity-participant-count"
+    );
+
+if (participantCountEl) {
+    participantCountEl.textContent =
+        `${displayedStudents.length} คน`;
+}
+        // ============================================
+// โหลด Activity Attendance Session เดิม
+// ============================================
+
+const attendanceDate =
+    document.getElementById("attendance-date").value;
+
+const activitySchedule =
+    activity.schedules &&
+    activity.schedules.length > 0
+        ? activity.schedules[0]
+        : null;
+
+let activityAttendanceMap = {};
+
+if (activitySchedule?.id) {
+
+    console.log(
+        "LOADING ACTIVITY ATTENDANCE SESSION:",
+        {
+            activityScheduleId: activitySchedule.id,
+            attendanceDate: attendanceDate
+        }
+    );
+
+    const session =
+        await getActivityAttendanceSession(
+            activitySchedule.id,
+            attendanceDate
+        );
+
+    console.log(
+        "ACTIVITY ATTENDANCE SESSION:",
+        session
+    );
+
+    if (session) {
+
+        const attendanceData =
+            await getAttendanceBySession(
+                session.id
+            );
+
+        console.log(
+            "ACTIVITY ATTENDANCE RECORDS:",
+            attendanceData
+        );
+
+        (attendanceData || []).forEach(item => {
+
+            activityAttendanceMap[
+                item.student_id
+            ] = item.status;
+
+        });
+    }
+}
+
+
+        // ============================================
+        // ไม่มีนักเรียน
+        // ============================================
+
+        if (
+            !displayedStudents ||
+            displayedStudents.length === 0
+        ) {
+
+            Swal.close();
+
+            return Swal.fire(
+                "ไม่พบรายชื่อ",
+                "กิจกรรมนี้ยังไม่มีนักเรียนที่เข้าร่วม",
+                "info"
+            );
+
+        }
+
+
+        // ============================================
+        // สร้างตารางนักเรียน
+        // ============================================
+
+        const tbody =
+            document.getElementById(
+                "student-body"
+            );
+
+        tbody.innerHTML = "";
+
+
+        const fragment =
+            document.createDocumentFragment();
+
+
+        displayedStudents.forEach(
+            (row, i) => {
+
+                const tr =
+                    document.createElement("tr");
+
+
+                tr.id =
+                    `row-${i}`;
+
+
+                tr.dataset.studentId =
+                    row.studentId;
+                const currentStatus =
+                   activityAttendanceMap[row.studentId] ?? "";
+
+                tr.innerHTML = `
+
+                    <td>
+                        <b>
+                            ${row.studentNo ?? ""}
+                        </b>
+                    </td>
+
+
+                    <td>
+                        ${row.studentCode ?? ""}
+                    </td>
+
+
+                    <td>
+                        <b>
+                            ${row.prefix ?? ""}
+                            ${row.firstName ?? ""}
+                            ${row.lastName ?? ""}
+                        </b>
+                    </td>
+                    <td>
+                        <b>
+                           ${row.roomName ?? "-"}
+                        </b>
+                    </td>
+
+                    <td>
+                        <span class="stats">
+                            -
+                        </span>
+                    </td>
+
+
+                    <td class="alert-text">
+                        0 ครั้ง
+                    </td>
+
+
+                    <td>
+
+                        <select
+                            id="status-${i}"
+                            onchange="updateSummaryCards()"
+                            style="
+                                padding:5px;
+                                border-radius:5px;
+                                border:1px solid #ccc;
+                                font-family:'Prompt',sans-serif;
+                            "
+                        >
+
+                            <option
+                                value="รอเช็ค"
+                                ${currentStatus === "" ? "selected" : ""}
+                            >
+                                -- รอเช็ค --
+                            </option>
+
+
+                            <option value="มา"
+                            ${currentStatus === "PRESENT" ? "selected" : ""}
+                            >
+                                มา
+                            </option>
+
+
+                            <option value="สาย"
+                            ${currentStatus === "LATE" ? "selected" : ""}
+                            >
+                                สาย
+                            </option>
+
+
+                            <option value="ลาป่วย"
+                            ${currentStatus === "SICK" ? "selected" : ""}
+                            >
+                                ลาป่วย
+                            </option>
+
+
+                            <option value="ลากิจ"
+                            ${currentStatus === "PERSONAL" ? "selected" : ""}
+                            >
+                                ลากิจ
+                            </option>
+
+                            <option value="ขาด"
+                            ${currentStatus === "ABSENT" ? "selected" : ""}
+                            >
+                                ขาด
+                            </option>
+
+                        </select>
+
+                    </td>
+
+
+                    <td>
+
+                        <button
+                            class="btn-alert"
+                            disabled
+                            data-student-id="${row.studentId}"
+                        >
+                            🔔 Alert
+                        </button>
+
+                    </td>
+
+                `;
+
+
+                fragment.appendChild(tr);
+
+            }
+        );
+
+
+        tbody.appendChild(
+            fragment
+        );
+
+
+        // ============================================
+        // แสดงตาราง
+        // ============================================
+
+        document.getElementById(
+            "student-table"
+        ).style.display =
+            "table";
+
+
+        document.getElementById(
+            "save-btn"
+        ).style.display =
+            "block";
+
+
+        document.getElementById(
+            "scan-btn"
+        ).style.display =
+            "inline-block";
+
+
+        attendanceCompleted =
+            false;
+
+
+        updateSummaryCards();
+
+
+        Swal.close();
+
+
+    } catch (error) {
+
+        console.error(
+            "LOAD ACTIVITY PARTICIPANTS ERROR:",
+            error
+        );
+
+
+        Swal.close();
+
+
+        Swal.fire(
+            "เกิดข้อผิดพลาด",
+            "ไม่สามารถโหลดรายชื่อสมาชิกกิจกรรมได้",
+            "error"
+        );
+
+    }
+
+}
+// ============================================================
+// Attendance — Class Options
+// กลับจาก Activity Mode → Class Mode
+// ============================================================
+function loadClassAttendanceOptions() {
+
+    console.log("LOADING CLASS ATTENDANCE OPTIONS");
+
+    // ============================================
+    // 1. ล้าง Activity Context
+    // ============================================
+    window.selectedAttendanceActivity = null;
+    window.attendanceActivities = [];
+
+    // ============================================
+    // 2. ล้างรายชื่อนักเรียนเดิม
+    // ============================================
+    if (typeof resetAttendanceList === "function") {
+        resetAttendanceList();
+    }
+
+    // ============================================
+    // 3. Element ที่เกี่ยวข้อง
+    // ============================================
+    const scheduleSelect =
+        document.getElementById("attendance-schedule");
+
+    const classSelect =
+        document.getElementById("attendance-class");
+
+    const classGroup =
+        document.getElementById("attendance-class-group");
+
+    const scheduleInfo =
+        document.getElementById("attendance-schedule-info");
+
+    const scheduleDetails =
+        document.getElementById("attendance-schedule-details");
+
+    const loadButton =
+        document.getElementById("load-btn");
+
+    // ============================================
+    // 4. คืน Dropdown "คาบเรียน"
+    // ============================================
+    if (scheduleSelect) {
+
+        scheduleSelect.innerHTML =
+            '<option value="">-- เลือกคาบเรียน --</option>';
+
+        const lessonMap = new Map();
+
+        (window.attendanceSchedules || []).forEach(
+            schedule => {
+
+                if (!lessonMap.has(schedule.lessonNo)) {
+
+                    lessonMap.set(
+                        schedule.lessonNo,
+                        schedule
+                    );
+
+                }
+
+            }
+        );
+
+        [...lessonMap.entries()]
+            .sort(
+                ([lessonA], [lessonB]) =>
+                    lessonA - lessonB
+            )
+            .forEach(
+                ([lessonNo]) => {
+
+                    const option =
+                        document.createElement("option");
+
+                    option.value =
+                        lessonNo;
+
+                    option.textContent =
+                        `คาบ ${lessonNo}`;
+
+                    scheduleSelect.appendChild(
+                        option
+                    );
+
+                }
+            );
+
+        // คืน Event ของ Class Mode
+        scheduleSelect.onchange =
+            handleAttendanceScheduleChange;
+    }
+
+    // ============================================
+    // 5. Reset ชั้นเรียน
+    // ============================================
+    if (classSelect) {
+
+        classSelect.innerHTML =
+            '<option value="">-- เลือกชั้นเรียน --</option>';
+
+        classSelect.onchange =
+            handleAttendanceClassChange;
+    }
+
+    // ============================================
+    // 6. Reset รายละเอียด
+    // ============================================
+    if (classGroup) {
+        classGroup.style.display = "none";
+    }
+
+    if (scheduleInfo) {
+        scheduleInfo.style.display = "none";
+    }
+
+    if (scheduleDetails) {
+        scheduleDetails.innerHTML = "";
+    }
+
+    // ============================================
+    // 7. Reset Schedule Context
+    // ============================================
+    window.selectedAttendanceSchedule = null;
+
+    // ============================================
+    // 8. ปิดปุ่มโหลดจนกว่าจะเลือกคาบ + ชั้น
+    // ============================================
+    if (loadButton) {
+        loadButton.disabled = true;
+    }
+
+    console.log(
+        "CLASS ATTENDANCE OPTIONS READY:",
+        {
+            schedules:
+                window.attendanceSchedules?.length || 0
+        }
+    );
+}
 async function filterAndLoad() {
+        // ============================================
+    // Activity Mode
+    // ใช้รายชื่อจาก activity_participants
+    // ไม่แตะ Logic ตารางสอนเดิม
+    // ============================================
+
+    if (attendanceMode === "activity") {
+
+        await loadActivityParticipantsAndRender();
+
+        return;
+    }
 
     const attendanceDate =
         document.getElementById(
@@ -1225,8 +2098,435 @@ if (total > 0 && !attendanceCompleted && checked === total) {
 }
 
 }
+async function submitActivityAttendance() {
 
+    const activity =
+        window.selectedAttendanceActivity;
+
+    const attendanceDate =
+        document.getElementById(
+            "attendance-date"
+        ).value;
+
+
+    // ============================================
+    // ตรวจ Activity
+    // ============================================
+
+    if (!activity || !activity.activityId) {
+
+        return Swal.fire(
+            "แจ้งเตือน",
+            "กรุณาเลือกกิจกรรมก่อนบันทึก",
+            "warning"
+        );
+
+    }
+
+
+    if (!attendanceDate) {
+
+        return Swal.fire(
+            "แจ้งเตือน",
+            "กรุณาเลือกวันที่",
+            "warning"
+        );
+
+    }
+
+
+    // ============================================
+    // หา Activity Schedule
+    // ============================================
+
+    const activitySchedule =
+        activity.schedules &&
+        activity.schedules.length > 0
+            ? activity.schedules[0]
+            : null;
+
+    if (
+    attendanceMode === "activity" &&
+    !activity
+) {
+
+    console.error(
+        "ACTIVITY NOT FOUND:",
+        activity
+    );
+
+    return Swal.fire(
+        "ผิดพลาด",
+        "ไม่พบกิจกรรมที่เลือก",
+        "error"
+    );
+}
+
+const activityScheduleId =
+    activitySchedule?.id ?? null;
+
+    console.log(
+        "SUBMIT ACTIVITY ATTENDANCE CONTEXT:",
+        {
+            activityId:
+                activity.activityId,
+
+            activityName:
+                activity.activityName,
+
+            activityScheduleId:
+                activityScheduleId,
+
+            attendanceDate:
+                attendanceDate
+        }
+    );
+
+
+    try {
+
+        // ========================================
+        // ตรวจสถานะ "รอเช็ค"
+        // ========================================
+
+        const pendingCount =
+            displayedStudents.filter(
+                (_, index) => {
+
+                    return (
+                        document.getElementById(
+                            `status-${index}`
+                        )?.value === "รอเช็ค"
+                    );
+
+                }
+            ).length;
+
+
+        if (pendingCount > 0) {
+
+            const result =
+                await Swal.fire({
+
+                    icon: "warning",
+
+                    title: "⚠️ แจ้งเตือน",
+
+                    html: `
+                        ยังมีนักเรียน
+                        <b>${pendingCount}</b> คน
+                        <br>
+                        ที่มีสถานะ
+                        <b>"รอเช็ค"</b>
+                        <br><br>
+                        คุณต้องการดำเนินการอย่างไร?
+                    `,
+
+                    showCancelButton: true,
+
+                    confirmButtonText:
+                        "💾 ยืนยันบันทึก",
+
+                    cancelButtonText:
+                        "🔍 กลับไปตรวจสอบ",
+
+                    reverseButtons: true
+
+                });
+
+
+            if (!result.isConfirmed) {
+                return;
+            }
+
+        }
+
+
+        // ========================================
+        // สรุปผล
+        // ========================================
+
+        const summary = {
+
+            "มา": 0,
+            "สาย": 0,
+            "ลาป่วย": 0,
+            "ลากิจ": 0,
+            "ขาด": 0
+
+        };
+
+
+        displayedStudents.forEach(
+            (_, index) => {
+
+                const status =
+                    document.getElementById(
+                        `status-${index}`
+                    )?.value;
+
+
+                if (
+                    summary[status] !== undefined
+                ) {
+
+                    summary[status]++;
+
+                }
+
+            }
+        );
+
+
+        const summaryResult =
+            await Swal.fire({
+
+                icon: "question",
+
+                title:
+                    "📊 สรุปผลการเช็กชื่อกิจกรรม",
+
+                html: `
+                    <div style="text-align:left;font-size:16px">
+
+                        🎯 กิจกรรม:
+                        <b>
+                            ${activity.activityName}
+                        </b>
+
+                        <br><br>
+
+                        ✅ มา :
+                        <b>${summary["มา"]}</b> คน
+                        <br>
+
+                        🟡 สาย :
+                        <b>${summary["สาย"]}</b> คน
+                        <br>
+
+                        🤒 ลาป่วย :
+                        <b>${summary["ลาป่วย"]}</b> คน
+                        <br>
+
+                        📝 ลากิจ :
+                        <b>${summary["ลากิจ"]}</b> คน
+                        <br>
+
+                        ❌ ขาด :
+                        <b>${summary["ขาด"]}</b> คน
+
+                    </div>
+
+                    <br>
+
+                    ต้องการบันทึกข้อมูลใช่หรือไม่?
+                `,
+
+                showCancelButton: true,
+
+                confirmButtonText:
+                    "💾 ยืนยันบันทึก",
+
+                cancelButtonText:
+                    "✏️ กลับไปแก้ไข",
+
+                reverseButtons: true
+
+            });
+
+
+        if (!summaryResult.isConfirmed) {
+            return;
+        }
+
+
+        Swal.fire({
+
+            title:
+                "กำลังบันทึกการเช็คชื่อกิจกรรม...",
+
+            allowOutsideClick: false,
+
+            didOpen: () =>
+                Swal.showLoading()
+
+        });
+
+
+        // ========================================
+        // 1. หา / สร้าง Activity Session
+        // ========================================
+
+        let session =
+            await getActivityAttendanceSession(
+                activityScheduleId,
+                attendanceDate
+            );
+
+
+        if (!session) {
+
+            session =
+                await createActivityAttendanceSession(
+                    activityScheduleId,
+                    attendanceDate
+                );
+
+        }
+
+
+        console.log(
+            "ACTIVITY ATTENDANCE SESSION:",
+            session
+        );
+
+
+        // ========================================
+        // 2. เตรียม Attendance Records
+        // ========================================
+
+        const records = [];
+
+        const deleteStudentIds = [];
+
+
+        displayedStudents.forEach(
+            (student, index) => {
+
+                const uiStatus =
+                    document.getElementById(
+                        `status-${index}`
+                    )?.value;
+
+
+                if (uiStatus === "รอเช็ค") {
+
+                    deleteStudentIds.push(
+                        student.studentId
+                    );
+
+                    return;
+
+                }
+
+
+                const statusMap = {
+
+                    "มา":
+                        "PRESENT",
+
+                    "สาย":
+                        "LATE",
+
+                    "ลาป่วย":
+                        "SICK",
+
+                    "ลากิจ":
+                        "PERSONAL",
+
+                    "ขาด":
+                        "ABSENT"
+
+                };
+
+
+                records.push({
+
+                    attendance_session_id:
+                        session.id,
+
+                    student_id:
+                        student.studentId,
+
+                    attendance_type:
+                        "MANUAL",
+
+                    status:
+                        statusMap[uiStatus],
+
+                    check_in_time:
+                        new Date().toISOString()
+
+                });
+
+            }
+        );
+
+
+        // ========================================
+        // 3. ลบรายการเดิมที่ถูกเปลี่ยนกลับเป็น
+        //    "รอเช็ค"
+        // ========================================
+
+        await deleteAttendance(
+            session.id,
+            deleteStudentIds
+        );
+
+
+        // ========================================
+        // 4. บันทึก Attendance
+        // ========================================
+
+        if (records.length > 0) {
+
+            await saveAttendance(
+                records
+            );
+
+        }
+
+
+        Swal.close();
+
+
+        await Swal.fire(
+            "สำเร็จ",
+            "บันทึกการเช็คชื่อกิจกรรมเรียบร้อย",
+            "success"
+        );
+
+
+        console.log(
+            "ACTIVITY ATTENDANCE SAVED:",
+            {
+                sessionId: session.id,
+                recordCount: records.length
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "SUBMIT ACTIVITY ATTENDANCE ERROR:",
+            error
+        );
+
+
+        Swal.close();
+
+
+        Swal.fire(
+            "เกิดข้อผิดพลาด",
+            "ไม่สามารถบันทึกการเช็คชื่อกิจกรรมได้",
+            "error"
+        );
+
+    }
+
+}
 async function submitAttendance() {
+        // ============================================
+    // Activity Mode
+    // แยกออกจาก Attendance Engine เดิม
+    // ============================================
+
+    if (attendanceMode === "activity") {
+
+        return await submitActivityAttendance();
+
+    }
 
     const selectedSchedule =
         window.selectedAttendanceSchedule;

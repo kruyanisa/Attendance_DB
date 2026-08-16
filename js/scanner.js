@@ -113,7 +113,8 @@ function processScannedCode(scannedId){
     // ----------------------------
     const uuid = scannedId.replace("SMS|","");
 
-    const studentIndex = displayedStudents.findIndex(s => s.id === uuid);
+    const studentIndex = displayedStudents.findIndex(s => (s.studentId || s.id) === uuid
+);
 
     // ----------------------------
     // ไม่พบในห้อง

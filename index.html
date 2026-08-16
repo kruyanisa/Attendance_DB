@@ -450,8 +450,27 @@
 </div>
 
   <div class="glass-card">
+<div class="attendance-tabs">
 
-    <div class="header-controls">
+        <button
+            type="button"
+            class="attendance-tab active"
+            data-attendance-mode="class">
+            📚 ตารางสอน
+        </button>
+
+        <button
+            type="button"
+            class="attendance-tab"
+            data-attendance-mode="activity">
+            🎯 กิจกรรม
+        </button>
+
+    </div>
+
+    <div
+    id="class-attendance-controls"
+    class="header-controls">
 
         <!-- วันที่เช็คชื่อ -->
         <div class="attendance-filter-group">
@@ -542,7 +561,94 @@
     </div>
 
 </div>
+<!-- =========================
+     ACTIVITY CONTROLS
+     ========================= -->
+<div
+    id="activity-controls"
+    class="header-controls"
+    style="display:none;">
 
+    <!-- วันที่ -->
+    <div class="attendance-filter-group">
+
+        <label for="activity-date">
+            📅 วันที่
+        </label>
+
+        <input
+            type="date"
+            id="activity-date">
+
+    </div>
+
+
+    <!-- กิจกรรม -->
+    <div class="attendance-filter-group">
+
+        <label for="attendance-activity">
+            🎯 กิจกรรม
+        </label>
+
+        <select id="attendance-activity">
+
+            <option value="">
+                -- เลือกกิจกรรม --
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <!-- ห้องเรียน -->
+    <div class="attendance-filter-group">
+
+        <label for="activity-class">
+            🏫 ชั้นเรียน
+        </label>
+
+        <select id="activity-class">
+
+            <option value="">
+                -- เลือกชั้นเรียน --
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <!-- รายละเอียดกิจกรรม -->
+    <div
+        id="activity-info"
+        class="attendance-schedule-info"
+        style="display:none;">
+
+        <div class="attendance-schedule-info-title">
+            🎯 รายละเอียดกิจกรรม
+        </div>
+
+        <div
+            id="activity-details"
+            class="attendance-schedule-details">
+        </div>
+
+    </div>
+
+
+    <!-- โหลดรายชื่อ -->
+    <button
+        class="btn"
+        id="activity-load-btn"
+        onclick="filterAndLoadActivity()"
+        disabled>
+
+        🔄 โหลดรายชื่อ
+
+    </button>
+
+</div>
   <table id="student-table" style="display:none;">
 
       <thead>
@@ -554,6 +660,8 @@
               <th>รหัสนักเรียน</th>
 
               <th>ชื่อ - สกุล</th>
+
+              <th id="activity-room-header" style="display:none;">ชั้น</th>
 
               <th>สถิติเดิม</th>
 
@@ -1299,6 +1407,80 @@
 <script src="js/api.js"></script>
 <script src="js/app.js"></script>
 <script src="js/attendance.js"></script>
+
+<script>
+document.querySelectorAll('.attendance-tab').forEach(tab => {
+
+    tab.addEventListener('click', function () {
+
+        document.querySelectorAll('.attendance-tab')
+            .forEach(t => {
+                t.classList.remove('active');
+            });
+
+        this.classList.add('active');
+
+
+        // ============================================
+        // เก็บ Mode ปัจจุบัน
+        // ============================================
+
+        attendanceMode =
+            this.dataset.attendanceMode || "class";
+            const activityRoomHeader =
+    document.getElementById("activity-room-header");
+
+if (activityRoomHeader) {
+    activityRoomHeader.style.display =
+        attendanceMode === "activity"
+            ? ""
+            : "none";
+}
+
+
+        console.log(
+            "Attendance mode:",
+            attendanceMode
+        );
+
+
+        // ============================================
+        // Reset รายชื่อเดิม
+        // ============================================
+
+        if (
+            typeof resetAttendanceList === "function"
+        ) {
+            resetAttendanceList();
+        }
+
+
+        // ============================================
+        // Activity Mode
+        // ============================================
+
+        if (attendanceMode === "activity") {
+
+            loadActivityAttendanceOptions();
+
+        }
+
+
+        // ============================================
+        // Class Mode
+        // ============================================
+
+        else {
+
+            loadClassAttendanceOptions();
+
+        }
+
+    });
+
+});
+</script>
+
 <script src="js/dashboard.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="js/dashboard_analytics.js"></script>
 <script src="js/qr.js"></script>
 <script src="js/scanner.js"></script>

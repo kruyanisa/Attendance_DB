@@ -2523,3 +2523,44 @@ body.dark-mode .schedule-status-badge {
     }
 
 }
+/* ==========================================
+   Attendance Mode Tabs
+   STEP 1 - UI ONLY
+   ========================================== */
+
+.attendance-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 4px;
+    background: var(--card-bg, rgba(255, 255, 255, 0.06));
+    border-radius: 12px;
+    width: fit-content;
+}
+
+.attendance-tab {
+    border: none;
+    background: transparent;
+    padding: 10px 20px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-secondary, #64748b);
+    transition: all 0.2s ease;
+}
+
+.attendance-tab.active {
+    background: var(--primary, #2563eb);
+    color: #fff;
+}
+
+.attendance-tab:not(.active):hover {
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.schedule-flag-column {
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
+}
