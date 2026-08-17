@@ -1028,6 +1028,154 @@ async function getActivitySchedules() {
 
     return result;
 }
+async function getActivitiesForScheduleCreate() {
+
+    const { data, error } =
+        await supabaseClient
+            .from("activities")
+            .select(`
+                id,
+                activity_name,
+                activity_types!activity_type_id(
+                    code,
+                    name
+                )
+            `)
+            .is("deleted_at", null)
+            .order(
+                "activity_name",
+                {
+                    ascending: true
+                }
+            );
+
+    if (error) {
+        throw error;
+    }
+
+    return (data || []).map(
+        activity => ({
+            activityId:
+                activity.id,
+
+            activityName:
+                activity.activity_name || "",
+
+            activityTypeCode:
+                activity.activity_types?.code || "",
+
+            activityTypeName:
+                activity.activity_types?.name || ""
+        })
+    );
+}
+// ============================================================
+// Activity Schedule
+// CREATE Activity Schedule
+// ============================================================
+
+async function createActivitySchedule(scheduleData) {
+
+    const { data, error } =
+        await supabaseClient
+            .from("activity_schedules")
+            .insert({
+                activity_id:
+                    scheduleData.activityId,
+
+                weekday:
+                    scheduleData.weekday,
+
+                lesson_no:
+                    scheduleData.lessonNo ?? null,
+
+                start_time:
+                    scheduleData.startTime ?? null,
+
+                end_time:
+                    scheduleData.endTime ?? null,
+
+                valid_from:
+                    scheduleData.validFrom,
+
+                valid_until:
+                    scheduleData.validUntil || null
+            })
+            .select()
+            .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
+// ============================================================
+// Activity Schedule
+// DELETE Activity Schedule
+// ============================================================
+
+async function deleteActivitySchedule(scheduleId) {
+
+    if (!scheduleId) {
+        throw new Error(
+            "ไม่พบ Activity Schedule ID"
+        );
+    }
+
+    // --------------------------------------------------------
+    // 1. ตรวจว่ามี Attendance Session ใช้ Schedule นี้หรือไม่
+    // --------------------------------------------------------
+
+    const { count, error: countError } =
+        await supabaseClient
+            .from("attendance_sessions")
+            .select(
+                "id",
+                {
+                    count: "exact",
+                    head: true
+                }
+            )
+            .eq(
+                "activity_schedule_id",
+                scheduleId
+            );
+
+    if (countError) {
+        throw countError;
+    }
+
+    // --------------------------------------------------------
+    // 2. ถ้ามีประวัติ Attendance แล้ว ห้ามลบ
+    // --------------------------------------------------------
+
+    if (count > 0) {
+        throw new Error(
+            "ไม่สามารถลบตารางกิจกรรมนี้ได้ เนื่องจากมีประวัติการเช็คชื่อแล้ว"
+        );
+    }
+
+    // --------------------------------------------------------
+    // 3. ยังไม่มี Attendance → ลบ Schedule ได้
+    // --------------------------------------------------------
+
+    const { error } =
+        await supabaseClient
+            .from("activity_schedules")
+            .delete()
+            .eq(
+                "id",
+                scheduleId
+            );
+
+    if (error) {
+        throw error;
+    }
+
+    return true;
+}
 // ============================================================
 // Class Schedule
 // STEP 5B.8.10A — Create Schedule

@@ -233,7 +233,184 @@ function openSchedulePlaceholder() {
 
     showNavigationPlaceholder("ตารางสอน");
 }
+// ============================================================
+// SCHEDULE MANAGEMENT TYPE
+// STEP 4.2 — Class / Activity Sub-tab
+// ============================================================
 
+function switchScheduleManageType(type) {
+
+    const classTab =
+        document.getElementById(
+            "schedule-manage-class-tab"
+        );
+
+    const activityTab =
+        document.getElementById(
+            "schedule-manage-activity-tab"
+        );
+
+    const addClassButton =
+        document.getElementById(
+            "schedule-manage-add-class-btn"
+        );
+
+    const addActivityButton =
+        document.getElementById(
+            "schedule-manage-add-activity-btn"
+        );
+
+    const filterArea =
+        document.getElementById(
+            "schedule-manage-filter"
+        );
+
+    const list =
+        document.getElementById(
+            "schedule-manage-list"
+        );
+
+    if (
+        !classTab ||
+        !activityTab ||
+        !addClassButton ||
+        !addActivityButton ||
+        !filterArea ||
+        !list
+    ) {
+        return;
+    }
+
+    // ========================================================
+    // CLASS
+    // ========================================================
+
+    if (type === "class") {
+
+        classTab.style.background = "#2563eb";
+        classTab.style.color = "#fff";
+
+        activityTab.style.background = "transparent";
+        activityTab.style.color = "#334155";
+
+        addClassButton.style.display = "";
+        addActivityButton.style.display = "none";
+
+        filterArea.innerHTML = `
+            <select
+                id="schedule-manage-day-filter"
+                class="schedule-filter-select"
+            >
+                <option value="">📅 ทุกวัน</option>
+                <option value="1">จันทร์</option>
+                <option value="2">อังคาร</option>
+                <option value="3">พุธ</option>
+                <option value="4">พฤหัสบดี</option>
+                <option value="5">ศุกร์</option>
+            </select>
+
+            <select
+    id="schedule-manage-lesson-filter"
+    class="schedule-filter-select"
+>
+    <option value="">🔢 ทุกคาบ</option>
+
+    ${SCHEDULE_PERIODS.map(period => `
+        <option value="${period.lessonNo}">
+            ${period.label}
+        </option>
+    `).join("")}
+</select>
+        `;
+
+const dayFilter =
+    document.getElementById(
+        "schedule-manage-day-filter"
+    );
+
+const lessonFilter =
+    document.getElementById(
+        "schedule-manage-lesson-filter"
+    );
+
+dayFilter.addEventListener(
+    "change",
+    () => loadScheduleManage()
+);
+
+lessonFilter.addEventListener(
+    "change",
+    () => loadScheduleManage()
+);
+
+        list.innerHTML = `
+            <div class="schedule-loading-state">
+                <div class="schedule-empty-icon">🗂️</div>
+                <h2>กำลังโหลดตารางสอน...</h2>
+            </div>
+        `;
+
+        loadScheduleManage();
+
+        return;
+    }
+
+    // ========================================================
+    // ACTIVITY
+    // ========================================================
+
+    classTab.style.background = "transparent";
+    classTab.style.color = "#334155";
+
+    activityTab.style.background = "#2563eb";
+    activityTab.style.color = "#fff";
+
+    addClassButton.style.display = "none";
+    addActivityButton.style.display = "";
+
+    filterArea.innerHTML = `
+        <select
+            id="activity-manage-type-filter"
+            class="schedule-filter-select"
+        >
+            <option value="">🎯 ทุกประเภทกิจกรรม</option>
+        </select>
+
+        <select
+            id="activity-manage-day-filter"
+            class="schedule-filter-select"
+        >
+            <option value="">📅 ทุกวัน</option>
+            <option value="1">จันทร์</option>
+            <option value="2">อังคาร</option>
+            <option value="3">พุธ</option>
+            <option value="4">พฤหัสบดี</option>
+            <option value="5">ศุกร์</option>
+        </select>
+    `;
+
+    const activityTypeFilter =
+    document.getElementById(
+        "activity-manage-type-filter"
+    );
+
+const activityDayFilter =
+    document.getElementById(
+        "activity-manage-day-filter"
+    );
+
+activityTypeFilter.addEventListener(
+    "change",
+    () => loadActivityScheduleManage()
+);
+
+activityDayFilter.addEventListener(
+    "change",
+    () => loadActivityScheduleManage()
+);
+
+    loadActivityScheduleManage();
+}
 // ============================================================
 // SCHEDULE UI — STEP 5B.3
 // ============================================================
@@ -270,25 +447,108 @@ function switchScheduleTab(tabName) {
                 <p>จัดการ เพิ่ม แก้ไข และสิ้นสุดตารางสอน</p>
             </div>
 
+            <div
+    id="schedule-manage-add-actions"
+    style="
+        display:flex;
+        align-items:center;
+        gap:8px;
+    "
+>
+    <button
+        type="button"
+        id="schedule-manage-add-class-btn"
+        class="schedule-add-btn"
+        onclick="openScheduleCreate()"
+    >
+        ＋ เพิ่มตารางสอน
+    </button>
+
+    <button
+        type="button"
+        id="schedule-manage-add-activity-btn"
+        class="schedule-add-btn"
+        style="display:none;"
+        onclick="openActivityScheduleCreate()"
+    >
+        ＋ เพิ่มตารางกิจกรรม
+    </button>
+</div>
+
+        </div>
+
+        <!-- Schedule Management Type -->
+        <div
+            style="
+                display:flex;
+                gap:8px;
+                margin:16px 0 12px;
+                padding:4px;
+                background:#f1f5f9;
+                border-radius:12px;
+                width:max-content;
+            "
+        >
+
             <button
                 type="button"
-                class="schedule-add-btn"
-                onclick="openScheduleCreate()"
+                id="schedule-manage-class-tab"
+                onclick="switchScheduleManageType('class')"
+                style="
+                    border:0;
+                    border-radius:9px;
+                    padding:9px 18px;
+                    background:#2563eb;
+                    color:#fff;
+                    font-weight:600;
+                    cursor:pointer;
+                "
             >
-                ＋ เพิ่มตารางสอน
+                📚 วิชา
+            </button>
+
+            <button
+                type="button"
+                id="schedule-manage-activity-tab"
+                onclick="switchScheduleManageType('activity')"
+                style="
+                    border:0;
+                    border-radius:9px;
+                    padding:9px 18px;
+                    background:transparent;
+                    color:#334155;
+                    font-weight:600;
+                    cursor:pointer;
+                "
+            >
+                🎯 กิจกรรม
             </button>
 
         </div>
 
+        <!-- Filter Area -->
+        <div
+            id="schedule-manage-filter"
+            style="
+                display:flex;
+                flex-wrap:wrap;
+                gap:10px;
+                margin-bottom:16px;
+            "
+        ></div>
+
+        <!-- Schedule List -->
         <div id="schedule-manage-list">
+
             <div class="schedule-loading-state">
                 <div class="schedule-empty-icon">🗂️</div>
                 <h2>กำลังโหลดตารางสอน...</h2>
             </div>
+
         </div>
     `;
 
-    loadScheduleManage();
+    switchScheduleManageType('class');
 
     return;
 }
@@ -411,7 +671,286 @@ renderScheduleTimetable(
 
     }
 }
+async function deleteActivityScheduleManage(scheduleId) {
 
+    if (!scheduleId) {
+        console.error(
+            "Activity Schedule Delete: missing scheduleId"
+        );
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: "🗑️ ลบตารางกิจกรรม?",
+        text: "การลบจะไม่กระทบประวัติการเช็คชื่อที่มีอยู่",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "ลบ",
+        cancelButtonText: "ยกเลิก",
+        confirmButtonColor: "#dc2626"
+    });
+
+    if (!result.isConfirmed) {
+        return;
+    }
+
+    try {
+
+        await deleteActivitySchedule(scheduleId);
+
+        await Swal.fire({
+            title: "ลบสำเร็จ",
+            text: "ลบตารางกิจกรรมเรียบร้อยแล้ว",
+            icon: "success",
+            confirmButtonText: "ตกลง"
+        });
+
+        await loadActivityScheduleManage();
+
+    } catch (error) {
+
+        console.error(
+            "Activity Schedule Delete Error:",
+            error
+        );
+
+        await Swal.fire({
+            title: "ไม่สามารถลบได้",
+            text:
+                error.message ||
+                "เกิดข้อผิดพลาดในการลบตารางกิจกรรม",
+            icon: "error",
+            confirmButtonText: "ตกลง"
+        });
+    }
+}
+
+// ============================================================
+// ACTIVITY SCHEDULE MANAGE
+// STEP 4.4.1 — Load Activity Schedule Cards
+// ============================================================
+
+async function loadActivityScheduleManage() {
+
+    const list =
+        document.getElementById(
+            "schedule-manage-list"
+        );
+
+    if (!list) return;
+
+    try {
+
+        const schedules =
+            await getActivitySchedules();
+        const typeFilter =
+    document.getElementById(
+        "activity-manage-type-filter"
+    );
+
+const dayFilter =
+    document.getElementById(
+        "activity-manage-day-filter"
+    );
+
+const selectedType =
+    typeFilter?.value || "";
+
+const selectedDay =
+    dayFilter?.value || "";
+
+if (typeFilter) {
+
+    const currentValue =
+        typeFilter.value;
+
+    const types =
+        [...new Map(
+            schedules.map(activity => [
+                activity.activityTypeCode,
+                activity.activityTypeName
+            ])
+        ).entries()];
+
+    typeFilter.innerHTML = `
+        <option value="">
+            🎯 ทุกประเภทกิจกรรม
+        </option>
+
+        ${types.map(
+            ([code, name]) => `
+                <option value="${code}">
+                    ${name}
+                </option>
+            `
+        ).join("")}
+    `;
+
+    typeFilter.value = currentValue;
+}
+
+const filteredSchedules =
+    schedules.filter(activity => {
+
+        const matchType =
+            !selectedType ||
+            activity.activityTypeCode ===
+            selectedType;
+
+        const matchDay =
+            !selectedDay ||
+            String(activity.weekday) ===
+            String(selectedDay);
+
+        return matchType && matchDay;
+    });
+
+        if (!schedules || schedules.length === 0) {
+
+            list.innerHTML = `
+                <div class="schedule-empty-state">
+                    <div class="schedule-empty-icon">
+                        🎯
+                    </div>
+
+                    <h2>
+                        ยังไม่มีตารางกิจกรรม
+                    </h2>
+
+                    <p>
+                        กด "＋ เพิ่มตารางกิจกรรม"
+                        เพื่อสร้างตารางกิจกรรมใหม่
+                    </p>
+                </div>
+            `;
+
+            return;
+        }
+
+        const weekdayNames = {
+            1: "จันทร์",
+            2: "อังคาร",
+            3: "พุธ",
+            4: "พฤหัสบดี",
+            5: "ศุกร์"
+        };
+
+        list.innerHTML =
+            filteredSchedules.map(
+                (activity, index) => {
+
+                    const weekdayName =
+                        weekdayNames[
+                            activity.weekday
+                        ] || "-";
+
+                    const lesson =
+                        activity.lessonNo
+                            ? `คาบ ${activity.lessonNo}`
+                            : "ไม่ระบุคาบ";
+
+                    const time =
+                        activity.startTime &&
+                        activity.endTime
+                            ? `${activity.startTime} – ${activity.endTime}`
+                            : "-";
+
+                    const validFrom =
+                        activity.validFrom || "-";
+
+                    const validUntil =
+                        activity.validUntil ||
+                        "ไม่กำหนด";
+
+                    return `
+                        <div class="schedule-manage-card">
+
+                            <div class="schedule-manage-card-main">
+
+                                <div class="schedule-manage-card-title">
+                                    🎯
+                                    ${activity.activityName || "-"}
+                                </div>
+
+                                <div class="schedule-manage-card-info">
+                                    🏷️
+                                    ${activity.activityTypeCode || "-"}
+                                </div>
+
+                                <div class="schedule-manage-card-info">
+                                    📅
+                                    ${weekdayName}
+
+                                    <span>•</span>
+
+                                    🕐
+                                    ${lesson}
+
+                                    <span>•</span>
+
+                                    ${time}
+                                </div>
+
+                                <div class="schedule-manage-card-date">
+                                    📅
+                                    เริ่มใช้:
+                                    ${validFrom}
+
+                                    &nbsp;→&nbsp;
+
+                                    สิ้นสุด:
+                                    ${validUntil}
+                                </div>
+
+                            </div>
+
+                            <div class="schedule-manage-card-actions">
+
+                                <button
+                                   type="button"
+                                   class="schedule-delete-btn"
+                                   onclick="
+                                      deleteActivityScheduleManage(
+                                      '${activity.scheduleId}'
+                                    )
+                                "
+                                >
+                                    🗑️ ลบ
+                                </button>
+
+                            </div>
+
+                        </div>
+                    `;
+                }
+            ).join("");
+
+    } catch (error) {
+
+        console.error(
+            "Activity Schedule Manage Load Error:",
+            error
+        );
+
+        list.innerHTML = `
+            <div class="schedule-empty-state">
+
+                <div class="schedule-empty-icon">
+                    ⚠️
+                </div>
+
+                <h2>
+                    ไม่สามารถโหลดตารางกิจกรรมได้
+                </h2>
+
+                <p>
+                    กรุณาลองใหม่อีกครั้ง
+                </p>
+
+            </div>
+        `;
+    }
+}
 // ============================================================
 // SCHEDULE MANAGE
 // STEP 5B.9.2 — Group Schedule Records for UI
@@ -442,12 +981,48 @@ async function loadScheduleManage() {
         const schedules =
             rawSchedules.map(mapScheduleData);
 
+        // ====================================================
+// CLASS SCHEDULE FILTER
+// ====================================================
+
+const dayFilter =
+    document.getElementById(
+        "schedule-manage-day-filter"
+    );
+
+const lessonFilter =
+    document.getElementById(
+        "schedule-manage-lesson-filter"
+    );
+
+const selectedDay =
+    dayFilter?.value || "";
+
+const selectedLesson =
+    lessonFilter?.value || "";
+
+const filteredSchedules =
+    schedules.filter(schedule => {
+
+        const matchDay =
+            !selectedDay ||
+            String(schedule.weekday) ===
+            String(selectedDay);
+
+        const matchLesson =
+            !selectedLesson ||
+            String(schedule.lessonNo) ===
+            String(selectedLesson);
+
+        return matchDay && matchLesson;
+    });
+
 
         // ====================================================
         // 3. ไม่มีข้อมูล
         // ====================================================
 
-        if (schedules.length === 0) {
+        if (filteredSchedules.length === 0) {
 
             list.innerHTML = `
                 <div class="schedule-empty-state">
@@ -496,7 +1071,7 @@ async function loadScheduleManage() {
         const groupedMap = new Map();
 
 
-        schedules.forEach(schedule => {
+        filteredSchedules.forEach(schedule => {
 
             const groupKey = [
                 schedule.subjectCode,
@@ -3216,6 +3791,526 @@ const SCHEDULE_PERIODS = [
     }
 ];
 
+async function saveActivityScheduleCreate() {
+
+    const activityId =
+        document.getElementById(
+            "activity-schedule-activity"
+        )?.value;
+
+    const weekday =
+        document.getElementById(
+            "activity-schedule-day"
+        )?.value;
+
+    const lessonValue =
+        document.getElementById(
+            "activity-schedule-lesson"
+        )?.value;
+
+    const startTime =
+        document.getElementById(
+            "activity-schedule-start-time"
+        )?.value;
+
+    const endTime =
+        document.getElementById(
+            "activity-schedule-end-time"
+        )?.value;
+
+    const validFrom =
+        document.getElementById(
+            "activity-schedule-valid-from"
+        )?.value;
+
+    const validUntil =
+        document.getElementById(
+            "activity-schedule-valid-until"
+        )?.value;
+
+
+    // ========================================================
+    // VALIDATION
+    // ========================================================
+
+    if (!activityId) {
+
+        await Swal.fire({
+            icon: "warning",
+            title: "กรุณาเลือกกิจกรรม",
+            confirmButtonText: "ตกลง"
+        });
+
+        return;
+    }
+
+    if (!weekday) {
+
+        await Swal.fire({
+            icon: "warning",
+            title: "กรุณาเลือกวัน",
+            confirmButtonText: "ตกลง"
+        });
+
+        return;
+    }
+
+    if (!validFrom) {
+
+        await Swal.fire({
+            icon: "warning",
+            title: "กรุณาระบุวันที่เริ่มใช้",
+            confirmButtonText: "ตกลง"
+        });
+
+        return;
+    }
+
+
+    try {
+
+        await createActivitySchedule({
+
+            activityId:
+                activityId,
+
+            weekday:
+                Number(weekday),
+
+            lessonNo:
+                lessonValue
+                    ? Number(lessonValue)
+                    : null,
+
+            startTime:
+                startTime || null,
+
+            endTime:
+                endTime || null,
+
+            validFrom:
+                validFrom,
+
+            validUntil:
+                validUntil || null
+        });
+
+
+        await Swal.fire({
+            icon: "success",
+            title: "เพิ่มตารางกิจกรรมสำเร็จ",
+            confirmButtonText: "ตกลง"
+        });
+
+
+        closeActivityScheduleCreate();
+
+        await loadActivityScheduleManage();
+
+    } catch (error) {
+
+        console.error(
+            "Activity Schedule Create Error:",
+            error
+        );
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถเพิ่มตารางกิจกรรมได้",
+            text:
+                error.message ||
+                "เกิดข้อผิดพลาดในการบันทึก",
+            confirmButtonText: "ตกลง"
+        });
+    }
+}
+async function openActivityScheduleCreate() {
+
+    const oldModal =
+        document.getElementById(
+            "activity-schedule-create-modal"
+        );
+
+    if (oldModal) {
+        oldModal.remove();
+    }
+
+    const modal =
+        document.createElement("div");
+
+    modal.id =
+        "activity-schedule-create-modal";
+
+    modal.innerHTML = `
+        <div class="schedule-modal-backdrop">
+
+            <div class="schedule-modal">
+
+                <div class="schedule-modal-header">
+
+                    <div>
+                        <h2>＋ เพิ่มตารางกิจกรรม</h2>
+
+                        <p>
+                            กำหนดกิจกรรม วัน และคาบ
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="schedule-modal-close"
+                        onclick="
+                            closeActivityScheduleCreate()
+                        "
+                    >
+                        ✕
+                    </button>
+
+                </div>
+
+
+                <div class="schedule-modal-body">
+
+                    <!-- Activity -->
+
+                    <div class="schedule-form-group">
+
+                        <label for="activity-schedule-activity">
+                            กิจกรรม
+                        </label>
+
+                        <select
+                            id="activity-schedule-activity"
+                        >
+                            <option value="">
+                                -- เลือกกิจกรรม --
+                            </option>
+                        </select>
+
+                    </div>
+
+
+                    <!-- Day / Lesson -->
+
+                    <div
+                        style="
+                            display:grid;
+                            grid-template-columns:
+                                1fr 1fr;
+                            gap:14px;
+                        "
+                    >
+
+                        <div class="schedule-form-group">
+
+                            <label
+                                for="
+                                    activity-schedule-day
+                                "
+                            >
+                                วัน
+                            </label>
+
+                            <select
+                                id="activity-schedule-day"
+                            >
+
+                                <option value="1">
+                                    จันทร์
+                                </option>
+
+                                <option value="2">
+                                    อังคาร
+                                </option>
+
+                                <option value="3">
+                                    พุธ
+                                </option>
+
+                                <option value="4">
+                                    พฤหัสบดี
+                                </option>
+
+                                <option value="5">
+                                    ศุกร์
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="schedule-form-group">
+
+                            <label
+                                for="
+                                    activity-schedule-lesson
+                                "
+                            >
+                                คาบ
+                            </label>
+
+                            <select
+                                id="activity-schedule-lesson"
+                            >
+
+                                <option value="">
+                                    ไม่ระบุคาบ
+                                </option>
+
+                                ${SCHEDULE_PERIODS.map(
+                                    period => `
+                                        <option
+                                            value="
+                                                ${period.lessonNo}
+                                            "
+                                        >
+                                            ${period.label}
+                                        </option>
+                                    `
+                                ).join("")}
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Time -->
+
+                    <div
+                        style="
+                            display:grid;
+                            grid-template-columns:
+                                1fr 1fr;
+                            gap:14px;
+                        "
+                    >
+
+                        <div class="schedule-form-group">
+
+                            <label
+                                for="
+                                    activity-schedule-start-time
+                                "
+                            >
+                                เวลาเริ่ม
+                            </label>
+
+                            <input
+                                type="time"
+                                id="activity-schedule-start-time"
+                            >
+
+                        </div>
+
+
+                        <div class="schedule-form-group">
+
+                            <label
+                                for="
+                                    activity-schedule-end-time
+                                "
+                            >
+                                เวลาสิ้นสุด
+                            </label>
+
+                            <input
+                                type="time"
+                                id="activity-schedule-end-time"
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Validity -->
+
+                    <div
+                        style="
+                            display:grid;
+                            grid-template-columns:
+                                1fr 1fr;
+                            gap:14px;
+                        "
+                    >
+
+                        <div class="schedule-form-group">
+
+                            <label
+                                for="
+                                    activity-schedule-valid-from
+                                "
+                            >
+                                เริ่มใช้วันที่
+                            </label>
+
+                            <input
+                                type="date"
+                                id="activity-schedule-valid-from"
+                            >
+
+                        </div>
+
+
+                        <div class="schedule-form-group">
+
+                            <label
+                                for="
+                                    activity-schedule-valid-until
+                                "
+                            >
+                                สิ้นสุดวันที่
+                            </label>
+
+                            <input
+                                type="date"
+                                id="activity-schedule-valid-until"
+                            >
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="schedule-modal-footer">
+
+                    <button
+                        type="button"
+                        class="schedule-modal-cancel"
+                        onclick="
+                            closeActivityScheduleCreate()
+                        "
+                    >
+                        ยกเลิก
+                    </button>
+
+                    <button
+                        type="button"
+                        class="schedule-modal-save"
+                        onclick="saveActivityScheduleCreate()"
+                    >
+                        💾 บันทึก
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+
+    // Load Activity options
+
+    try {
+
+        const activities =
+            await getActivitiesForScheduleCreate();
+
+        const select =
+            document.getElementById(
+                "activity-schedule-activity"
+            );
+
+        if (!select) return;
+
+        select.innerHTML = `
+            <option value="">
+                -- เลือกกิจกรรม --
+            </option>
+
+            ${activities.map(
+                activity => `
+                    <option
+                        value="${activity.activityId}"
+                    >
+                        ${activity.activityName}
+                        ${activity.activityTypeName
+                            ? ` — ${activity.activityTypeName}`
+                            : ""
+                        }
+                    </option>
+                `
+            ).join("")}
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "Activity Schedule Create Load Error:",
+            error
+        );
+
+    }
+}
+const lessonSelect =
+    document.getElementById(
+        "activity-schedule-lesson"
+    );
+
+const startTimeInput =
+    document.getElementById(
+        "activity-schedule-start-time"
+    );
+
+const endTimeInput =
+    document.getElementById(
+        "activity-schedule-end-time"
+    );
+
+if (
+    lessonSelect &&
+    startTimeInput &&
+    endTimeInput
+) {
+
+    lessonSelect.addEventListener(
+        "change",
+        () => {
+
+            const lessonNo =
+                Number(lessonSelect.value);
+
+            const period =
+                SCHEDULE_PERIODS.find(
+                    item =>
+                        item.lessonNo === lessonNo
+                );
+
+            if (!period) {
+
+                startTimeInput.value = "";
+                endTimeInput.value = "";
+
+                return;
+            }
+
+            startTimeInput.value =
+                period.start;
+
+            endTimeInput.value =
+                period.end;
+        }
+    );
+}
+function closeActivityScheduleCreate() {
+
+    const modal =
+        document.getElementById(
+            "activity-schedule-create-modal"
+        );
+
+    if (modal) {
+        modal.remove();
+    }
+}
 // ============================================================
 // SCHEDULE CREATE
 // STEP 5B.8.5 — Create Schedule Form
