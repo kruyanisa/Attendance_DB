@@ -30,14 +30,18 @@ async function getStudentsByRoom(roomId) {
 }
 
 // ==============================
-// Attendance Session
+// Attendance Session - Class
 // ==============================
-
-async function createAttendanceSession(roomId,subjectId,attendanceDate) {
-
+async function createAttendanceSession(
+    classScheduleId,
+    roomId,
+    subjectId,
+    attendanceDate
+) {
     const { data, error } = await supabaseClient
         .from("attendance_sessions")
         .insert({
+            class_schedule_id: classScheduleId,
             room_id: roomId,
             subject_id: subjectId,
             attendance_date: attendanceDate,
@@ -49,7 +53,25 @@ async function createAttendanceSession(roomId,subjectId,attendanceDate) {
     if (error) throw error;
 
     return data;
+}
+// ============================================================
+// Get Class Attendance Session
+// ============================================================
+async function getClassAttendanceSession(
+    classScheduleId,
+    attendanceDate
+) {
+    const { data, error } = await supabaseClient
+        .from("attendance_sessions")
+        .select("*")
+        .eq("class_schedule_id", classScheduleId)
+        .eq("attendance_date", attendanceDate)
+        .is("deleted_at", null)
+        .maybeSingle();
 
+    if (error) throw error;
+
+    return data;
 }
 // ============================================================
 // Activity Attendance Session

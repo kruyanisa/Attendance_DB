@@ -1798,12 +1798,10 @@ async function filterAndLoad() {
         // ============================================
 
         const session =
-            await getAttendanceSession(
-                roomId,
-                subjId,
-                attendanceDate
-            );
-
+    await getClassAttendanceSession(
+        selectedSchedule.scheduleId,
+        attendanceDate
+    );
 
         let attendanceMap = {};
 
@@ -2691,12 +2689,20 @@ if (pendingCount === 0) {
         });
 
         // 1. สร้าง Attendance Session
-        let session = await getAttendanceSession(roomId,subjectId,attendanceDate);
+        const classScheduleId = selectedSchedule.scheduleId;
+
+let session = await getClassAttendanceSession(
+    classScheduleId,
+    attendanceDate
+);
 
 if (!session) {
-
-    session = await createAttendanceSession(roomId,subjectId,attendanceDate);
-
+    session = await createAttendanceSession(
+        classScheduleId,
+        roomId,
+        subjectId,
+        attendanceDate
+    );
 }
 
         // 2. เตรียมข้อมูล Attendance
