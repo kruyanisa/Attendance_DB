@@ -7,7 +7,7 @@ const navigationPlaceholder =
 if (navigationPlaceholder) {
     navigationPlaceholder.style.display = "none";
 }
-  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule'];
+  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule', 'import', 'student-management'];
   
   views.forEach(v => {
     // ซ่อน/แสดง เนื้อหา
@@ -29,6 +29,12 @@ if (navigationPlaceholder) {
 }
 if(view === "dashboard"){
     loadDashboard();
+}
+
+if (view === "student-management") {
+    if (typeof StudentManagement !== "undefined") {
+        StudentManagement.init();
+    }
 }
 
 if(view === "schedule"){
@@ -156,7 +162,8 @@ function showNavigationPlaceholder(featureName) {
         "settings",
         "portal",
         "dashboard",
-        "schedule"
+        "schedule",
+        'import'
     ];
 
     views.forEach(viewName => {

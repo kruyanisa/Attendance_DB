@@ -2591,3 +2591,1187 @@ body.dark-mode .schedule-status-badge {
     min-width: 110px;
     max-width: 110px;
 }
+
+/* =========================================================
+   STUDENT MANAGEMENT — MODERN HOT COLOR UI
+   Responsive: Desktop / Tablet / Mobile
+   Add this block at the VERY END of style.css
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   1. PAGE HEADER
+   --------------------------------------------------------- */
+
+#view-student-management {
+    animation: studentMgmtFadeIn 0.35s ease;
+}
+
+@keyframes studentMgmtFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#view-student-management .page-header {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 22px;
+    padding: 24px 28px;
+
+    border-radius: 22px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255, 0, 110, 0.95),
+            rgba(124, 58, 237, 0.95),
+            rgba(37, 99, 235, 0.95)
+        );
+
+    color: #fff;
+
+    box-shadow:
+        0 12px 30px rgba(124, 58, 237, 0.25),
+        0 5px 15px rgba(255, 0, 110, 0.15);
+}
+
+#view-student-management .page-header::before {
+    content: "";
+    position: absolute;
+    width: 220px;
+    height: 220px;
+
+    right: -70px;
+    top: -100px;
+
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.12);
+
+    pointer-events: none;
+}
+
+#view-student-management .page-header::after {
+    content: "";
+    position: absolute;
+    width: 120px;
+    height: 120px;
+
+    left: 38%;
+    bottom: -80px;
+
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    pointer-events: none;
+}
+
+#view-student-management .page-header > div {
+    position: relative;
+    z-index: 2;
+}
+
+#view-student-management .page-header h1 {
+    margin: 0 0 5px;
+
+    color: #fff;
+
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+
+#view-student-management .page-header p {
+    margin: 0;
+
+    color: rgba(255, 255, 255, 0.88);
+
+    font-size: 14px;
+    font-weight: 500;
+}
+
+
+/* ---------------------------------------------------------
+   2. FILTER CARD
+   --------------------------------------------------------- */
+
+#view-student-management .student-management-filter-card {
+    position: relative;
+
+    margin-bottom: 22px;
+    padding: 22px;
+
+    border: 1px solid rgba(124, 58, 237, 0.12);
+    border-radius: 20px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.98),
+            rgba(250, 245, 255, 0.96)
+        );
+
+    box-shadow:
+        0 8px 25px rgba(30, 41, 59, 0.08);
+
+    overflow: hidden;
+}
+
+#view-student-management .student-management-filter-card::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    width: 100%;
+    height: 4px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #ff006e,
+            #f97316,
+            #eab308,
+            #22c55e,
+            #06b6d4,
+            #7c3aed
+        );
+}
+
+
+/* ---------------------------------------------------------
+   3. FILTER GRID
+   --------------------------------------------------------- */
+
+#view-student-management .student-management-filter-grid {
+    display: grid;
+
+    grid-template-columns:
+        minmax(150px, 1fr)
+        minmax(150px, 1fr)
+        minmax(150px, 1fr)
+        minmax(220px, 1.5fr);
+
+    gap: 16px;
+
+    align-items: end;
+}
+
+
+/* ---------------------------------------------------------
+   4. FILTER GROUP
+   --------------------------------------------------------- */
+
+#view-student-management .filter-group {
+    min-width: 0;
+}
+
+#view-student-management .filter-group label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: #374151;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+
+/* ---------------------------------------------------------
+   5. SELECT + INPUT
+   --------------------------------------------------------- */
+
+#view-student-management .filter-group select,
+#view-student-management .filter-group input[type="search"],
+#view-student-management .filter-group input[type="text"] {
+    width: 100%;
+    min-height: 44px;
+
+    box-sizing: border-box;
+
+    padding: 10px 13px;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+
+    background: #fff;
+
+    color: #1f2937;
+
+    font-size: 14px;
+    font-weight: 500;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.15s ease;
+}
+
+#view-student-management .filter-group select:hover,
+#view-student-management .filter-group input:hover {
+    border-color: #c4b5fd;
+}
+
+#view-student-management .filter-group select:focus,
+#view-student-management .filter-group input:focus {
+    border-color: #7c3aed;
+
+    box-shadow:
+        0 0 0 3px rgba(124, 58, 237, 0.12);
+
+    transform: translateY(-1px);
+}
+
+#view-student-management .filter-group input::placeholder {
+    color: #9ca3af;
+}
+
+
+/* ---------------------------------------------------------
+   6. SEARCH AREA
+   --------------------------------------------------------- */
+
+#view-student-management .student-mgmt-search-group {
+    position: relative;
+}
+
+#view-student-management #student-mgmt-search {
+    padding-left: 40px;
+}
+
+#view-student-management .student-mgmt-search-group::before {
+    content: "🔍";
+
+    position: absolute;
+
+    left: 13px;
+    bottom: 12px;
+
+    font-size: 15px;
+
+    z-index: 2;
+    pointer-events: none;
+}
+
+
+/* ---------------------------------------------------------
+   7. STATUS FILTER AREA
+   --------------------------------------------------------- */
+
+#view-student-management .student-management-status,
+#view-student-management .status-filter,
+#view-student-management .student-status-filter {
+    margin-top: 18px;
+}
+
+#view-student-management .student-management-status label,
+#view-student-management .status-filter label,
+#view-student-management .student-status-filter label {
+    margin-right: 12px;
+}
+
+
+/* ---------------------------------------------------------
+   8. BUTTONS
+   --------------------------------------------------------- */
+
+#view-student-management button {
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        opacity 0.18s ease;
+}
+
+#view-student-management button:hover {
+    transform: translateY(-2px);
+}
+
+#view-student-management button:active {
+    transform: translateY(0);
+}
+
+
+/* ---------------------------------------------------------
+   9. STUDENT TABLE CARD
+   --------------------------------------------------------- */
+
+#view-student-management .student-management-table-card,
+#view-student-management .student-list-card,
+#view-student-management .student-table-container {
+    border-radius: 20px;
+
+    background: #fff;
+
+    box-shadow:
+        0 8px 25px rgba(30, 41, 59, 0.08);
+
+    overflow: hidden;
+}
+
+
+/* ---------------------------------------------------------
+   10. TABLE
+   --------------------------------------------------------- */
+
+#view-student-management table {
+    width: 100%;
+
+    border-collapse: separate;
+    border-spacing: 0;
+
+    font-size: 14px;
+}
+
+#view-student-management thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+
+    padding: 13px 14px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #7c3aed,
+            #2563eb
+        );
+
+    color: #fff;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    white-space: nowrap;
+
+    border: none;
+}
+
+#view-student-management thead th:first-child {
+    border-radius: 12px 0 0 0;
+}
+
+#view-student-management thead th:last-child {
+    border-radius: 0 12px 0 0;
+}
+
+#view-student-management tbody td {
+    padding: 13px 14px;
+
+    border-bottom: 1px solid #f1f5f9;
+
+    color: #334155;
+
+    vertical-align: middle;
+}
+
+#view-student-management tbody tr {
+    transition:
+        background 0.18s ease,
+        transform 0.18s ease;
+}
+
+#view-student-management tbody tr:hover {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(124, 58, 237, 0.045),
+            rgba(255, 0, 110, 0.035)
+        );
+}
+
+
+/* ---------------------------------------------------------
+   11. CHECKBOX
+   --------------------------------------------------------- */
+
+#view-student-management input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+
+    accent-color: #7c3aed;
+
+    cursor: pointer;
+}
+
+
+/* ---------------------------------------------------------
+   12. STATUS BADGES
+   --------------------------------------------------------- */
+
+#view-student-management .status-badge,
+#view-student-management .badge {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    min-width: 76px;
+
+    padding: 5px 10px;
+
+    border-radius: 999px;
+
+    font-size: 11px;
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+
+/* ACTIVE */
+
+#view-student-management .status-active,
+#view-student-management .badge-active {
+    color: #166534;
+
+    background: #dcfce7;
+
+    border: 1px solid #bbf7d0;
+}
+
+
+/* TRANSFERRED */
+
+#view-student-management .status-transferred,
+#view-student-management .badge-transferred {
+    color: #075985;
+
+    background: #e0f2fe;
+
+    border: 1px solid #bae6fd;
+}
+
+
+/* WITHDRAWN */
+
+#view-student-management .status-withdrawn,
+#view-student-management .badge-withdrawn {
+    color: #9f1239;
+
+    background: #ffe4e6;
+
+    border: 1px solid #fecdd3;
+}
+
+
+/* GRADUATED */
+
+#view-student-management .status-graduated,
+#view-student-management .badge-graduated {
+    color: #6b21a8;
+
+    background: #f3e8ff;
+
+    border: 1px solid #e9d5ff;
+}
+
+
+/* DECEASED */
+
+#view-student-management .status-deceased,
+#view-student-management .badge-deceased {
+    color: #374151;
+
+    background: #f3f4f6;
+
+    border: 1px solid #e5e7eb;
+}
+
+
+/* ---------------------------------------------------------
+   13. SELECTED ROW
+   --------------------------------------------------------- */
+
+#view-student-management tbody tr.selected,
+#view-student-management tbody tr:has(input[type="checkbox"]:checked) {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(124, 58, 237, 0.10),
+            rgba(255, 0, 110, 0.05)
+        );
+}
+
+
+/* ---------------------------------------------------------
+   14. LIFECYCLE ACTION AREA
+   --------------------------------------------------------- */
+
+#view-student-management .lifecycle-action-bar,
+#view-student-management .student-management-actions {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 16px;
+    padding: 14px 16px;
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #fff7ed,
+            #fdf2f8
+        );
+
+    border: 1px solid #fed7aa;
+}
+
+
+/* ---------------------------------------------------------
+   15. TABLE WRAPPER — HORIZONTAL SCROLL
+   --------------------------------------------------------- */
+
+#view-student-management .table-responsive,
+#view-student-management .student-table-wrapper {
+    width: 100%;
+
+    overflow-x: auto;
+
+    -webkit-overflow-scrolling: touch;
+
+    scrollbar-width: thin;
+}
+
+
+/* ---------------------------------------------------------
+   16. SWEETALERT — LIFECYCLE
+   --------------------------------------------------------- */
+
+.swal2-popup {
+    border-radius: 20px !important;
+}
+
+.swal2-title {
+    font-weight: 800 !important;
+}
+
+.swal2-html-container {
+    font-size: 14px !important;
+}
+
+
+/* =========================================================
+   TABLET
+   768px — 1100px
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+    #view-student-management .student-management-filter-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    #view-student-management .student-mgmt-search-group {
+        grid-column: span 2;
+    }
+
+    #view-student-management .page-header {
+        padding: 21px 23px;
+    }
+
+    #view-student-management .page-header h1 {
+        font-size: 24px;
+    }
+
+    #view-student-management .student-management-filter-card {
+        padding: 18px;
+    }
+
+    #view-student-management table {
+        min-width: 760px;
+    }
+}
+
+
+/* =========================================================
+   MOBILE TABLET
+   600px — 767px
+   ========================================================= */
+
+@media (max-width: 767px) {
+
+    #view-student-management .page-header {
+        padding: 19px 18px;
+
+        border-radius: 18px;
+    }
+
+    #view-student-management .page-header h1 {
+        font-size: 21px;
+    }
+
+    #view-student-management .page-header p {
+        font-size: 12px;
+    }
+
+    #view-student-management .student-management-filter-card {
+        padding: 16px;
+
+        border-radius: 17px;
+    }
+
+    #view-student-management .student-management-filter-grid {
+        grid-template-columns: 1fr;
+
+        gap: 12px;
+    }
+
+    #view-student-management .student-mgmt-search-group {
+        grid-column: auto;
+    }
+
+    #view-student-management .filter-group select,
+    #view-student-management .filter-group input[type="search"],
+    #view-student-management .filter-group input[type="text"] {
+        min-height: 46px;
+
+        font-size: 14px;
+    }
+
+    #view-student-management .lifecycle-action-bar,
+    #view-student-management .student-management-actions {
+        flex-direction: column;
+
+        align-items: stretch;
+    }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   <= 599px
+   ========================================================= */
+
+@media (max-width: 599px) {
+
+    #view-student-management {
+        width: 100%;
+
+        overflow-x: hidden;
+    }
+
+    #view-student-management .page-header {
+        margin-bottom: 14px;
+
+        padding: 17px 15px;
+
+        border-radius: 16px;
+    }
+
+    #view-student-management .page-header h1 {
+        font-size: 19px;
+    }
+
+    #view-student-management .page-header p {
+        font-size: 11px;
+    }
+
+    #view-student-management .student-management-filter-card {
+        margin-bottom: 14px;
+
+        padding: 14px;
+
+        border-radius: 15px;
+    }
+
+    #view-student-management .filter-group label {
+        font-size: 12px;
+    }
+
+    #view-student-management .filter-group select,
+    #view-student-management .filter-group input[type="search"],
+    #view-student-management .filter-group input[type="text"] {
+        min-height: 44px;
+
+        padding: 9px 11px;
+
+        border-radius: 10px;
+
+        font-size: 13px;
+    }
+
+    #view-student-management #student-mgmt-search {
+        padding-left: 37px;
+    }
+
+    #view-student-management .student-mgmt-search-group::before {
+        left: 12px;
+        bottom: 11px;
+    }
+
+    #view-student-management table {
+        min-width: 700px;
+
+        font-size: 12px;
+    }
+
+    #view-student-management thead th {
+        padding: 10px;
+
+        font-size: 11px;
+    }
+
+    #view-student-management tbody td {
+        padding: 10px;
+    }
+
+    #view-student-management .status-badge,
+    #view-student-management .badge {
+        min-width: 65px;
+
+        padding: 4px 8px;
+
+        font-size: 10px;
+    }
+}
+
+
+/* =========================================================
+   EXTRA SMALL MOBILE
+   <= 400px
+   ========================================================= */
+
+@media (max-width: 400px) {
+
+    #view-student-management .page-header {
+        padding: 15px 13px;
+    }
+
+    #view-student-management .page-header h1 {
+        font-size: 17px;
+    }
+
+    #view-student-management .student-management-filter-card {
+        padding: 12px;
+    }
+
+    #view-student-management .filter-group select,
+    #view-student-management .filter-group input[type="search"],
+    #view-student-management .filter-group input[type="text"] {
+        min-height: 42px;
+
+        font-size: 12px;
+    }
+
+    #view-student-management table {
+        min-width: 650px;
+    }
+}
+
+
+/* =========================================================
+   TOUCH DEVICE
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+
+    #view-student-management button:hover {
+        transform: none;
+    }
+
+    #view-student-management tbody tr:hover {
+        background: transparent;
+    }
+
+    #view-student-management .filter-group select,
+    #view-student-management .filter-group input {
+        min-height: 46px;
+    }
+
+    #view-student-management input[type="checkbox"] {
+        width: 19px;
+        height: 19px;
+    }
+}
+
+
+/* =========================================================
+   REDUCE MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    #view-student-management,
+    #view-student-management *,
+    #view-student-management *::before,
+    #view-student-management *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* =========================================================
+   STUDENT MANAGEMENT — ACTION BUTTONS
+   ========================================================= */
+
+/* -------------------------------
+   โหลดรายชื่อ
+   ------------------------------- */
+
+#view-student-management #btn-load-students {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 46px;
+    padding: 10px 22px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: linear-gradient(
+        135deg,
+        #ff006e,
+        #7c3aed
+    );
+
+    color: #fff;
+
+    font-size: 15px;
+    font-weight: 800;
+
+    letter-spacing: 0.1px;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 6px 16px rgba(124, 58, 237, 0.25);
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        filter 0.18s ease;
+}
+
+#view-student-management #btn-load-students:hover {
+    transform: translateY(-2px);
+
+    filter: brightness(1.05);
+
+    box-shadow:
+        0 9px 22px rgba(124, 58, 237, 0.32);
+}
+
+#view-student-management #btn-load-students:active {
+    transform: translateY(0);
+}
+
+#view-student-management #btn-load-students:disabled {
+    opacity: 0.65;
+    cursor: wait;
+
+    transform: none;
+}
+
+
+/* =========================================================
+   STUDENT SELECTION ACTION BAR
+   ========================================================= */
+
+#view-student-management .student-selection-actions {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    margin-top: 14px;
+    padding: 14px 18px;
+
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #fff7ed,
+            #fdf2f8
+        );
+
+    border: 1px solid #fed7aa;
+}
+
+
+/* จำนวนที่เลือก */
+
+#view-student-management .student-selection-actions > span {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    color: #475569;
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#view-student-management .student-selection-actions strong {
+    color: #7c3aed;
+
+    font-size: 17px;
+    font-weight: 900;
+}
+
+
+/* =========================================================
+   LIFECYCLE BUTTON
+   ========================================================= */
+
+#view-student-management #btn-student-lifecycle {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    min-height: 46px;
+
+    padding: 10px 24px;
+
+    border: none;
+    border-radius: 12px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #f97316,
+            #ff006e
+        );
+
+    color: #fff;
+
+    font-size: 15px;
+    font-weight: 800;
+
+    letter-spacing: 0.1px;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 6px 17px rgba(249, 115, 22, 0.25);
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        filter 0.18s ease,
+        opacity 0.18s ease;
+}
+
+#view-student-management #btn-student-lifecycle::before {
+    content: "⚡";
+
+    margin-right: 7px;
+
+    font-size: 16px;
+}
+
+#view-student-management #btn-student-lifecycle:hover:not(:disabled) {
+    transform: translateY(-2px);
+
+    filter: brightness(1.05);
+
+    box-shadow:
+        0 9px 24px rgba(249, 115, 22, 0.32);
+}
+
+#view-student-management #btn-student-lifecycle:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+
+/* Disabled = ยังไม่ได้เลือกนักเรียน */
+
+#view-student-management #btn-student-lifecycle:disabled {
+    background: #cbd5e1;
+
+    color: #64748b;
+
+    box-shadow: none;
+
+    opacity: 0.75;
+
+    cursor: not-allowed;
+
+    transform: none;
+}
+
+#view-student-management #btn-student-lifecycle:disabled::before {
+    opacity: 0.7;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 767px) {
+
+    #view-student-management #btn-load-students {
+        width: 100%;
+
+        min-height: 48px;
+
+        font-size: 15px;
+    }
+
+    #view-student-management .student-selection-actions {
+        flex-direction: column;
+
+        align-items: stretch;
+
+        padding: 14px;
+    }
+
+    #view-student-management .student-selection-actions > span {
+        justify-content: center;
+
+        min-height: 32px;
+    }
+
+    #view-student-management #btn-student-lifecycle {
+        width: 100%;
+
+        min-height: 48px;
+
+        font-size: 15px;
+    }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 400px) {
+
+    #view-student-management #btn-load-students,
+    #view-student-management #btn-student-lifecycle {
+        min-height: 46px;
+
+        font-size: 14px;
+
+        border-radius: 11px;
+    }
+
+    #view-student-management .student-selection-actions {
+        padding: 12px;
+    }
+}
+
+
+/* =========================================================
+   TOUCH DEVICE
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+
+    #view-student-management #btn-load-students:hover,
+    #view-student-management #btn-student-lifecycle:hover {
+        transform: none;
+    }
+
+    #view-student-management #btn-load-students,
+    #view-student-management #btn-student-lifecycle {
+        min-height: 48px;
+    }
+}
+
+/* =========================================================
+   STUDENT MANAGEMENT — SPACING FIX
+   ========================================================= */
+
+/* 1. เว้นระยะก่อนส่วน "ค้นหา" */
+#view-student-management .student-mgmt-search-group {
+    margin-top: 24px;
+}
+
+
+/* 2. เว้นระยะระหว่างช่องค้นหากับปุ่มโหลดรายชื่อ */
+#view-student-management #student-mgmt-search {
+    margin-bottom: 10px;
+}
+
+#view-student-management #btn-load-students {
+    margin-top: 4px;
+    margin-bottom: 14px;
+}
+
+
+/* 3. เว้นระยะระหว่างปุ่มโหลดกับแถบ "เลือกทั้งหมด" */
+#view-student-management .student-list-toolbar {
+    margin-top: 10px;
+    padding: 10px 4px;
+
+    line-height: 1.6;
+}
+
+
+/* ให้ข้อความในแถบเลือกอ่านง่ายขึ้น */
+#view-student-management .student-list-toolbar label,
+#view-student-management .student-list-toolbar span {
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+
+/* Mobile */
+@media (max-width: 767px) {
+
+    #view-student-management .student-mgmt-search-group {
+        margin-top: 20px;
+    }
+
+    #view-student-management #student-mgmt-search {
+        margin-bottom: 9px;
+    }
+
+    #view-student-management #btn-load-students {
+        margin-bottom: 12px;
+    }
+
+    #view-student-management .student-list-toolbar {
+        margin-top: 8px;
+        padding: 9px 2px;
+    }
+}
+
+/* =========================================================
+   STUDENT MANAGEMENT — STUDENT NAME
+   ========================================================= */
+
+#view-student-management .student-management-table tbody td:nth-child(4) {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.5;
+}
+
+/* ชื่อบนมือถือ */
+@media (max-width: 767px) {
+    #view-student-management .student-management-table tbody td:nth-child(4) {
+        font-size: 15px;
+    }
+}

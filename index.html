@@ -7,6 +7,7 @@
   
   <!-- โหลด CSS -->
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/import.css">
   
   <!-- โหลดไลบรารีภายนอก -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -103,10 +104,10 @@
 
                 <button
                     class="menu-btn submenu-btn"
-                    onclick="showNavigationPlaceholder('รายชื่อนักเรียน')"
+                    onclick="switchView('student-management')"
                 >
                     <span class="menu-icon">👥</span>
-                    <span class="menu-text">รายชื่อนักเรียน</span>
+                    <span class="menu-text">จัดการรายชื่อนักเรียน</span>
                 </button>
 
                 <button
@@ -119,7 +120,7 @@
 
                 <button
                     class="menu-btn submenu-btn"
-                    onclick="showNavigationPlaceholder('นำเข้าข้อมูล')"
+                    onclick="switchView('import'); ImportModule.render({ domain: 'student' })"
                 >
                     <span class="menu-icon">📥</span>
                     <span class="menu-text">นำเข้าข้อมูล</span>
@@ -1186,6 +1187,91 @@
 
 </div>
 
+<!-- Student Management -->
+<div id="view-student-management" class="view-section" style="display:none;">
+  <h2>👨‍🎓 จัดการรายชื่อนักเรียน</h2>
+
+  <div class="student-management-filters">
+
+    <div class="filter-group">
+      <label for="student-academic-year">ปีการศึกษา</label>
+      <select id="student-academic-year">
+        <option value="">-- เลือกปีการศึกษา --</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="student-grade">ชั้นเรียน</label>
+      <select id="student-grade">
+        <option value="">ทุกระดับชั้น</option>
+        <option value="1">ม.1</option>
+        <option value="2">ม.2</option>
+        <option value="3">ม.3</option>
+        <option value="4">ม.4</option>
+        <option value="5">ม.5</option>
+        <option value="6">ม.6</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="student-room">ห้องเรียน</label>
+      <select id="student-room">
+        <option value="">ทุกห้อง</option>
+      </select>
+    </div>
+
+    <div class="filter-group student-status-filter">
+      <label>สถานะ</label>
+
+      <label>
+        <input type="checkbox" value="ACTIVE" checked>
+        ACTIVE
+      </label>
+
+      <label>
+        <input type="checkbox" value="TRANSFERRED">
+        TRANSFERRED
+      </label>
+
+      <label>
+        <input type="checkbox" value="WITHDRAWN">
+        WITHDRAWN
+      </label>
+
+      <label>
+        <input type="checkbox" value="DECEASED">
+        DECEASED
+      </label>
+
+      <label>
+        <input type="checkbox" value="GRADUATED">
+        GRADUATED
+      </label>
+    </div>
+
+    <div class="filter-group">
+      <label for="student-search">ค้นหา</label>
+      <input
+        type="text"
+        id="student-search"
+        placeholder="รหัส / ชื่อ / นามสกุล / เลขที่"
+      >
+    </div>
+
+    <button type="button" id="btn-load-students">
+      🔍 โหลดรายชื่อ
+    </button>
+
+  </div>
+
+  <div id="student-list-container">
+    <div class="empty-state">
+      กรุณาเลือกตัวกรอง แล้วกด "โหลดรายชื่อ"
+    </div>
+  </div>
+</div>
+
+<div id="view-import" style="display:none;"></div>
 <div id="view-settings" style="display:none;">
 
     <div class="page-header">
@@ -1405,8 +1491,10 @@
 
 <!-- JavaScript -->
 <script src="js/api.js"></script>
+<script src="js/import.js"></script>
 <script src="js/app.js"></script>
 <script src="js/attendance.js"></script>
+<script src="js/student-management.js"></script>
 
 <script>
 document.querySelectorAll('.attendance-tab').forEach(tab => {
@@ -1489,6 +1577,8 @@ if (activityRoomHeader) {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 </body>
 </html>

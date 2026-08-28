@@ -29,6 +29,714 @@ async function getStudentsByRoom(roomId) {
     return data;
 }
 
+// ============================================================
+// Student Management
+// ============================================================
+
+async function getStudentManagementList({
+    academicYearId,
+    gradeLevel = "",
+    roomId = "",
+    statuses = [],
+    search = ""
+} = {}) {
+
+    if (!academicYearId) {
+        throw new Error("Academic year is required.");
+    }
+
+    // --------------------------------------------------------
+    // 1. ดึงประวัติการเรียนของปีการศึกษาที่เลือก
+    //    student_no และ room ต้องอิงจาก history
+    // --------------------------------------------------------
+
+    let historyQuery = supabaseClient
+        .from("student_academic_history")
+        .select(`
+            id,
+            student_id,
+            academic_year_id,
+            room_id,
+            student_no
+        `)
+        .eq("academic_year_id", academicYearId);
+
+    if (roomId !== "") {
+        historyQuery = historyQuery.eq("room_id", roomId);
+    }
+
+    // --------------------------------------------------------
+    // 2. ถ้าเลือกชั้นเรียน ให้หา Rooms ก่อน
+    // --------------------------------------------------------
+
+    if (gradeLevel !== "") {
+
+        const {
+            data: gradeRooms,
+            error: gradeRoomError
+        } = await supabaseClient
+            .from("rooms")
+            .select("id")
+            .eq("academic_year_id", academicYearId)
+            .eq("grade_level", Number(gradeLevel))
+            .is("deleted_at", null);
+
+        if (gradeRoomError) {
+            throw gradeRoomError;
+        }
+
+        const gradeRoomIds =
+            (gradeRooms || []).map(room => room.id);
+
+        if (gradeRoomIds.length === 0) {
+            return [];
+        }
+
+        historyQuery = historyQuery.in(
+            "room_id",
+            gradeRoomIds
+        );
+    }
+
+    const {
+        data: histories,
+        error: historyError
+    } = await historyQuery
+        .order("room_id", { ascending: true })
+        .order("student_no", { ascending: true });
+
+    if (historyError) {
+        throw historyError;
+    }
+
+    const historyList = histories || [];
+
+if (
+    historyList.length === 0 &&
+    (roomId !== "" || gradeLevel !== "")
+) {
+    return [];
+}
+
+    // --------------------------------------------------------
+    // 3. รวบรวม Student IDs และ Room IDs
+    // --------------------------------------------------------
+
+    const studentIds = [
+        ...new Set(
+            historyList
+                .map(row => row.student_id)
+                .filter(Boolean)
+        )
+    ];
+
+    const roomIds = [
+        ...new Set(
+            historyList
+                .map(row => row.room_id)
+                .filter(Boolean)
+        )
+    ];
+
+   // --------------------------------------------------------
+// 4. ดึงข้อมูล Student
+// --------------------------------------------------------
+
+let studentQuery = supabaseClient
+    .from("students")
+    .select(`
+        id,
+        student_code,
+        first_name,
+        last_name,
+        nickname,
+        prefix,
+        current_status
+    `)
+    .in("id", studentIds)
+    .is("deleted_at", null);
+
+if (Array.isArray(statuses) && statuses.length > 0) {
+    studentQuery = studentQuery.in(
+        "current_status",
+        statuses
+    );
+}
+
+if (search.trim() !== "") {
+
+    const keyword = search.trim();
+
+    studentQuery = studentQuery.or(
+        `student_code.ilike.%${keyword}%,` +
+        `first_name.ilike.%${keyword}%,` +
+        `last_name.ilike.%${keyword}%,` +
+        `nickname.ilike.%${keyword}%`
+    );
+}
+
+const {
+    data: studentRows,
+    error: studentError
+} = await studentQuery;
+
+if (studentError) {
+    throw studentError;
+}
+// --------------------------------------------------------
+// 4.5 ดึงนักเรียน TRANSFERRED ที่ยังไม่มี History
+//
+// ใช้สำหรับกรณีนักเรียนย้ายเข้าจากโรงเรียนอื่น
+// และยังไม่เคยมีประวัติที่โรงเรียนนี้
+// --------------------------------------------------------
+
+let transferInStudentRows = [];
+
+const canLoadHistorylessTransferred =
+    roomId === "" &&
+    gradeLevel === "" &&
+    (
+        !Array.isArray(statuses) ||
+        statuses.length === 0 ||
+        statuses.includes("TRANSFERRED")
+    );
+
+if (canLoadHistorylessTransferred) {
+
+    let transferInQuery = supabaseClient
+        .from("students")
+        .select(`
+            id,
+            student_code,
+            first_name,
+            last_name,
+            nickname,
+            prefix,
+            current_status
+        `)
+        .eq("current_status", "TRANSFERRED")
+        .is("deleted_at", null);
+
+    if (search.trim() !== "") {
+
+        const keyword = search.trim();
+
+        transferInQuery = transferInQuery.or(
+            `student_code.ilike.%${keyword}%,` +
+            `first_name.ilike.%${keyword}%,` +
+            `last_name.ilike.%${keyword}%,` +
+            `nickname.ilike.%${keyword}%`
+        );
+    }
+
+    const {
+        data: transferredRows,
+        error: transferredError
+    } = await transferInQuery;
+
+    if (transferredError) {
+        throw transferredError;
+    }
+
+    transferInStudentRows =
+        (transferredRows || []).filter(student =>
+            !studentIds.includes(student.id)
+        );
+}
+    // --------------------------------------------------------
+    // 5. ดึงข้อมูล Rooms
+    // --------------------------------------------------------
+
+    const {
+        data: roomRows,
+        error: roomError
+    } = await supabaseClient
+        .from("rooms")
+        .select(`
+            id,
+            room_name,
+            grade_level,
+            academic_year_id
+        `)
+        .in("id", roomIds)
+        .is("deleted_at", null);
+
+    if (roomError) {
+        throw roomError;
+    }
+
+    // --------------------------------------------------------
+    // 6. สร้าง Map
+    // --------------------------------------------------------
+
+    const studentsById = new Map(
+        (studentRows || []).map(student => [
+            student.id,
+            student
+        ])
+    );
+
+    const roomsById = new Map(
+        (roomRows || []).map(room => [
+            room.id,
+            room
+        ])
+    );
+
+    // --------------------------------------------------------
+    // 7. รวม History + Student + Room
+    // --------------------------------------------------------
+
+    const historyResult = historyList
+    .map(history => {
+
+        const student =
+            studentsById.get(history.student_id);
+
+        const room =
+            roomsById.get(history.room_id);
+
+        if (!student || !room) {
+            return null;
+        }
+
+        return {
+            id: student.id,
+
+            student_code:
+                student.student_code,
+
+            student_no:
+                history.student_no,
+
+            prefix:
+                student.prefix,
+
+            first_name:
+                student.first_name,
+
+            last_name:
+                student.last_name,
+
+            nickname:
+                student.nickname,
+
+            current_status:
+                student.current_status,
+
+            current_room_id:
+                history.room_id,
+
+            room: room
+        };
+    })
+    .filter(Boolean);
+
+const historylessTransferResult =
+    transferInStudentRows.map(student => ({
+        id: student.id,
+
+        student_code:
+            student.student_code,
+
+        student_no:
+            null,
+
+        prefix:
+            student.prefix,
+
+        first_name:
+            student.first_name,
+
+        last_name:
+            student.last_name,
+
+        nickname:
+            student.nickname,
+
+        current_status:
+            student.current_status,
+
+        current_room_id:
+            null,
+
+        room: {
+            id: "",
+            room_name: "",
+            grade_level: null,
+            academic_year_id: academicYearId
+        }
+    }));
+
+return [
+    ...historyResult,
+    ...historylessTransferResult
+];
+}
+// ============================================================
+// Student Lifecycle — Promote
+// ============================================================
+
+async function promoteStudents({
+    studentIds,
+    sourceAcademicYearId,
+    targetAcademicYearId,
+    targetRoomId
+}) {
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        throw new Error("No students selected.");
+    }
+
+    if (!sourceAcademicYearId) {
+        throw new Error("Source academic year is required.");
+    }
+
+    if (!targetAcademicYearId) {
+        throw new Error("Target academic year is required.");
+    }
+
+    if (!targetRoomId) {
+        throw new Error("Target room is required.");
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc(
+        "promote_students",
+        {
+            p_student_ids:
+                studentIds,
+
+            p_source_academic_year_id:
+                sourceAcademicYearId,
+
+            p_target_academic_year_id:
+                targetAcademicYearId,
+
+            p_target_room_id:
+                targetRoomId
+        }
+    );
+
+    if (error) {
+        console.error(
+            "promoteStudents RPC:",
+            error
+        );
+
+        throw error;
+    }
+
+    return data;
+}
+window.promoteStudents = promoteStudents;
+
+// ============================================================
+// Student Lifecycle — Repeat
+// ============================================================
+
+async function repeatStudents({
+    studentIds,
+    sourceAcademicYearId,
+    targetAcademicYearId,
+    targetRoomId
+}) {
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        throw new Error("No students selected.");
+    }
+
+    if (!sourceAcademicYearId) {
+        throw new Error("Source academic year is required.");
+    }
+
+    if (!targetAcademicYearId) {
+        throw new Error("Target academic year is required.");
+    }
+
+    if (!targetRoomId) {
+        throw new Error("Target room is required.");
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc(
+        "repeat_students",
+        {
+            p_student_ids:
+                studentIds,
+
+            p_source_academic_year_id:
+                sourceAcademicYearId,
+
+            p_target_academic_year_id:
+                targetAcademicYearId,
+
+            p_target_room_id:
+                targetRoomId
+        }
+    );
+
+    if (error) {
+        console.error(
+            "repeatStudents RPC:",
+            error
+        );
+
+        throw error;
+    }
+
+    return data;
+}
+// ============================================================
+// Student Lifecycle — Transfer Out
+// ============================================================
+
+async function transferOutStudents({
+    studentIds,
+    academicYearId
+}) {
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        throw new Error("No students selected.");
+    }
+
+    if (!academicYearId) {
+        throw new Error("Academic year is required.");
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc(
+        "transfer_out_students",
+        {
+            p_student_ids:
+                studentIds,
+
+            p_academic_year_id:
+                academicYearId
+        }
+    );
+
+    if (error) {
+        console.error(
+            "transferOutStudents RPC:",
+            error
+        );
+
+        throw error;
+    }
+
+    return data;
+}
+
+window.transferOutStudents = transferOutStudents;
+
+// ============================================================
+// Student Lifecycle — Transfer In
+// ============================================================
+
+async function transferInStudents({
+    studentIds,
+    academicYearId,
+    roomId,
+    sourceSchoolName
+}) {
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        throw new Error("No students selected.");
+    }
+
+    if (!academicYearId) {
+        throw new Error("Academic year is required.");
+    }
+
+    if (!roomId) {
+        throw new Error("Target room is required.");
+    }
+
+    if (
+        !sourceSchoolName ||
+        sourceSchoolName.trim() === ""
+    ) {
+        throw new Error(
+            "Source school is required."
+        );
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc(
+        "transfer_in_students",
+        {
+            p_student_ids:
+                studentIds,
+
+            p_academic_year_id:
+                academicYearId,
+
+            p_room_id:
+                roomId,
+
+            p_source_school_name:
+                sourceSchoolName.trim()
+        }
+    );
+
+    if (error) {
+        console.error(
+            "transferInStudents RPC:",
+            error
+        );
+
+        throw error;
+    }
+
+    return data;
+}
+
+window.transferInStudents = transferInStudents;
+
+// ============================================================
+// Student Lifecycle — Deceased
+// ============================================================
+
+async function deceasedStudents({
+    studentIds,
+    academicYearId
+}) {
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        throw new Error("No students selected.");
+    }
+
+    if (!academicYearId) {
+        throw new Error("Academic year is required.");
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc(
+        "deceased_students",
+        {
+            p_student_ids:
+                studentIds,
+
+            p_academic_year_id:
+                academicYearId
+        }
+    );
+
+    if (error) {
+        console.error(
+            "deceasedStudents RPC:",
+            error
+        );
+
+        throw error;
+    }
+
+    return data;
+}
+
+window.deceasedStudents = deceasedStudents;
+
+// ============================================================
+// Student Lifecycle — Withdraw
+// ============================================================
+
+async function withdrawStudents({
+    studentIds,
+    academicYearId
+}) {
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        throw new Error("No students selected.");
+    }
+
+    if (!academicYearId) {
+        throw new Error("Academic year is required.");
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc(
+        "withdraw_students",
+        {
+            p_student_ids:
+                studentIds,
+
+            p_academic_year_id:
+                academicYearId
+        }
+    );
+
+    if (error) {
+        console.error(
+            "withdrawStudents RPC:",
+            error
+        );
+
+        throw error;
+    }
+
+    return data;
+}
+
+window.withdrawStudents = withdrawStudents;
+
+// ============================================================
+// Student Lifecycle — Graduate
+// ============================================================
+
+async function graduateStudents({
+    studentIds,
+    academicYearId
+}) {
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        throw new Error("No students selected.");
+    }
+
+    if (!academicYearId) {
+        throw new Error("Academic year is required.");
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc(
+        "graduate_students",
+        {
+            p_student_ids:
+                studentIds,
+
+            p_academic_year_id:
+                academicYearId
+        }
+    );
+
+    if (error) {
+        console.error(
+            "graduateStudents RPC:",
+            error
+        );
+
+        throw error;
+    }
+
+    return data;
+}
+
+window.graduateStudents = graduateStudents;
+
 // ==============================
 // Attendance Session - Class
 // ==============================
@@ -1895,4 +2603,712 @@ async function getActivityParticipants(activityId) {
 
         });
 
+}
+// ============================================================
+// STUDENT IMPORT API
+// ============================================================
+
+async function getStudentImportContext(academicYear) {
+
+    if (!academicYear) {
+        throw new Error("Academic Year is required.");
+    }
+
+    const {
+        data: academicYearRow,
+        error: academicYearError
+    } = await supabaseClient
+        .from("academic_years")
+        .select("id, year")
+        .eq("year", Number(academicYear))
+        .maybeSingle();
+
+    if (academicYearError) {
+        throw academicYearError;
+    }
+
+    if (!academicYearRow) {
+        throw new Error(
+            `ไม่พบปีการศึกษา ${academicYear}`
+        );
+    }
+
+    const {
+        data: rooms,
+        error: roomError
+    } = await supabaseClient
+        .from("rooms")
+        .select(`
+            id,
+            room_name,
+            grade_level,
+            academic_year_id
+        `)
+        .eq(
+            "academic_year_id",
+            academicYearRow.id
+        );
+
+    if (roomError) {
+        throw roomError;
+    }
+
+    const roomsByName = {};
+
+    (rooms || []).forEach(room => {
+        roomsByName[
+            String(room.room_name || "").trim()
+        ] = room;
+    });
+
+    return {
+        academicYear: academicYearRow,
+        rooms: rooms || [],
+        roomsByName
+    };
+}
+
+
+async function getStudentsByCodes(studentCodes) {
+
+    const codes = [
+        ...new Set(
+            (studentCodes || [])
+                .map(code =>
+                    String(code ?? "").trim()
+                )
+                .filter(Boolean)
+        )
+    ];
+
+    if (codes.length === 0) {
+        return [];
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("students")
+        .select(`
+            id,
+            student_code,
+            prefix,
+            first_name,
+            last_name,
+            nickname,
+            gender,
+            birth_date,
+            current_room_id,
+            is_active
+        `)
+        .in("student_code", codes)
+        .is("deleted_at", null);
+
+    if (error) {
+        throw error;
+    }
+
+    return data || [];
+}
+
+
+async function validateStudentImport(
+    rows,
+    mode
+) {
+
+    if (!Array.isArray(rows)) {
+        throw new Error(
+            "Student Import rows must be an array."
+        );
+    }
+
+    if (!["NEW", "UPDATE"].includes(mode)) {
+        throw new Error(
+            "Import mode must be NEW or UPDATE."
+        );
+    }
+
+    if (rows.length === 0) {
+        throw new Error(
+            "ไม่พบข้อมูลสำหรับ Import"
+        );
+    }
+
+    const normalizedRows = rows.map(row => ({
+        academic_year:
+            String(
+                row.academic_year ?? ""
+            ).trim(),
+
+        student_code:
+            String(
+                row.student_code ?? ""
+            ).trim(),
+
+        student_no:
+            String(
+                row.student_no ?? ""
+            ).trim(),
+
+        prefix:
+            String(
+                row.prefix ?? ""
+            ).trim(),
+
+        first_name:
+            String(
+                row.first_name ?? ""
+            ).trim(),
+
+        last_name:
+            String(
+                row.last_name ?? ""
+            ).trim(),
+
+        nickname:
+            String(
+                row.nickname ?? ""
+            ).trim(),
+
+        gender:
+            String(
+                row.gender ?? ""
+            ).trim(),
+
+        birth_date:
+            String(
+                row.birth_date ?? ""
+            ).trim(),
+
+        room_name:
+            String(
+                row.room_name ?? ""
+            ).trim()
+    }));
+
+
+    const academicYears = [
+        ...new Set(
+            normalizedRows
+                .map(row => row.academic_year)
+                .filter(Boolean)
+        )
+    ];
+
+    if (academicYears.length !== 1) {
+
+        return {
+            valid: false,
+            total: normalizedRows.length,
+            validRows: [],
+            invalidRows:
+                normalizedRows.map(
+                    (row, index) => ({
+                        rowNumber: index + 2,
+                        row,
+                        errors: [
+                            "ไฟล์ต้องมีปีการศึกษาเดียวกันทั้งหมด"
+                        ]
+                    })
+                )
+        };
+    }
+
+
+    const {
+        academicYear,
+        roomsByName
+    } = await getStudentImportContext(
+        academicYears[0]
+    );
+
+
+    const studentCodes =
+        normalizedRows.map(
+            row => row.student_code
+        );
+
+    const students =
+        await getStudentsByCodes(
+            studentCodes
+        );
+
+
+    const studentsByCode =
+        Object.fromEntries(
+            students.map(student => [
+                student.student_code,
+                student
+            ])
+        );
+
+
+    const seenCodes = new Set();
+
+    const seenRosterKeys = new Set();
+
+    const validRows = [];
+    const invalidRows = [];
+
+
+    normalizedRows.forEach(
+        (row, index) => {
+
+            const rowNumber = index + 2;
+            const errors = [];
+
+            if (!row.academic_year) {
+                errors.push(
+                    "academic_year ว่าง"
+                );
+            }
+
+            if (
+                row.academic_year &&
+                !/^\d{4}$/.test(
+                    row.academic_year
+                )
+            ) {
+                errors.push(
+                    "academic_year ต้องเป็นปี 4 หลัก"
+                );
+            }
+
+
+            if (!row.student_code) {
+
+                errors.push(
+                    "student_code ว่าง"
+                );
+
+            } else if (
+                !/^\d{5}$/.test(
+                    row.student_code
+                )
+            ) {
+
+                errors.push(
+                    "student_code ต้องเป็นตัวเลข 5 หลัก"
+                );
+
+            }
+
+
+            if (!row.student_no) {
+
+                errors.push(
+                    "student_no ว่าง"
+                );
+
+            } else if (
+                !/^\d+$/.test(
+                    row.student_no
+                )
+            ) {
+
+                errors.push(
+                    "student_no ต้องเป็นตัวเลข"
+                );
+
+            }
+
+
+            if (!row.prefix) {
+                errors.push(
+                    "prefix ว่าง"
+                );
+            }
+
+            if (!row.first_name) {
+                errors.push(
+                    "first_name ว่าง"
+                );
+            }
+
+            if (!row.last_name) {
+                errors.push(
+                    "last_name ว่าง"
+                );
+            }
+
+            if (!row.room_name) {
+
+                errors.push(
+                    "room_name ว่าง"
+                );
+
+            } else if (
+                !roomsByName[row.room_name]
+            ) {
+
+                errors.push(
+                    `ไม่พบห้อง ${row.room_name} ในปีการศึกษา ${row.academic_year}`
+                );
+
+            }
+
+
+            if (
+                row.student_code &&
+                seenCodes.has(
+                    row.student_code
+                )
+            ) {
+
+                errors.push(
+                    "student_code ซ้ำในไฟล์"
+                );
+
+            }
+
+            if (row.student_code) {
+                seenCodes.add(
+                    row.student_code
+                );
+            }
+
+
+            if (
+                row.room_name &&
+                row.student_no
+            ) {
+
+                const rosterKey =
+                    `${row.academic_year}|${row.room_name}|${row.student_no}`;
+
+                if (
+                    seenRosterKeys.has(
+                        rosterKey
+                    )
+                ) {
+
+                    errors.push(
+                        "student_no ซ้ำในห้องและปีการศึกษาเดียวกัน"
+                    );
+
+                }
+
+                seenRosterKeys.add(
+                    rosterKey
+                );
+            }
+
+
+            const existing =
+                studentsByCode[
+                    row.student_code
+                ];
+
+
+            if (
+                mode === "NEW" &&
+                existing
+            ) {
+
+                errors.push(
+                    "student_code มีอยู่ในระบบแล้ว"
+                );
+
+            }
+
+
+            if (
+                mode === "UPDATE" &&
+                !existing
+            ) {
+
+                errors.push(
+                    "ไม่พบ student_code นี้ในระบบ"
+                );
+
+            }
+
+
+            const resultRow = {
+                ...row,
+
+                rowNumber,
+
+                student_id:
+                    existing?.id || null,
+
+                room_id:
+                    roomsByName[
+                        row.room_name
+                    ]?.id || null,
+
+                academic_year_id:
+                    academicYear.id,
+
+                import_action:
+                    existing
+                        ? "UPDATE"
+                        : "NEW",
+
+                errors
+            };
+
+
+            if (errors.length > 0) {
+
+                invalidRows.push(
+                    resultRow
+                );
+
+            } else {
+
+                validRows.push(
+                    resultRow
+                );
+
+            }
+
+        }
+    );
+
+
+    return {
+        valid:
+            invalidRows.length === 0,
+
+        total:
+            normalizedRows.length,
+
+        validRows,
+
+        invalidRows,
+
+        academicYear,
+
+        mode
+    };
+}
+
+
+async function prepareStudentImport(
+    rows,
+    mode,
+    sourceFileName = ""
+) {
+
+    const validation =
+        await validateStudentImport(
+            rows,
+            mode
+        );
+
+    const readyRows =
+        validation.validRows || [];
+
+    const errorRows =
+        validation.invalidRows || [];
+
+    const newCount =
+        readyRows.filter(
+            row =>
+                row.import_action === "NEW"
+        ).length;
+
+    const updateCount =
+        readyRows.filter(
+            row =>
+                row.import_action === "UPDATE"
+        ).length;
+
+    return {
+
+        mode,
+
+        sourceFileName,
+
+        totalRows:
+            validation.total,
+
+        readyCount:
+            readyRows.length,
+
+        errorCount:
+            errorRows.length,
+
+        newCount,
+
+        updateCount,
+
+        reviewCount: 0,
+
+        unchangedCount: 0,
+
+        valid:
+            validation.valid,
+
+        rows: [
+            ...readyRows,
+            ...errorRows
+        ],
+
+        validRows:
+            readyRows,
+
+        invalidRows:
+            errorRows,
+
+        academicYear:
+            validation.academicYear
+    };
+}
+
+async function createStudentImportAttempt({
+    mode,
+    academicYearId,
+    sourceFileName = "",
+    totalRows = 0
+}) {
+    if (!["NEW", "UPDATE"].includes(mode)) {
+        throw new Error("Import mode ไม่ถูกต้อง");
+    }
+
+    if (!academicYearId) {
+        throw new Error("ไม่พบ Academic Year ID");
+    }
+
+    const { data, error } = await supabaseClient.rpc(
+        "create_student_import_attempt",
+        {
+            p_mode: mode,
+            p_academic_year_id: academicYearId,
+            p_source_file_name: sourceFileName,
+            p_total_rows: totalRows
+        }
+    );
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+async function commitStudentImport(payload) {
+
+    if (!payload) {
+        throw new Error("Import payload is required.");
+    }
+
+    const {
+        rows,
+        mode,
+        academicYearId,
+        sourceFileName = "",
+        attemptId = null
+    } = payload;
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+        throw new Error("ไม่พบข้อมูลสำหรับ Commit");
+    }
+
+    if (!["NEW", "UPDATE"].includes(mode)) {
+        throw new Error("Import mode ไม่ถูกต้อง");
+    }
+
+    if (!academicYearId) {
+        throw new Error("ไม่พบ Academic Year ID");
+    }
+
+    /*
+     * IMPORTANT
+     *
+     * Full name parsing is NOT handled here.
+     *
+     * UI must already split:
+     * full_name
+     * → prefix
+     * → first_name
+     * → last_name
+     *
+     * API only validates / commits
+     * the normalized fields.
+     */
+
+    const validation = await validateStudentImport(
+        rows,
+        mode
+    );
+
+    if (!validation.valid) {
+        throw new Error(
+            "ไม่สามารถ Commit ได้ เนื่องจากข้อมูลยังไม่ผ่าน Validation"
+        );
+    }
+
+    /*
+     * Import Attempt must exist BEFORE commit.
+     *
+     * If UI has not created one yet,
+     * create it here as a safety fallback.
+     */
+
+    let currentAttemptId = attemptId;
+
+    if (!currentAttemptId) {
+        currentAttemptId =
+            await createStudentImportAttempt({
+                mode,
+                academicYearId,
+                sourceFileName,
+                totalRows: validation.total
+            });
+    }
+
+    /*
+     * Only normalized rows go to PostgreSQL.
+     *
+     * Do NOT send invalid rows.
+     */
+
+    const commitRows =
+        validation.validRows.map(row => ({
+            academic_year: row.academic_year,
+            academic_year_id: row.academic_year_id,
+
+            student_code: row.student_code,
+            student_no: row.student_no,
+
+            prefix: row.prefix,
+            first_name: row.first_name,
+            last_name: row.last_name,
+            nickname: row.nickname,
+
+            gender: row.gender,
+            birth_date: row.birth_date,
+
+            room_name: row.room_name,
+            room_id: row.room_id,
+
+            student_id: row.student_id,
+            import_action: row.import_action
+        }));
+
+
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc(
+        "commit_student_import",
+        {
+            p_attempt_id: currentAttemptId,
+            p_rows: commitRows
+        }
+    );
+
+
+    if (error) {
+        throw error;
+    }
+
+
+    return {
+        ...data,
+        attemptId: currentAttemptId
+    };
 }
