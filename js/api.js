@@ -2700,7 +2700,7 @@ async function getStudentsByCodes(studentCodes) {
             gender,
             birth_date,
             current_room_id,
-            is_active
+            current_status
         `)
         .in("student_code", codes)
         .is("deleted_at", null);
@@ -2844,6 +2844,32 @@ async function validateStudentImport(
             ])
         );
 
+        const studentIds = students.map(student => student.id);
+
+const {
+    data: histories,
+    error: historyError
+} = await supabaseClient
+    .from("student_academic_history")
+    .select(`
+        student_id,
+        room_id,
+        student_no
+    `)
+    .eq("academic_year_id", academicYear.id)
+    .in("student_id", studentIds);
+
+if (historyError) {
+    throw historyError;
+}
+
+const historyByStudentId =
+    Object.fromEntries(
+        (histories || []).map(history => [
+            history.student_id,
+            history
+        ])
+    );
 
     const seenCodes = new Set();
 
@@ -3025,31 +3051,37 @@ async function validateStudentImport(
 
             }
 
-
-            const resultRow = {
-                ...row,
-
-                rowNumber,
-
-                student_id:
-                    existing?.id || null,
-
-                room_id:
-                    roomsByName[
-                        row.room_name
-                    ]?.id || null,
-
-                academic_year_id:
-                    academicYear.id,
-
-                import_action:
-                    existing
-                        ? "UPDATE"
-                        : "NEW",
-
-                errors
-            };
-
+const resultRow = {
+    ...row,
+    rowNumber,
+    student_id: existing?.id || null,
+    room_id:
+        roomsByName[
+            row.room_name
+        ]?.id || null,
+    academic_year_id:
+        academicYear.id,
+    import_action:
+        existing
+            ? "UPDATE"
+            : "NEW",
+    existing_student: existing
+    ? {
+        ...existing,
+        student_no:
+            historyByStudentId[existing.id]?.student_no ?? null,
+        history_room_id:
+            historyByStudentId[existing.id]?.room_id ?? null,
+        history_room_name:
+            Object.values(roomsByName).find(
+                room =>
+                    room.id ===
+                    historyByStudentId[existing.id]?.room_id
+            )?.room_name || ""
+    }
+    : null,
+    errors
+};
 
             if (errors.length > 0) {
 

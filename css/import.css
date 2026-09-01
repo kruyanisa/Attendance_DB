@@ -133,6 +133,12 @@
     gap: 14px;
 }
 
+.import-template-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 14px;
+}
+
 .import-mode-card {
     position: relative;
     display: flex;

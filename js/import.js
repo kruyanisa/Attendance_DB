@@ -259,12 +259,65 @@ function renderImportPreview() {
         return;
     }
 
+const updateSummary = {};
+
+if (importState.mode === "UPDATE") {
+    rows.forEach(row => {
+        if (!row.existing_student) return;
+
+        const existing = row.existing_student;
+
+        const fields = [
+    ["prefix", "คำนำหน้า"],
+    ["first_name", "ชื่อ"],
+    ["last_name", "นามสกุล"],
+    ["nickname", "ชื่อเล่น"],
+    ["gender", "เพศ"],
+    ["birth_date", "วันเกิด"],
+    ["room_name", "ห้อง"],
+    ["student_no", "เลขที่"]
+];
+
+        fields.forEach(([field, label]) => {
+            const oldValue = String(
+    field === "room_name"
+        ? existing.history_room_name
+        : existing[field]
+    ?? ""
+).trim();
+
+const newValue = String(row[field] ?? "").trim();
+
+            if (oldValue !== newValue) {
+                updateSummary[label] =
+                    (updateSummary[label] || 0) + 1;
+            }
+        });
+    });
+}
+
+const updateSummaryHtml =
+    importState.mode === "UPDATE" &&
+    Object.keys(updateSummary).length > 0
+        ? `
+            <div class="import-update-summary">
+                <strong>สรุปการเปลี่ยนแปลง</strong>
+                ${Object.entries(updateSummary)
+                    .map(([label, count]) =>
+                        `<div>• ${escapeHtml(label)}: ${count} รายการ</div>`
+                    )
+                    .join("")}
+            </div>
+          `
+        : "";
+
     const errorMap = new Map(
         result.errors.map(error => [error.row - 2, error])
     );
 
     container.innerHTML = `
         <div class="import-preview-card">
+        ${updateSummaryHtml}
             <div class="import-preview-header">
                 <div>
                     <h3>ตัวอย่างข้อมูล</h3>
@@ -679,7 +732,10 @@ if (!prepared.valid) {
 
 // เก็บข้อมูลที่ผ่าน Server Validation
 importState.commitRows = prepared.validRows || [];
+importState.normalizedRows = prepared.validRows || [];
 importState.academicYearId = prepared.academicYear?.id || null;
+
+renderImportPreview();
 
 if (!importState.academicYearId) {
     throw new Error("ไม่พบ Academic Year ID");
@@ -786,14 +842,71 @@ async function confirmStudentImport() {
         return;
     }
 
-    const confirmResult = await Swal.fire({
-        icon: "question",
-        title: "ยืนยันการ Import?",
-        text: `กำลังนำเข้าข้อมูล ${importState.commitRows.length} รายการ`,
-        showCancelButton: true,
-        confirmButtonText: "ยืนยัน Import",
-        cancelButtonText: "ยกเลิก"
+    const confirmUpdateSummary = {};
+
+if (importState.mode === "UPDATE") {
+    const rows = importState.normalizedRows || [];
+
+    rows.forEach(row => {
+        if (!row.existing_student) return;
+
+        const existing = row.existing_student;
+
+        const fields = [
+            ["prefix", "คำนำหน้า"],
+            ["first_name", "ชื่อ"],
+            ["last_name", "นามสกุล"],
+            ["nickname", "ชื่อเล่น"],
+            ["gender", "เพศ"],
+            ["birth_date", "วันเกิด"],
+            ["room_name", "ห้อง"],
+            ["student_no", "เลขที่"]
+        ];
+
+        fields.forEach(([field, label]) => {
+            const oldValue = String(
+                field === "room_name"
+                    ? existing.history_room_name
+                    : existing[field]
+                ?? ""
+            ).trim();
+
+            const newValue = String(row[field] ?? "").trim();
+
+            if (oldValue !== newValue) {
+                confirmUpdateSummary[label] =
+                    (confirmUpdateSummary[label] || 0) + 1;
+            }
+        });
     });
+}
+
+const confirmSummaryHtml =
+    importState.mode === "UPDATE" &&
+    Object.keys(confirmUpdateSummary).length > 0
+        ? `
+            <div style="text-align:left; margin-top:12px;">
+                <strong>สรุปการเปลี่ยนแปลง</strong>
+                ${Object.entries(confirmUpdateSummary)
+                    .map(([label, count]) =>
+                        `<div>• ${escapeHtml(label)}: ${count} รายการ</div>`
+                    )
+                    .join("")}
+            </div>
+          `
+        : "";
+
+const confirmResult = await Swal.fire({
+    icon: "question",
+    title: "ยืนยันการ Import?",
+    html: `
+        <div>กำลังนำเข้าข้อมูล ${importState.commitRows.length} รายการ</div>
+        ${confirmSummaryHtml}
+    `,
+    showCancelButton: true,
+    confirmButtonText: "ยืนยัน Import",
+    cancelButtonText: "ยกเลิก"
+});
 
     if (!confirmResult.isConfirmed) {
         return;
@@ -834,6 +947,7 @@ async function confirmStudentImport() {
             "[Import] Commit result:",
             result
         );
+        clearFile();
 
     } catch (error) {
 
@@ -907,6 +1021,26 @@ async function confirmStudentImport() {
                             </span>
                         </button>
                     </div>
+
+                    <div class="import-template-actions">
+    <a
+        href="./js/Student_New_Template.csv"
+        download
+        class="import-template-btn"
+        data-template="NEW"
+    >
+        📥 ดาวน์โหลด NEW Template
+    </a>
+
+    <a
+        href="./js/Student_Update_Template.csv"
+        download
+        class="import-template-btn"
+        data-template="UPDATE"
+    >
+        📥 ดาวน์โหลด UPDATE Template
+    </a>
+</div>
                 </div>
 
                 <div class="import-step">
