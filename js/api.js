@@ -51,15 +51,21 @@ async function getStudentManagementList({
     // --------------------------------------------------------
 
     let historyQuery = supabaseClient
-        .from("student_academic_history")
-        .select(`
-            id,
-            student_id,
-            academic_year_id,
-            room_id,
-            student_no
-        `)
-        .eq("academic_year_id", academicYearId);
+    .from("student_academic_history")
+    .select(`
+        id,
+        student_id,
+        academic_year_id,
+        room_id,
+        student_no
+    `);
+
+if (academicYearId !== "ALL") {
+    historyQuery = historyQuery.eq(
+        "academic_year_id",
+        academicYearId
+    );
+}
 
     if (roomId !== "") {
         historyQuery = historyQuery.eq("room_id", roomId);
@@ -71,15 +77,23 @@ async function getStudentManagementList({
 
     if (gradeLevel !== "") {
 
-        const {
-            data: gradeRooms,
-            error: gradeRoomError
-        } = await supabaseClient
-            .from("rooms")
-            .select("id")
-            .eq("academic_year_id", academicYearId)
-            .eq("grade_level", Number(gradeLevel))
-            .is("deleted_at", null);
+        let gradeRoomQuery = supabaseClient
+    .from("rooms")
+    .select("id")
+    .eq("grade_level", Number(gradeLevel))
+    .is("deleted_at", null);
+
+if (academicYearId !== "ALL") {
+    gradeRoomQuery = gradeRoomQuery.eq(
+        "academic_year_id",
+        academicYearId
+    );
+}
+
+const {
+    data: gradeRooms,
+    error: gradeRoomError
+} = await gradeRoomQuery;
 
         if (gradeRoomError) {
             throw gradeRoomError;
@@ -282,6 +296,101 @@ if (canLoadHistorylessTransferred) {
             room
         ])
     );
+    // --------------------------------------------------------
+// 6.5 ดึง Academic History ทั้งหมดของนักเรียนที่พบ
+//
+// สำคัญ:
+// ใช้สำหรับหา Academic Context ล่าสุดจาก DB
+// ไม่อิงจากปีที่ User กรองบนหน้าจอ
+// --------------------------------------------------------
+
+let allStudentHistories = [];
+
+if (studentIds.length > 0) {
+
+    const {
+        data: allHistoryRows,
+        error: allHistoryError
+    } = await supabaseClient
+        .from("student_academic_history")
+        .select(`
+            id,
+            student_id,
+            academic_year_id,
+            room_id,
+            student_no
+        `)
+        .in("student_id", studentIds);
+
+    if (allHistoryError) {
+        throw allHistoryError;
+    }
+
+    allStudentHistories = allHistoryRows || [];
+}
+
+// --------------------------------------------------------
+// 6.6 ดึงข้อมูลปีการศึกษาของ History ทั้งหมด
+// --------------------------------------------------------
+
+const allAcademicYearIds = [
+    ...new Set(
+        allStudentHistories
+            .map(row => row.academic_year_id)
+            .filter(Boolean)
+    )
+];
+
+let academicYearsById = new Map();
+
+if (allAcademicYearIds.length > 0) {
+
+    const {
+        data: academicYearRows,
+        error: academicYearError
+    } = await supabaseClient
+        .from("academic_years")
+        .select("id, year")
+        .in("id", allAcademicYearIds);
+
+    if (academicYearError) {
+        throw academicYearError;
+    }
+
+    academicYearsById = new Map(
+        (academicYearRows || []).map(year => [
+            year.id,
+            year
+        ])
+    );
+}
+
+// --------------------------------------------------------
+// 6.7 หา Academic Context ของปีการศึกษาปัจจุบัน
+//
+// ใช้ academic_years.is_current เป็นตัวตัดสิน
+// ไม่ใช้ปีที่มีตัวเลขสูงที่สุด
+// --------------------------------------------------------
+
+const {
+    data: currentAcademicYear,
+    error: currentAcademicYearError
+} = await supabaseClient
+    .from("academic_years")
+    .select(`
+        id,
+        year,
+        is_current
+    `)
+    .eq("is_current", true)
+    .maybeSingle();
+
+if (currentAcademicYearError) {
+    throw currentAcademicYearError;
+}
+
+const currentAcademicYearId =
+    currentAcademicYear?.id || null;
 
     // --------------------------------------------------------
     // 7. รวม History + Student + Room
@@ -302,6 +411,19 @@ if (canLoadHistorylessTransferred) {
 
         return {
             id: student.id,
+
+                academic_year_id:
+        history.academic_year_id,
+
+    academic_year:
+        academicYearsById.get(
+            history.academic_year_id
+        )?.year ?? null,
+
+        is_latest_academic_context:
+    currentAcademicYearId !== null &&
+    history.academic_year_id ===
+        currentAcademicYearId,
 
             student_code:
                 student.student_code,
@@ -922,6 +1044,151 @@ async function getStudentById(studentId){
     return data;
 
 }
+
+async function updateStudentIdentity({
+    studentId,
+    prefix,
+    firstName,
+    lastName,
+    nickname,
+    gender,
+    birthDate
+} = {}) {
+
+    if (!studentId) {
+        throw new Error("Student ID is required.");
+    }
+
+    // 1. ตรวจสอบผู้ใช้งาน
+    const context = await getCurrentTeacherContext();
+
+    if (!context) {
+        throw new Error("ไม่พบข้อมูลผู้ใช้งาน");
+    }
+
+    // 2. Edit นักเรียนได้เฉพาะ Admin
+    if (context.role !== "Admin") {
+        throw new Error(
+            "ไม่มีสิทธิ์แก้ไขข้อมูลนักเรียน ต้องเป็น Admin เท่านั้น"
+        );
+    }
+
+    // 3. ตรวจสอบ Current Academic Context
+    const {
+        data: studentContext,
+        error: contextError
+    } = await supabaseClient
+        .from("students")
+        .select(`
+            id,
+            current_status,
+            student_academic_history!inner(
+                academic_year_id,
+                academic_years!inner(
+                    id,
+                    is_current
+                )
+            )
+        `)
+        .eq("id", studentId)
+        .is("deleted_at", null)
+        .eq(
+            "student_academic_history.academic_years.is_current",
+            true
+        )
+        .maybeSingle();
+
+    if (contextError) {
+        console.error(
+            "updateStudentIdentity context check:",
+            contextError
+        );
+        throw contextError;
+    }
+
+    // ไม่มี Academic Context ของปีปัจจุบัน
+    if (!studentContext) {
+        throw new Error(
+            "ไม่สามารถแก้ไขได้ เนื่องจากนักเรียนไม่ได้อยู่ในปีการศึกษาปัจจุบัน"
+        );
+    }
+
+    // 4. GRADUATED ห้ามแก้
+    if (studentContext.current_status === "GRADUATED") {
+        throw new Error(
+            "ไม่สามารถแก้ไขข้อมูลนักเรียนที่สำเร็จการศึกษาแล้ว"
+        );
+    }
+
+    // 5. Normalize ข้อมูล
+    const normalizedFirstName =
+        String(firstName ?? "").trim();
+
+    const normalizedLastName =
+        String(lastName ?? "").trim();
+
+    const normalizedPrefix =
+        String(prefix ?? "").trim();
+
+    const normalizedNickname =
+        String(nickname ?? "").trim();
+
+    const normalizedGender =
+        String(gender ?? "").trim();
+
+    const normalizedBirthDate =
+        String(birthDate ?? "").trim();
+
+    // 6. Validate
+    if (!normalizedFirstName) {
+        throw new Error("กรุณาระบุชื่อ");
+    }
+
+    if (!normalizedLastName) {
+        throw new Error("กรุณาระบุนามสกุล");
+    }
+
+    if (
+        normalizedGender !== "" &&
+        !["M", "F"].includes(normalizedGender)
+    ) {
+        throw new Error("ข้อมูลเพศไม่ถูกต้อง");
+    }
+
+    // 7. Identity fields เท่านั้น
+    const updates = {
+        prefix: normalizedPrefix || null,
+        first_name: normalizedFirstName,
+        last_name: normalizedLastName,
+        nickname: normalizedNickname || null,
+        gender: normalizedGender || null,
+        birth_date: normalizedBirthDate || null
+    };
+
+    // 8. Update
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("students")
+        .update(updates)
+        .eq("id", studentId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error(
+            "updateStudentIdentity:",
+            error
+        );
+        throw error;
+    }
+
+    return data;
+}
+
+window.updateStudentIdentity =
+    updateStudentIdentity;
 
 async function getAttendanceSession(roomId, subjectId, attendanceDate) {
 

@@ -70,8 +70,9 @@ const StudentManagement = (() => {
             if (error) throw error;
 
             select.innerHTML = `
-                <option value="">-- เลือกปีการศึกษา --</option>
-            `;
+    <option value="ALL">ทุกปี</option>
+    <option value="">-- เลือกปีการศึกษา --</option>
+`;
 
             data.forEach(item => {
 
@@ -96,52 +97,59 @@ const StudentManagement = (() => {
     }
 
     // -----------------------------------------------------
-    // Rooms
-    // -----------------------------------------------------
+// Rooms
+// -----------------------------------------------------
 
-    async function loadRooms() {
+async function loadRooms() {
 
-        const yearSelect = document.getElementById("student-academic-year");
-        const roomSelect = document.getElementById("student-room");
+    const yearSelect = document.getElementById("student-academic-year");
+    const roomSelect = document.getElementById("student-room");
 
-        if (!yearSelect || !roomSelect) return;
+    if (!yearSelect || !roomSelect) return;
 
-        const academicYearId = yearSelect.value;
+    const academicYearId = yearSelect.value;
 
-        roomSelect.innerHTML = `
-            <option value="">ทุกห้อง</option>
-        `;
+    roomSelect.innerHTML = `
+        <option value="">ทุกห้อง</option>
+    `;
 
-        if (!academicYearId) return;
+    if (!academicYearId) return;
 
-        try {
+    try {
 
-            const { data, error } = await supabaseClient
-                .from("rooms")
-                .select(`
-                    id,
-                    room_name,
-                    grade_level,
-                    academic_year_id
-                `)
-                .eq("academic_year_id", academicYearId)
-                .is("deleted_at", null)
-                .order("grade_level", { ascending: true })
-                .order("room_name", { ascending: true });
+        let query = supabaseClient
+            .from("rooms")
+            .select(`
+                id,
+                room_name,
+                grade_level,
+                academic_year_id
+            `)
+            .is("deleted_at", null);
 
-            if (error) throw error;
-
-            roomSelect.dataset.rooms = JSON.stringify(data || []);
-
-            renderRoomOptions(data || []);
-
-        } catch (error) {
-
-            console.error("loadRooms:", error);
-
-            showError("ไม่สามารถโหลดห้องเรียนได้");
+        // ถ้าเลือกปีจริง → กรองเฉพาะห้องของปีนั้น
+        // ถ้าเลือก ALL → ไม่กรอง academic_year_id
+        if (academicYearId !== "ALL") {
+            query = query.eq("academic_year_id", academicYearId);
         }
+
+        const { data, error } = await query
+            .order("grade_level", { ascending: true })
+            .order("room_name", { ascending: true });
+
+        if (error) throw error;
+
+        roomSelect.dataset.rooms = JSON.stringify(data || []);
+
+        renderRoomOptions(data || []);
+
+    } catch (error) {
+
+        console.error("loadRooms:", error);
+
+        showError("ไม่สามารถโหลดห้องเรียนได้");
     }
+}
 
     function filterRoomsByGrade() {
 
@@ -227,6 +235,18 @@ const StudentManagement = (() => {
     statuses: statusValues,
     search
 });
+// -------------------------------------------------
+// Sort students by Academic Year
+// ใหม่ → เก่า
+// ใช้เฉพาะลำดับการแสดงผลใน Student Management
+// -------------------------------------------------
+
+students.sort((a, b) => {
+    const yearA = Number(a.academic_year ?? 0);
+    const yearB = Number(b.academic_year ?? 0);
+
+    return yearB - yearA;
+});
 
 // -------------------------------------------------
 // Load lower-secondary completion events
@@ -240,18 +260,11 @@ let completedLowerSecondaryIds = new Set();
 
 if (studentIdsForStatus.length > 0) {
 
-    const {
-        data: completionEvents,
-        error: completionError
-    } = await supabaseClient
+    let completionQuery = supabaseClient
         .from("student_lifecycle_events")
         .select(`
             student_id
         `)
-        .eq(
-            "academic_year_id",
-            academicYearId
-        )
         .eq(
             "event_type",
             "COMPLETED_LOWER_SECONDARY"
@@ -260,6 +273,20 @@ if (studentIdsForStatus.length > 0) {
             "student_id",
             studentIdsForStatus
         );
+
+    // ถ้าเลือกปีจริง → ดู event ของปีนั้น
+    // ถ้าเลือก ALL → ดู event ของทุกปี
+    if (academicYearId !== "ALL") {
+        completionQuery = completionQuery.eq(
+            "academic_year_id",
+            academicYearId
+        );
+    }
+
+    const {
+        data: completionEvents,
+        error: completionError
+    } = await completionQuery;
 
     if (completionError) {
         throw completionError;
@@ -353,11 +380,13 @@ renderStudentList();
                     <thead>
                         <tr>
                             <th></th>
+                            <th>ปีการศึกษา</th>
                             <th>เลขที่</th>
                             <th>รหัส</th>
                             <th>ชื่อ-สกุล</th>
                             <th>ห้อง</th>
                             <th>สถานะ</th>
+                            <th>จัดการ</th>
                         </tr>
                     </thead>
 
@@ -372,6 +401,10 @@ renderStudentList();
                                         class="student-select"
                                         value="${student.id}"
                                     >
+                                </td>
+
+                                <td>
+                                    ${student.academic_year ?? "-"}
                                 </td>
 
                                 <td>
@@ -412,7 +445,23 @@ renderStudentList();
               )
     }
 </td>
-
+<td>
+    ${
+        student.is_latest_academic_context === true &&
+        student.current_status !== "GRADUATED"
+            ? `
+                <button
+    type="button"
+    class="student-edit-btn"
+    data-student-id="${student.id}"
+>
+    <span class="student-edit-icon">✏</span>
+    <span>แก้ไข</span>
+                </button>
+              `
+            : ""
+    }
+</td>
                             </tr>
                         `).join("")}
 
@@ -490,6 +539,358 @@ renderStudentList();
                 updateSelectionUI();
             });
         });
+document
+    .querySelectorAll(".student-edit-btn")
+    .forEach(button => {
+        button.addEventListener("click", async () => {
+
+            const studentId = button.dataset.studentId;
+
+            try {
+
+                const student = await getStudentById(studentId);
+
+                const editResult = await Swal.fire({
+                    title: "แก้ไขข้อมูลนักเรียน",
+                    width: 700,
+                    customClass: {
+                    title: "student-edit-title"
+                     },
+                    html: `
+    <div style="
+        text-align:left;
+        padding: 4px 8px 0;
+    ">
+
+        <!-- Section Header -->
+        <div style="
+            font-size:16px;
+            font-weight:700;
+            color:#555;
+            margin-bottom:16px;
+            padding-bottom:10px;
+            border-bottom:1px solid #e5e7eb;
+        ">
+            ข้อมูลประจำตัว
+        </div>
+
+        <!-- Student Code -->
+        <div style="
+            margin-bottom:16px;
+        ">
+            <label style="
+                display:block;
+                font-size:13px;
+                font-weight:600;
+                color:#555;
+                margin-bottom:6px;
+            ">
+                รหัสนักเรียน 🔒
+            </label>
+
+            <input
+                id="edit-student-code"
+                type="text"
+                value="${escapeHtml(student.student_code || "")}"
+                disabled
+                style="
+    width:100%;
+    box-sizing:border-box;
+    margin:0;
+    background:#f3f4f6;
+    color:#6b7280;
+    border:1px solid #d1d5db;
+    cursor:not-allowed;
+    font-size:16px;
+    font-weight:500;
+    line-height:1.5;
+"
+            >
+
+            <div style="
+                font-size:12px;
+                color:#9ca3af;
+                margin-top:5px;
+            ">
+                รหัสนักเรียนไม่สามารถแก้ไขได้
+            </div>
+        </div>
+
+        <!-- Identity Grid -->
+        <div style="
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:14px 18px;
+        ">
+
+            <!-- Prefix -->
+            <div>
+                <label style="
+                    display:block;
+                    font-size:13px;
+                    font-weight:600;
+                    color:#555;
+                    margin-bottom:6px;
+                ">
+                    คำนำหน้า
+                </label>
+
+                <input
+                    id="edit-prefix"
+                    type="text"
+                    class="swal2-input"
+                    value="${escapeHtml(student.prefix || "")}"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        margin:0;
+                    "
+                >
+            </div>
+
+            <!-- First Name -->
+            <div>
+                <label style="
+                    display:block;
+                    font-size:13px;
+                    font-weight:600;
+                    color:#555;
+                    margin-bottom:6px;
+                ">
+                    ชื่อ
+                </label>
+
+                <input
+                    id="edit-first-name"
+                    type="text"
+                    class="swal2-input"
+                    value="${escapeHtml(student.first_name || "")}"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        margin:0;
+                    "
+                >
+            </div>
+
+            <!-- Last Name -->
+            <div>
+                <label style="
+                    display:block;
+                    font-size:13px;
+                    font-weight:600;
+                    color:#555;
+                    margin-bottom:6px;
+                ">
+                    นามสกุล
+                </label>
+
+                <input
+                    id="edit-last-name"
+                    type="text"
+                    class="swal2-input"
+                    value="${escapeHtml(student.last_name || "")}"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        margin:0;
+                    "
+                >
+            </div>
+
+            <!-- Nickname -->
+            <div>
+                <label style="
+                    display:block;
+                    font-size:13px;
+                    font-weight:600;
+                    color:#555;
+                    margin-bottom:6px;
+                ">
+                    ชื่อเล่น
+                </label>
+
+                <input
+                    id="edit-nickname"
+                    type="text"
+                    class="swal2-input"
+                    value="${escapeHtml(student.nickname || "")}"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        margin:0;
+                    "
+                >
+            </div>
+
+            <!-- Gender -->
+            <div>
+                <label style="
+                    display:block;
+                    font-size:13px;
+                    font-weight:600;
+                    color:#555;
+                    margin-bottom:6px;
+                ">
+                    เพศ
+                </label>
+
+                <select
+                    id="edit-gender"
+                    class="swal2-select"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        margin:0;
+                    "
+                >
+                    <option value="">-- เลือก --</option>
+
+                    <option
+                        value="M"
+                        ${student.gender === "M" ? "selected" : ""}
+                    >
+                        ชาย
+                    </option>
+
+                    <option
+                        value="F"
+                        ${student.gender === "F" ? "selected" : ""}
+                    >
+                        หญิง
+                    </option>
+                </select>
+            </div>
+
+            <!-- Birth Date -->
+            <div>
+                <label style="
+                    display:block;
+                    font-size:13px;
+                    font-weight:600;
+                    color:#555;
+                    margin-bottom:6px;
+                ">
+                    วันเกิด
+                </label>
+
+                <input
+                    id="edit-birth-date"
+                    type="date"
+                    class="swal2-input"
+                    value="${student.birth_date || ""}"
+                    style="
+                        width:100%;
+                        box-sizing:border-box;
+                        margin:0;
+                    "
+                >
+            </div>
+
+        </div>
+
+    </div>
+`,
+                    showCancelButton: true,
+                    confirmButtonText: "บันทึก",
+                    cancelButtonText: "ยกเลิก",
+                    reverseButtons: true,
+
+preConfirm: async () => {
+
+    const prefix =
+        document.getElementById("edit-prefix")?.value.trim();
+
+    const firstName =
+        document.getElementById("edit-first-name")?.value.trim();
+
+    const lastName =
+        document.getElementById("edit-last-name")?.value.trim();
+
+    const nickname =
+        document.getElementById("edit-nickname")?.value.trim();
+
+    const gender =
+        document.getElementById("edit-gender")?.value || "";
+
+    const birthDate =
+        document.getElementById("edit-birth-date")?.value || "";
+
+    if (!firstName) {
+        Swal.showValidationMessage(
+            "กรุณากรอกชื่อ"
+        );
+        return false;
+    }
+
+    if (!lastName) {
+        Swal.showValidationMessage(
+            "กรุณากรอกนามสกุล"
+        );
+        return false;
+    }
+
+    try {
+
+        await updateStudentIdentity({
+            studentId,
+            prefix,
+            firstName,
+            lastName,
+            nickname,
+            gender,
+            birthDate
+        });
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "[Student Management] Edit save error:",
+            error
+        );
+
+        Swal.showValidationMessage(
+            error.message ||
+            "ไม่สามารถบันทึกข้อมูลได้"
+        );
+
+        return false;
+    }
+}
+});
+
+if (editResult.isConfirmed) {
+
+    await Swal.fire({
+        icon: "success",
+        title: "บันทึกสำเร็จ",
+        text: "แก้ไขข้อมูลนักเรียนเรียบร้อยแล้ว",
+        confirmButtonText: "ตกลง"
+    });
+
+    await loadStudents();
+}
+
+} catch (error) {
+
+                console.error(
+                    "[Student Management] Edit load error:",
+                    error
+                );
+
+                Swal.fire({
+                    icon: "error",
+                    title: "โหลดข้อมูลไม่สำเร็จ",
+                    text: error.message || "ไม่สามารถโหลดข้อมูลนักเรียนได้"
+                });
+
+            }
+
+        });
+    });
+
                 const lifecycleButton =
             document.getElementById("btn-student-lifecycle");
 

@@ -3775,3 +3775,64 @@ body.dark-mode .schedule-status-badge {
         font-size: 15px;
     }
 }
+
+/* -----------------------------------------------------
+   Student Management - Edit Button
+----------------------------------------------------- */
+
+.student-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+
+    min-width: 76px;
+    height: 34px;
+
+    padding: 0 12px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: linear-gradient(
+        135deg,
+        #8b6fe8,
+        #7564d9
+    );
+
+    color: #ffd43b;
+    font-weight: 700;
+
+    font-size: 13px;
+    font-weight: 600;
+
+    line-height: 1;
+
+    cursor: pointer;
+
+    box-shadow: 0 2px 5px rgba(65, 105, 225, 0.20);
+
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.student-edit-btn:hover {
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 4px 10px rgba(65, 105, 225, 0.30);
+}
+
+.student-edit-btn:active {
+    transform: translateY(0);
+
+    box-shadow:
+        0 2px 5px rgba(65, 105, 225, 0.20);
+}
+
+.student-edit-icon {
+    font-size: 14px;
+    line-height: 1;
+}
