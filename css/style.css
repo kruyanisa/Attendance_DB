@@ -2977,7 +2977,20 @@ body.dark-mode .schedule-status-badge {
 
     color: #334155;
 
+    text-align: center;
     vertical-align: middle;
+}
+
+/* ---------------------------------------------------------
+   STUDENT MANAGEMENT — TABLE ALIGNMENT
+   --------------------------------------------------------- */
+
+#view-student-management thead th {
+    text-align: center;
+}
+
+#view-student-management tbody td {
+    text-align: center;
 }
 
 #view-student-management tbody tr {
@@ -3835,4 +3848,253 @@ body.dark-mode .schedule-status-badge {
 .student-edit-icon {
     font-size: 14px;
     line-height: 1;
+}
+
+/* =========================================================
+   Student Detail
+   ========================================================= */
+
+.student-detail-header {
+    margin-top: 18px;
+    margin-bottom: 18px;
+}
+
+.student-detail-profile {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.student-detail-avatar {
+    width: 82px;
+    height: 82px;
+    flex: 0 0 82px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e2e8f0;
+    font-size: 25px;
+    font-weight: 700;
+}
+
+.student-detail-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.student-detail-identity {
+    flex: 1;
+    min-width: 0;
+}
+
+.student-detail-identity h2 {
+    margin: 0 0 8px;
+    color: var(--text);
+    font-size: 25px;
+}
+
+.student-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    color: var(--text-light);
+    font-size: 14px;
+}
+
+.student-detail-meta strong {
+    color: var(--text);
+}
+
+.student-detail-status {
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+}
+
+.student-detail-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+    padding: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.student-detail-tab {
+    border: 0;
+    background: transparent;
+    color: var(--text-light);
+    padding: 11px 18px;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.student-detail-tab:hover {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text);
+}
+
+.student-detail-tab.active {
+    background: var(--primary, #2563eb);
+    color: #fff;
+}
+
+.student-detail-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 18px;
+}
+
+.student-detail-section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.student-detail-section-title > span {
+    font-size: 25px;
+}
+
+.student-detail-section-title h3 {
+    margin: 0;
+    color: var(--text);
+}
+
+.student-detail-section-title p {
+    margin: 4px 0 0;
+    color: var(--text-light);
+    font-size: 14px;
+}
+
+.student-detail-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.student-detail-info-item {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.student-detail-info-label {
+    color: var(--text-light);
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+.student-detail-info-value {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.student-detail-coming-soon {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 18px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+}
+
+.student-detail-coming-icon {
+    font-size: 32px;
+}
+
+.student-detail-coming-soon strong {
+    color: var(--text);
+}
+
+.student-detail-coming-soon p {
+    margin: 5px 0 0;
+    color: var(--text-light);
+}
+
+.student-detail-footer {
+    margin-top: 18px;
+    padding-bottom: 20px;
+}
+
+.student-detail-loading,
+.student-detail-error {
+    padding: 60px 20px;
+    text-align: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.student-detail-loading-icon,
+.student-detail-error-icon {
+    font-size: 42px;
+    margin-bottom: 12px;
+}
+
+.student-detail-error h3 {
+    margin-bottom: 8px;
+    color: var(--text);
+}
+
+.student-detail-error p {
+    color: var(--text-light);
+    margin-bottom: 20px;
+}
+
+.student-detail-btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    border-radius: 7px;
+    padding: 6px 10px;
+    cursor: pointer;
+    margin-right: 5px;
+}
+
+.student-detail-btn:hover {
+    background: rgba(148, 163, 184, 0.12);
+}
+
+@media (max-width: 700px) {
+
+    .student-detail-profile {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .student-detail-status {
+        margin-left: 100px;
+    }
+
+    .student-detail-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .student-detail-tabs {
+        overflow-x: auto;
+    }
+
+    .student-detail-tab {
+        white-space: nowrap;
+    }
 }

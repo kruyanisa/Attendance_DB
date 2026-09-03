@@ -103,11 +103,22 @@
             >
 
                 <button
+                    id="menu-student-management"
                     class="menu-btn submenu-btn"
+                    style="display:none;"
                     onclick="switchView('student-management')"
                 >
                     <span class="menu-icon">👥</span>
                     <span class="menu-text">จัดการรายชื่อนักเรียน</span>
+                </button>
+
+                <button
+                    id="menu-student-detail"
+                    class="menu-btn submenu-btn"
+                    onclick="openStudentDetailFromMenu()"
+>
+                   <span class="menu-icon">📋</span>
+                   <span class="menu-text">รายละเอียดนักเรียน</span>
                 </button>
 
                 <button
@@ -1271,6 +1282,24 @@
   </div>
 </div>
 
+<!-- Student Detail -->
+<div
+    id="view-student-detail"
+    class="view-section"
+    style="display:none;"
+>
+
+    <div class="page-header">
+        <div>
+            <h1>👨‍🎓 รายละเอียดนักเรียน</h1>
+            <p>ข้อมูลภาพรวมและประวัติของนักเรียน</p>
+        </div>
+    </div>
+
+    <div id="student-detail-container"></div>
+
+</div>
+
 <div id="view-import" style="display:none;"></div>
 <div id="view-settings" style="display:none;">
 
@@ -1495,6 +1524,22 @@
 <script src="js/app.js"></script>
 <script src="js/attendance.js"></script>
 <script src="js/student-management.js"></script>
+<script src="js/student-detail.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+    try {
+        const role = await getCurrentUserRole();
+        const menu = document.getElementById("menu-student-management");
+
+        if (menu && role === "Admin") {
+            menu.style.display = "";
+        }
+    } catch (error) {
+        console.error("Load user role failed:", error);
+    }
+});
+</script>
 
 <script>
 document.querySelectorAll('.attendance-tab').forEach(tab => {

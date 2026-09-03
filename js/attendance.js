@@ -11,6 +11,16 @@ async function initSystem() {
         }
     });
 
+    const role = await getCurrentUserRole();
+
+if (
+    role === "Student" ||
+    role === "Parent"
+) {
+    Swal.close();
+    return;
+}
+
     try {
 
         // ============================================

@@ -445,23 +445,25 @@ renderStudentList();
               )
     }
 </td>
+
 <td>
     ${
         student.is_latest_academic_context === true &&
         student.current_status !== "GRADUATED"
             ? `
                 <button
-    type="button"
-    class="student-edit-btn"
-    data-student-id="${student.id}"
->
-    <span class="student-edit-icon">✏</span>
-    <span>แก้ไข</span>
+                    type="button"
+                    class="student-edit-btn"
+                    data-student-id="${student.id}"
+                >
+                    <span class="student-edit-icon">✏</span>
+                    <span>แก้ไข</span>
                 </button>
               `
             : ""
     }
 </td>
+
                             </tr>
                         `).join("")}
 
@@ -539,6 +541,7 @@ renderStudentList();
                 updateSelectionUI();
             });
         });
+
 document
     .querySelectorAll(".student-edit-btn")
     .forEach(button => {
@@ -615,6 +618,65 @@ document
                 รหัสนักเรียนไม่สามารถแก้ไขได้
             </div>
         </div>
+
+<!-- Student Photo -->
+<div style="
+    margin-bottom:18px;
+    padding:14px;
+    border:1px solid #e5e7eb;
+    border-radius:10px;
+    background:#fafafa;
+">
+    <div style="
+        font-size:16px;
+        font-weight:700;
+        color:#555;
+        margin-bottom:12px;
+    ">
+        รูปนักเรียน
+    </div>
+
+    <div style="
+        display:flex;
+        align-items:center;
+        gap:16px;
+    ">
+        <div
+            id="edit-student-photo-preview"
+            style="
+                width:90px;
+                height:120px;
+                border-radius:8px;
+                overflow:hidden;
+                background:#e5e7eb;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                color:#777;
+                flex-shrink:0;
+            "
+        >
+            👤
+        </div>
+
+        <div>
+            <input
+                id="edit-student-photo"
+                type="file"
+                accept="image/jpeg,image/png"
+            >
+
+            <div style="
+                margin-top:6px;
+                font-size:12px;
+                color:#888;
+            ">
+                JPG / PNG (ไม่เกิน 5 MB)<br>
+                แนะนำอัตราส่วน 3:4 เช่น 600 × 800 px สำหรับรูป 2 นิ้ว
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- Identity Grid -->
         <div style="
@@ -795,7 +857,50 @@ document
                     confirmButtonText: "บันทึก",
                     cancelButtonText: "ยกเลิก",
                     reverseButtons: true,
+didOpen: () => {
+    const photoInput = document.getElementById("edit-student-photo");
+    const photoPreview = document.getElementById("edit-student-photo-preview");
+    if (student.photo_url) {
+    getStudentPhotoUrl(student.photo_url)
+        .then(photoUrl => {
+            if (photoUrl) {
+                photoPreview.innerHTML = `
+                    <img
+                        src="${photoUrl}"
+                        alt="รูปนักเรียน"
+                        style="width:100%;height:100%;object-fit:cover;"
+                    >
+                `;
+            }
+        })
+        .catch(error => {
+            console.error(
+                "Load student photo:",
+                error
+            );
+        });
+}
 
+    photoInput?.addEventListener("change", event => {
+        const file = event.target.files?.[0];
+
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = e => {
+            photoPreview.innerHTML = `
+                <img
+                    src="${e.target.result}"
+                    alt="รูปนักเรียน"
+                    style="width:100%;height:100%;object-fit:cover;"
+                >
+            `;
+        };
+
+        reader.readAsDataURL(file);
+    });
+},
 preConfirm: async () => {
 
     const prefix =
@@ -816,6 +921,19 @@ preConfirm: async () => {
     const birthDate =
         document.getElementById("edit-birth-date")?.value || "";
 
+    const photoFile =
+    document.getElementById("edit-student-photo")?.files?.[0] || null;
+
+    if (photoFile && !photoFile.type.startsWith("image/")) {
+    Swal.showValidationMessage("กรุณาเลือกไฟล์รูปภาพเท่านั้น");
+    return false;
+    }
+
+    if (photoFile && photoFile.size > 5 * 1024 * 1024) {
+    Swal.showValidationMessage("รูปภาพมีขนาดเกิน 5 MB กรุณาเลือกไฟล์ใหม่");
+    return false;
+    }
+
     if (!firstName) {
         Swal.showValidationMessage(
             "กรุณากรอกชื่อ"
@@ -833,14 +951,24 @@ preConfirm: async () => {
     try {
 
         await updateStudentIdentity({
-            studentId,
-            prefix,
-            firstName,
-            lastName,
-            nickname,
-            gender,
-            birthDate
-        });
+    studentId,
+    prefix,
+    firstName,
+    lastName,
+    nickname,
+    gender,
+    birthDate
+});
+
+if (photoFile) {
+    await updateStudentPhoto({
+        studentId,
+        studentCode: student.student_code,
+        photoFile
+    });
+}
+
+return true;
 
         return true;
 
@@ -5185,8 +5313,20 @@ async function openWithdrawForm() {
             .replace(/'/g, "&#039;");
     }
 
+// =========================================================
+// Get selected student for Student Detail
+// =========================================================
+function getSelectedStudentId() {
+    if (selectedStudentIds.size !== 1) {
+        return null;
+    }
+
+    return Array.from(selectedStudentIds)[0];
+}
+
     return {
-        init
+    init,
+    getSelectedStudentId
     };
 
 })();

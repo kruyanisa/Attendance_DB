@@ -495,6 +495,586 @@ return [
     ...historylessTransferResult
 ];
 }
+async function searchStudentDetailCandidates({
+    roomId = "",
+    search = ""
+} = {}) {
+
+    const keyword = search.trim();
+
+    const roleName =
+        await getCurrentUserRole();
+
+    // ========================================================
+    // Current Academic Year
+    // ========================================================
+
+    const {
+        data: currentAcademicYear,
+        error: academicYearError
+    } = await supabaseClient
+        .from("academic_years")
+        .select("id")
+        .eq("is_current", true)
+        .maybeSingle();
+
+    if (academicYearError) {
+        throw academicYearError;
+    }
+
+    if (!currentAcademicYear?.id) {
+        return [];
+    }
+
+    // ========================================================
+    // หา Student IDs ตาม Scope
+    // ========================================================
+
+    let allowedStudentIds = null;
+
+    // --------------------------------------------------------
+    // ADMIN
+    // → นักเรียนทั้งหมด
+    // --------------------------------------------------------
+
+    if (roleName === "Admin") {
+        allowedStudentIds = null;
+    }
+
+    // --------------------------------------------------------
+    // TEACHER
+    // → นักเรียนในห้องที่มี Subject Assignment
+    // --------------------------------------------------------
+
+    else if (roleName === "Teacher") {
+
+        const teacherContext =
+            await getCurrentTeacherContext();
+
+        if (!teacherContext?.teacherId) {
+            return [];
+        }
+
+        const {
+            data: assignments,
+            error: assignmentError
+        } = await supabaseClient
+            .from("subject_assignments")
+            .select("room_id")
+            .eq(
+                "teacher_id",
+                teacherContext.teacherId
+            )
+            .eq(
+                "academic_year_id",
+                currentAcademicYear.id
+            );
+
+        if (assignmentError) {
+            throw assignmentError;
+        }
+
+        const allowedRoomIds = [
+            ...new Set(
+                (assignments || [])
+                    .map(row => row.room_id)
+                    .filter(Boolean)
+            )
+        ];
+
+        if (allowedRoomIds.length === 0) {
+            return [];
+        }
+
+        let historyQuery = supabaseClient
+            .from("student_academic_history")
+            .select(
+                "student_id, room_id, student_no"
+            )
+            .eq(
+                "academic_year_id",
+                currentAcademicYear.id
+            )
+            .in("room_id", allowedRoomIds);
+
+        if (roomId) {
+            if (!allowedRoomIds.includes(roomId)) {
+                return [];
+            }
+
+            historyQuery =
+                historyQuery.eq(
+                    "room_id",
+                    roomId
+                );
+        }
+
+        const {
+            data: histories,
+            error: historyError
+        } = await historyQuery;
+
+        if (historyError) {
+            throw historyError;
+        }
+
+        allowedStudentIds = (histories || [])
+            .map(row => row.student_id)
+            .filter(Boolean);
+    }
+
+    // --------------------------------------------------------
+    // PARENT
+    // → เฉพาะบุตรที่ผูกไว้
+    // --------------------------------------------------------
+
+    else if (roleName === "Parent") {
+
+        const parentStudents =
+            await getCurrentParentStudents();
+
+        allowedStudentIds = (parentStudents || [])
+            .map(student => student.id)
+            .filter(Boolean);
+
+        if (allowedStudentIds.length === 0) {
+            return [];
+        }
+    }
+
+    // --------------------------------------------------------
+    // STUDENT
+    // → ตัวเองเท่านั้น
+    // --------------------------------------------------------
+
+    else if (roleName === "Student") {
+
+        const currentStudent =
+            await getCurrentStudent();
+
+        if (!currentStudent?.id) {
+            return [];
+        }
+
+        allowedStudentIds = [
+            currentStudent.id
+        ];
+    }
+
+    // --------------------------------------------------------
+    // ROLE อื่น
+    // --------------------------------------------------------
+
+    else {
+        return [];
+    }
+
+    // ========================================================
+    // ดึงประวัตินักเรียน
+    // ========================================================
+
+    let historyQuery =
+        supabaseClient
+            .from("student_academic_history")
+            .select(
+                "student_id, room_id, student_no"
+            )
+            .eq(
+                "academic_year_id",
+                currentAcademicYear.id
+            );
+
+    if (allowedStudentIds !== null) {
+        historyQuery =
+            historyQuery.in(
+                "student_id",
+                allowedStudentIds
+            );
+    }
+
+    if (roomId) {
+        historyQuery =
+            historyQuery.eq(
+                "room_id",
+                roomId
+            );
+    }
+
+    const {
+        data: histories,
+        error: historyError
+    } = await historyQuery;
+
+    if (historyError) {
+        throw historyError;
+    }
+
+    const historyList =
+        histories || [];
+
+    if (historyList.length === 0) {
+        return [];
+    }
+
+    // ========================================================
+    // Student IDs
+    // ========================================================
+
+    const studentIds = [
+        ...new Set(
+            historyList
+                .map(row => row.student_id)
+                .filter(Boolean)
+        )
+    ];
+
+    // ========================================================
+    // Student Query
+    // ========================================================
+
+    let studentQuery =
+        supabaseClient
+            .from("students")
+            .select(`
+                id,
+                student_code,
+                prefix,
+                first_name,
+                last_name,
+                nickname,
+                current_status
+            `)
+            .in("id", studentIds)
+            .is("deleted_at", null);
+
+    if (keyword) {
+
+        studentQuery =
+            studentQuery.or(
+                `student_code.ilike.%${keyword}%,` +
+                `first_name.ilike.%${keyword}%,` +
+                `last_name.ilike.%${keyword}%,` +
+                `nickname.ilike.%${keyword}%`
+            );
+    }
+
+    const {
+        data: students,
+        error: studentError
+    } = await studentQuery
+        .order(
+            "student_code",
+            { ascending: true }
+        )
+        .limit(20);
+
+    if (studentError) {
+        throw studentError;
+    }
+
+    // ========================================================
+    // Room
+    // ========================================================
+
+    const historyByStudentId =
+        new Map(
+            historyList.map(row => [
+                row.student_id,
+                row
+            ])
+        );
+
+    const roomIds = [
+        ...new Set(
+            historyList
+                .map(row => row.room_id)
+                .filter(Boolean)
+        )
+    ];
+
+    const {
+        data: rooms,
+        error: roomError
+    } = await supabaseClient
+        .from("rooms")
+        .select(
+            "id, room_name"
+        )
+        .in("id", roomIds)
+        .is("deleted_at", null);
+
+    if (roomError) {
+        throw roomError;
+    }
+
+    const roomById =
+        new Map(
+            (rooms || []).map(room => [
+                room.id,
+                room.room_name
+            ])
+        );
+
+    // ========================================================
+    // Result
+    // ========================================================
+
+    return (students || []).map(student => {
+
+        const history =
+            historyByStudentId.get(
+                student.id
+            );
+
+        return {
+            ...student,
+
+            student_no:
+                history?.student_no ?? null,
+
+            room_id:
+                history?.room_id ?? null,
+
+            room_name:
+                roomById.get(
+                    history?.room_id
+                ) || "-"
+        };
+    });
+}
+
+async function getStudentDetailRooms() {
+
+    const roleName =
+        await getCurrentUserRole();
+
+    const {
+        data: academicYear,
+        error: academicYearError
+    } = await supabaseClient
+        .from("academic_years")
+        .select("id, year")
+        .eq("is_current", true)
+        .maybeSingle();
+
+    if (academicYearError) {
+        throw academicYearError;
+    }
+
+    if (!academicYear?.id) {
+        return {
+            academicYear: null,
+            rooms: []
+        };
+    }
+
+    // ========================================================
+    // ADMIN
+    // → ทุกห้องในปีการศึกษาปัจจุบัน
+    // ========================================================
+
+    if (roleName === "Admin") {
+
+        const {
+            data: rooms,
+            error: roomError
+        } = await supabaseClient
+            .from("rooms")
+            .select(`
+                id,
+                room_name,
+                grade_level,
+                academic_year_id
+            `)
+            .eq("academic_year_id", academicYear.id)
+            .is("deleted_at", null)
+            .order("room_name", { ascending: true });
+
+        if (roomError) {
+            throw roomError;
+        }
+
+        return {
+            academicYear: academicYear.year,
+            rooms: rooms || []
+        };
+    }
+
+    // ========================================================
+    // TEACHER
+    // → เฉพาะห้องที่มี Subject Assignment ของ Teacher
+    // ========================================================
+
+    if (roleName === "Teacher") {
+
+        const teacherContext =
+            await getCurrentTeacherContext();
+
+        if (!teacherContext?.teacherId) {
+            return {
+                academicYear: academicYear.year,
+                rooms: []
+            };
+        }
+
+        const {
+            data: assignments,
+            error: assignmentError
+        } = await supabaseClient
+            .from("subject_assignments")
+            .select(`
+                room_id
+            `)
+            .eq(
+                "teacher_id",
+                teacherContext.teacherId
+            )
+            .eq(
+                "academic_year_id",
+                academicYear.id
+            );
+
+        if (assignmentError) {
+            throw assignmentError;
+        }
+
+        const roomIds = [
+            ...new Set(
+                (assignments || [])
+                    .map(row => row.room_id)
+                    .filter(Boolean)
+            )
+        ];
+
+        if (roomIds.length === 0) {
+            return {
+                academicYear: academicYear.year,
+                rooms: []
+            };
+        }
+
+        const {
+            data: rooms,
+            error: roomError
+        } = await supabaseClient
+            .from("rooms")
+            .select(`
+                id,
+                room_name,
+                grade_level,
+                academic_year_id
+            `)
+            .in("id", roomIds)
+            .eq("academic_year_id", academicYear.id)
+            .is("deleted_at", null)
+            .order("room_name", { ascending: true });
+
+        if (roomError) {
+            throw roomError;
+        }
+
+        return {
+            academicYear: academicYear.year,
+            rooms: rooms || []
+        };
+    }
+
+    // ========================================================
+    // PARENT
+    // → ห้องที่มีบุตรของ Parent อยู่
+    // ========================================================
+
+    if (roleName === "Parent") {
+
+        const parentStudents =
+            await getCurrentParentStudents();
+
+        const studentIds = [
+            ...new Set(
+                (parentStudents || [])
+                    .map(student => student.id)
+                    .filter(Boolean)
+            )
+        ];
+
+        if (studentIds.length === 0) {
+            return {
+                academicYear: academicYear.year,
+                rooms: []
+            };
+        }
+
+        const {
+            data: histories,
+            error: historyError
+        } = await supabaseClient
+            .from("student_academic_history")
+            .select(`
+                student_id,
+                room_id
+            `)
+            .in("student_id", studentIds)
+            .eq(
+                "academic_year_id",
+                academicYear.id
+            );
+
+        if (historyError) {
+            throw historyError;
+        }
+
+        const roomIds = [
+            ...new Set(
+                (histories || [])
+                    .map(row => row.room_id)
+                    .filter(Boolean)
+            )
+        ];
+
+        if (roomIds.length === 0) {
+            return {
+                academicYear: academicYear.year,
+                rooms: []
+            };
+        }
+
+        const {
+            data: rooms,
+            error: roomError
+        } = await supabaseClient
+            .from("rooms")
+            .select(`
+                id,
+                room_name,
+                grade_level,
+                academic_year_id
+            `)
+            .in("id", roomIds)
+            .eq("academic_year_id", academicYear.id)
+            .is("deleted_at", null)
+            .order("room_name", { ascending: true });
+
+        if (roomError) {
+            throw roomError;
+        }
+
+        return {
+            academicYear: academicYear.year,
+            rooms: rooms || []
+        };
+    }
+
+    // ========================================================
+    // STUDENT / ROLE อื่น
+    // → ไม่มีรายการห้อง
+    // ========================================================
+
+    return {
+        academicYear: academicYear.year,
+        rooms: []
+    };
+}
+
 // ============================================================
 // Student Lifecycle — Promote
 // ============================================================
@@ -1033,17 +1613,363 @@ async function saveAttendance(records) {
 
 async function getStudentById(studentId){
 
-    const {data,error}=await supabaseClient
+    if(!studentId){
+        throw new Error("Student ID is required.");
+    }
+
+    const {
+        data: student,
+        error: studentError
+    } = await supabaseClient
         .from("students")
         .select("*")
         .eq("id",studentId)
         .single();
 
-    if(error) throw error;
+    if(studentError) throw studentError;
 
-    return data;
+    const {
+        data: academicYear,
+        error: academicYearError
+    } = await supabaseClient
+        .from("academic_years")
+        .select("id, year")
+        .eq("is_current",true)
+        .maybeSingle();
 
+    if(academicYearError) throw academicYearError;
+
+    let history = null;
+
+    if(academicYear?.id){
+        const {
+            data: historyData,
+            error: historyError
+        } = await supabaseClient
+            .from("student_academic_history")
+            .select(`
+                student_id,
+                academic_year_id,
+                room_id,
+                student_no
+            `)
+            .eq("student_id",studentId)
+            .eq("academic_year_id",academicYear.id)
+            .maybeSingle();
+
+        if(historyError) throw historyError;
+
+        history = historyData;
+    }
+
+    let room = null;
+
+    if(history?.room_id){
+        const {
+            data: roomData,
+            error: roomError
+        } = await supabaseClient
+            .from("rooms")
+            .select(`
+                id,
+                room_name,
+                grade_level,
+                academic_year_id
+            `)
+            .eq("id",history.room_id)
+            .maybeSingle();
+
+        if(roomError) throw roomError;
+
+        room = roomData;
+    }
+
+    return {
+        ...student,
+        academic_year_id:
+            history?.academic_year_id || academicYear?.id || null,
+        academic_year:
+            academicYear?.year || null,
+        student_no:
+            history?.student_no ?? null,
+        current_room_id:
+            history?.room_id || null,
+        room_name:
+            room?.room_name || null,
+        grade_level:
+            room?.grade_level || null
+    };
 }
+// ============================================================
+// STUDENT DETAIL SCOPE
+// ------------------------------------------------------------
+// Admin   → นักเรียนทั้งหมด
+// Teacher → นักเรียนในห้องที่มี Subject Assignment ของ Teacher
+// Student → ตัวเอง
+// Parent  → บุตรที่ผูกไว้
+// ============================================================
+
+async function getStudentDetailScope(studentId) {
+
+    if (!studentId) {
+        return {
+            allowed: false,
+            role: null,
+            reason: "Student ID is required."
+        };
+    }
+
+    // --------------------------------------------------------
+    // 1. ตรวจสอบ Role ปัจจุบัน
+    // --------------------------------------------------------
+
+    const roleName =
+        await getCurrentUserRole();
+
+    if (!roleName) {
+        return {
+            allowed: false,
+            role: null,
+            reason: "ไม่พบ Role ของผู้ใช้งาน"
+        };
+    }
+
+    // --------------------------------------------------------
+    // 2. Admin
+    // → เข้าถึงนักเรียนทั้งหมด
+    // --------------------------------------------------------
+
+    if (roleName === "Admin") {
+
+        return {
+            allowed: true,
+            role: "Admin"
+        };
+
+    }
+
+    // --------------------------------------------------------
+    // 3. Student
+    // → เข้าถึงได้เฉพาะข้อมูลของตัวเอง
+    // --------------------------------------------------------
+
+    if (roleName === "Student") {
+
+        const currentStudent =
+            await getCurrentStudent();
+
+        return {
+            allowed:
+                !!currentStudent &&
+                currentStudent.id === studentId,
+
+            role: "Student",
+
+            studentId:
+                currentStudent?.id || null
+        };
+
+    }
+
+    // --------------------------------------------------------
+    // 4. Parent
+    // → เข้าถึงได้เฉพาะบุตรที่ผูกไว้
+    // --------------------------------------------------------
+
+    if (roleName === "Parent") {
+
+        const parentStudents =
+            await getCurrentParentStudents();
+
+        const allowedStudent =
+            (parentStudents || []).some(
+                student =>
+                    student.id === studentId
+            );
+
+        return {
+            allowed: allowedStudent,
+            role: "Parent",
+            studentId: allowedStudent
+                ? studentId
+                : null
+        };
+
+    }
+
+    // --------------------------------------------------------
+    // 5. Teacher
+    // → ตรวจหาห้องปัจจุบันของนักเรียน
+    // → แล้วตรวจ Subject Assignment ของ Teacher
+    // --------------------------------------------------------
+
+    if (roleName === "Teacher") {
+
+        // 5.1 Current Teacher Context
+        const teacherContext =
+            await getCurrentTeacherContext();
+
+        if (!teacherContext?.teacherId) {
+
+            return {
+                allowed: false,
+                role: "Teacher",
+                reason: "ไม่พบข้อมูล Teacher"
+            };
+
+        }
+
+        // ----------------------------------------------------
+        // 5.2 Current Academic Year
+        // ----------------------------------------------------
+
+        const {
+            data: academicYear,
+            error: academicYearError
+        } = await supabaseClient
+            .from("academic_years")
+            .select("id")
+            .eq("is_current", true)
+            .maybeSingle();
+
+        if (academicYearError) {
+            throw academicYearError;
+        }
+
+        if (!academicYear?.id) {
+
+            return {
+                allowed: false,
+                role: "Teacher",
+                reason: "ไม่พบปีการศึกษาปัจจุบัน"
+            };
+
+        }
+
+        // ----------------------------------------------------
+        // 5.3 หาห้องปัจจุบันของนักเรียน
+        // ----------------------------------------------------
+
+        const {
+            data: studentHistory,
+            error: historyError
+        } = await supabaseClient
+            .from("student_academic_history")
+            .select(`
+                student_id,
+                room_id,
+                academic_year_id
+            `)
+            .eq("student_id", studentId)
+            .eq("academic_year_id", academicYear.id)
+            .maybeSingle();
+
+        if (historyError) {
+            throw historyError;
+        }
+
+        if (!studentHistory?.room_id) {
+
+            return {
+                allowed: false,
+                role: "Teacher",
+                reason: "นักเรียนไม่มีห้องเรียนในปีการศึกษาปัจจุบัน"
+            };
+
+        }
+
+        // ----------------------------------------------------
+        // 5.4 ตรวจ Subject Assignment
+        //
+        // Teacher มีสิทธิ์เมื่อมี Assignment
+        // ในห้องเดียวกับนักเรียน
+        // และอยู่ในปีการศึกษาปัจจุบัน
+        // ----------------------------------------------------
+
+        const {
+            data: assignment,
+            error: assignmentError
+        } = await supabaseClient
+            .from("subject_assignments")
+            .select(`
+                id,
+                teacher_id,
+                room_id,
+                academic_year_id
+            `)
+            .eq(
+                "teacher_id",
+                teacherContext.teacherId
+            )
+            .eq(
+                "room_id",
+                studentHistory.room_id
+            )
+            .eq(
+                "academic_year_id",
+                academicYear.id
+            )
+            .limit(1)
+            .maybeSingle();
+
+        if (assignmentError) {
+            throw assignmentError;
+        }
+
+        // ----------------------------------------------------
+        // 5.5 มี Assignment → อนุญาต
+        // ไม่มี Assignment → ปฏิเสธ
+        // ----------------------------------------------------
+
+        return {
+            allowed: !!assignment,
+            role: "Teacher",
+            teacherId: teacherContext.teacherId,
+            roomId: studentHistory.room_id,
+            assignmentId: assignment?.id || null
+        };
+    }
+
+    // --------------------------------------------------------
+    // 6. Role อื่นที่ไม่ได้อยู่ใน Scope
+    // --------------------------------------------------------
+
+    return {
+        allowed: false,
+        role: roleName,
+        reason: "Role นี้ไม่มีสิทธิ์เข้าถึง Student Detail"
+    };
+}
+
+window.getStudentDetailScope =
+    getStudentDetailScope;
+
+async function getStudentPhotoUrl(photoPath) {
+    if (!photoPath) {
+        return null;
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .storage
+        .from("student-photos")
+        .createSignedUrl(photoPath, 3600);
+
+    if (error) {
+        console.error(
+            "getStudentPhotoUrl:",
+            error
+        );
+        throw error;
+    }
+
+    return data?.signedUrl || null;
+}
+
+window.getStudentPhotoUrl =
+    getStudentPhotoUrl;
 
 async function updateStudentIdentity({
     studentId,
@@ -1189,6 +2115,137 @@ async function updateStudentIdentity({
 
 window.updateStudentIdentity =
     updateStudentIdentity;
+async function deleteStudentPhoto(photoPath) {
+    if (!photoPath) {
+        return true;
+    }
+
+    const {
+        error
+    } = await supabaseClient
+        .storage
+        .from("student-photos")
+        .remove([photoPath]);
+
+    if (error) {
+        console.error(
+            "deleteStudentPhoto:",
+            error
+        );
+        throw error;
+    }
+
+    return true;
+}
+
+window.deleteStudentPhoto =
+    deleteStudentPhoto;
+
+async function updateStudentPhoto({
+    studentId,
+    studentCode,
+    photoFile
+} = {}) {
+
+    if (!studentId) {
+        throw new Error("Student ID is required.");
+    }
+
+    if (!studentCode) {
+        throw new Error("Student Code is required.");
+    }
+
+    if (!photoFile) {
+        throw new Error("กรุณาเลือกรูปนักเรียน");
+    }
+
+    if (!photoFile.type.startsWith("image/")) {
+        throw new Error("กรุณาเลือกไฟล์รูปภาพเท่านั้น");
+    }
+
+    if (photoFile.size > 5 * 1024 * 1024) {
+        throw new Error("รูปภาพมีขนาดเกิน 5 MB");
+    }
+
+    const context = await getCurrentTeacherContext();
+
+    if (!context || context.role !== "Admin") {
+        throw new Error(
+            "ไม่มีสิทธิ์แก้ไขรูปนักเรียน ต้องเป็น Admin เท่านั้น"
+        );
+    }
+
+    const {
+    data: student,
+    error: studentError
+} = await supabaseClient
+    .from("students")
+    .select("photo_url")
+    .eq("id", studentId)
+    .single();
+
+if (studentError) {
+    throw studentError;
+}
+
+const oldPhotoPath =
+    student?.photo_url || null;
+
+    const extension =
+        photoFile.name.split(".").pop().toLowerCase();
+
+    const photoPath =
+        `${studentId}/${studentCode}.${extension}`;
+
+    const { error: uploadError } =
+        await supabaseClient
+            .storage
+            .from("student-photos")
+            .upload(photoPath, photoFile, {
+                upsert: true,
+                contentType: photoFile.type
+            });
+
+    if (uploadError) {
+        console.error(
+            "updateStudentPhoto upload:",
+            uploadError
+        );
+        throw uploadError;
+    }
+
+    const { data, error } =
+        await supabaseClient
+            .from("students")
+            .update({
+                photo_url: photoPath
+            })
+            .eq("id", studentId)
+            .select()
+            .single();
+
+    if (error) {
+    console.error(
+        "updateStudentPhoto DB:",
+        error
+    );
+    throw error;
+}
+
+if (
+    oldPhotoPath &&
+    oldPhotoPath !== photoPath
+) {
+    await deleteStudentPhoto(
+        oldPhotoPath
+    );
+}
+
+    return data;
+}
+
+window.updateStudentPhoto =
+    updateStudentPhoto;
 
 async function getAttendanceSession(roomId, subjectId, attendanceDate) {
 
@@ -1513,7 +2570,165 @@ async function getCurrentTeacherContext() {
             user.email || ""
     };
 }
+// ============================================================
+// CURRENT USER ROLE
+// ============================================================
 
+async function getCurrentUserRole() {
+
+    const {
+        data: { user },
+        error: authError
+    } = await supabaseClient.auth.getUser();
+
+    if (authError) {
+        throw authError;
+    }
+
+    if (!user) {
+        return "";
+    }
+
+    const {
+        data: profile,
+        error: profileError
+    } = await supabaseClient
+        .from("profiles")
+        .select(`
+            role:roles(
+                name
+            )
+        `)
+        .eq("id", user.id)
+        .eq("is_active", true)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+    if (profileError) {
+        throw profileError;
+    }
+
+    return profile?.role?.name || "";
+}
+
+window.getCurrentUserRole =
+    getCurrentUserRole;
+
+async function getCurrentParentStudents() {
+    const {
+        data: { user },
+        error: authError
+    } = await supabaseClient.auth.getUser();
+
+    if (authError) throw authError;
+    if (!user) throw new Error("No authenticated user.");
+
+    const role = await getCurrentUserRole();
+
+    if (role !== "Parent") {
+        throw new Error("Only Parent can access parent students.");
+    }
+
+    const { data: parent, error: parentError } =
+        await supabaseClient
+            .from("parents")
+            .select("id")
+            .eq("profile_id", user.id)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+    if (parentError) throw parentError;
+
+    if (!parent) {
+        throw new Error("Parent profile not found.");
+    }
+
+    const { data: links, error: linkError } =
+        await supabaseClient
+            .from("parent_students")
+            .select("student_id")
+            .eq("parent_id", parent.id)
+            .is("deleted_at", null);
+
+    if (linkError) throw linkError;
+
+    const studentIds =
+        (links || [])
+            .map(link => link.student_id)
+            .filter(Boolean);
+
+    if (studentIds.length === 0) {
+        return [];
+    }
+
+    const { data: students, error: studentError } =
+        await supabaseClient
+            .from("students")
+            .select(`
+                id,
+                student_code,
+                prefix,
+                first_name,
+                last_name,
+                nickname,
+                gender,
+                birth_date,
+                photo_url
+            `)
+            .in("id", studentIds)
+            .is("deleted_at", null);
+
+    if (studentError) throw studentError;
+
+    return students || [];
+}
+
+window.getCurrentParentStudents =
+    getCurrentParentStudents;
+
+async function getCurrentStudent() {
+    const {
+        data: { user },
+        error: authError
+    } = await supabaseClient.auth.getUser();
+
+    if (authError) throw authError;
+    if (!user) throw new Error("No authenticated user.");
+
+    const role = await getCurrentUserRole();
+
+    if (role !== "Student") {
+        throw new Error("Only Student can access own student data.");
+    }
+
+    const { data: student, error: studentError } =
+        await supabaseClient
+            .from("students")
+            .select(`
+                id,
+                student_code,
+                prefix,
+                first_name,
+                last_name,
+                nickname,
+                gender,
+                birth_date,
+                photo_url
+            `)
+            .eq("profile_id", user.id)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+    if (studentError) throw studentError;
+
+    if (!student) {
+        throw new Error("Student profile not found.");
+    }
+
+    return student;
+}
+
+window.getCurrentStudent = getCurrentStudent;
 // ============================================================
 // ATTENDANCE SCHEDULE ADAPTER
 // STEP 4.3A — Load Teacher Schedules for Attendance
@@ -1717,40 +2932,93 @@ const { data, error } =
 }
 
 async function loadProfile() {
+    const {
+        data: { user },
+        error: authError
+    } = await supabaseClient.auth.getUser();
 
-    // ดึง User ที่ Login อยู่
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
+    if (authError) throw authError;
     if (!user) return;
 
-    // Email
-    document.getElementById("profile-email").textContent = user.email;
-    // ดึงข้อมูลครู
-const { data: teacher, error } = await supabaseClient
-    .from("teachers")
-    .select(`
-        first_name,
-        last_name,
-        profile:profiles(
-            role:roles(name)
-        )
-    `)
-    .eq("profile_id", user.id)
-    .single();
+    document.getElementById("profile-email").textContent =
+        user.email || "";
 
-if (error) {
-    console.error(error);
-    return;
-}
+    const role = await getCurrentUserRole();
 
-// ชื่อ
-document.getElementById("profile-name").textContent =
-    `${teacher.first_name} ${teacher.last_name}`;
+    document.getElementById("profile-role").textContent =
+        role || "ไม่พบ Role";
 
-// Role
-document.getElementById("profile-role").textContent =
-    teacher.profile.role.name;
+    let displayName = "";
 
+    if (role === "Teacher" || role === "Admin") {
+        const { data: teacher, error } =
+            await supabaseClient
+                .from("teachers")
+                .select(`
+                    first_name,
+                    last_name
+                `)
+                .eq("profile_id", user.id)
+                .maybeSingle();
+
+        if (error) throw error;
+
+        if (teacher) {
+            displayName =
+                `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim();
+        }
+    }
+
+    if (role === "Student") {
+        const { data: student, error } =
+            await supabaseClient
+                .from("students")
+                .select(`
+                    first_name,
+                    last_name,
+                    nickname
+                `)
+                .eq("profile_id", user.id)
+                .maybeSingle();
+
+        if (error) throw error;
+
+        if (student) {
+            displayName =
+                `${student.first_name || ""} ${student.last_name || ""}`.trim();
+        }
+    }
+
+    if (role === "Parent") {
+    const { data: parent, error } =
+        await supabaseClient
+            .from("parents")
+            .select(`
+                first_name,
+                last_name,
+                nickname
+            `)
+            .eq("profile_id", user.id)
+            .maybeSingle();
+
+    if (error) throw error;
+
+    if (parent) {
+        displayName =
+            `${parent.first_name || ""} ${parent.last_name || ""}`.trim();
+    }
+    }
+
+    if (!displayName) {
+        displayName =
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            user.email ||
+            "";
+    }
+
+    document.getElementById("profile-name").textContent =
+        displayName;
 }
 
 async function clearDeviceData() {

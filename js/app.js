@@ -7,7 +7,7 @@ const navigationPlaceholder =
 if (navigationPlaceholder) {
     navigationPlaceholder.style.display = "none";
 }
-  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule', 'import', 'student-management'];
+  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule', 'import', 'student-management', 'student-detail'];
   
   views.forEach(v => {
     // ซ่อน/แสดง เนื้อหา
@@ -37,6 +37,13 @@ if (view === "student-management") {
     }
 }
 
+if (view === "student-detail") {
+    if (typeof StudentDetail !== "undefined") {
+        // Student Detail ถูกเปิดจาก Student Management
+        // จึงไม่ต้อง initialize ข้อมูลใด ๆ เพิ่มตรงนี้
+    }
+}
+
 if(view === "schedule"){
     switchScheduleTab("timetable");
 }
@@ -56,6 +63,14 @@ if (activeMenu) {
     }
 }
   
+}
+function openStudentDetailFromMenu() {
+    if (typeof StudentDetail === "undefined") {
+        Swal.fire("ระบบไม่พร้อม", "ไม่พบโมดูลรายละเอียดนักเรียน", "error");
+        return;
+    }
+
+    StudentDetail.open();
 }
 
 function toggleTheme() {
