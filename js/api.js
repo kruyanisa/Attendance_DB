@@ -2378,6 +2378,111 @@ async function getDashboardStudentAttendance(
     return data;
 
 }
+// ============================================================
+// STUDENT DETAIL — Attendance History
+// ------------------------------------------------------------
+// ใช้สำหรับแสดงรายละเอียดวันที่นักเรียน
+// สาย / ลากิจ / ลาป่วย / ขาด
+// ============================================================
+
+async function getStudentAttendanceHistory(studentId) {
+
+    if (!studentId) {
+        throw new Error("Student ID is required.");
+    }
+
+    const { data, error } = await supabaseClient
+        .from("attendance")
+        .select(`
+            id,
+            student_id,
+            status,
+            attendance_type,
+            check_in_time,
+            remark,
+            attendance_sessions!inner(
+                id,
+                attendance_date,
+                room_id,
+                subject_id,
+                class_schedule_id,
+                activity_schedule_id,
+                class_schedules!class_schedule_id(lesson_no),
+                subjects!subject_id(
+                    subject_code,
+                    subject_name
+                )
+            )
+        `)
+        .eq("student_id", studentId)
+        .is("deleted_at", null)
+        .is("attendance_sessions.deleted_at", null)
+        .not("attendance_sessions.subject_id", "is", null)
+        .order(
+            "attendance_date",
+            {
+                foreignTable: "attendance_sessions",
+                ascending: false
+            }
+        );
+
+    if (error) {
+        throw error;
+    }
+
+    return (data || []).map(record => {
+
+        const session =
+            record.attendance_sessions || {};
+
+        const subject =
+            session.subjects || {};
+
+        return {
+            attendanceId:
+                record.id,
+
+            studentId:
+                record.student_id,
+
+            status:
+                record.status || "",
+
+            attendanceType:
+                record.attendance_type || "",
+
+            checkInTime:
+                record.check_in_time || null,
+
+            remark:
+                record.remark || "",
+
+            attendanceDate:
+                session.attendance_date || null,
+
+            roomId:
+                session.room_id || null,
+
+            subjectId:
+                session.subject_id || null,
+
+            classScheduleId:
+                session.class_schedule_id || null,
+
+            lessonNo:
+                session.class_schedules?.lesson_no ?? null,
+
+            subjectCode:
+                subject.subject_code || "",
+
+            subjectName:
+                subject.subject_name || ""
+        };
+    });
+}
+
+window.getStudentAttendanceHistory =
+    getStudentAttendanceHistory;
 
 async function getDashboardSessionAttendance(
     startDate,

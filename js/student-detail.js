@@ -141,7 +141,7 @@ if (currentStudent.photo_url) {
     }
 }
 
-renderStudentDetail(
+await renderStudentDetail(
     currentStudent
 );
 
@@ -570,7 +570,7 @@ async function renderStudentSelector() {
     // =========================================================
     // Render Main
     // =========================================================
-    function renderStudentDetail(student) {
+    async function renderStudentDetail(student) {
         const container = document.getElementById("student-detail-container");
         if (!container) return;
 
@@ -616,7 +616,11 @@ async function renderStudentSelector() {
                     ${renderOverview(student)}
                 </section>
                 <section id="student-detail-tab-attendance" class="student-detail-tab-panel" style="display:none;">
-                    ${renderAttendancePlaceholder()}
+                    <div id="student-detail-attendance-placeholder">
+            <div style="text-align:center;color:#777;padding:30px;">
+                    ⏳ กำลังโหลดข้อมูลการมาเรียน...
+            </div>
+            </div>
                 </section>
                 <section id="student-detail-tab-education" class="student-detail-tab-panel" style="display:none;">
                     ${renderEducationPlaceholder()}
@@ -628,6 +632,15 @@ async function renderStudentSelector() {
                 <button type="button" class="btn" onclick="StudentDetail.back()">← กลับรายชื่อนักเรียน</button>
             </div>
         `;
+        const attendancePanel =
+    document.getElementById(
+        "student-detail-tab-attendance"
+    );
+
+if (attendancePanel) {
+    attendancePanel.innerHTML =
+        await renderAttendancePlaceholder();
+}
     }
 
     // =========================================================
@@ -674,29 +687,473 @@ async function renderStudentSelector() {
         `;
     }
 
-    // =========================================================
-    // Attendance Placeholder
-    // =========================================================
-    function renderAttendancePlaceholder() {
-        return `
-            <div class="student-detail-section">
-                <div class="student-detail-section-title">
-                    <span>📅</span>
-                    <div>
-                        <h3>การมาเรียน</h3>
-                        <p>สรุปประวัติการมาเรียนของนักเรียน</p>
-                    </div>
-                </div>
-                <div class="student-detail-coming-soon">
-                    <div class="student-detail-coming-icon">📅</div>
-                    <div>
-                        <strong>เตรียมเชื่อมข้อมูลการมาเรียน</strong>
-                        <p>ส่วนนี้จะดึงข้อมูลจากระบบ Attendance โดยไม่สร้างข้อมูลการมาเรียนซ้ำ</p>
-                    </div>
+// =========================================================
+// Attendance
+// =========================================================
+async function renderAttendancePlaceholder() {
+
+    const section = `
+        <div class="student-detail-section">
+            <div class="student-detail-section-title">
+                <span>📅</span>
+                <div>
+                    <h3>การมาเรียน</h3>
+                    <p>สรุปประวัติการมาเรียนของนักเรียน</p>
                 </div>
             </div>
+
+            <div id="student-detail-attendance-content">
+                <div style="text-align:center;color:#777;padding:30px;">
+                    ⏳ กำลังโหลดข้อมูลการมาเรียน...
+                </div>
+            </div>
+        </div>
+    `;
+
+    const temp = document.createElement("div");
+    temp.innerHTML = section;
+
+    const content =
+        temp.querySelector(
+            "#student-detail-attendance-content"
+        );
+
+    try {
+
+        const records =
+            await getStudentAttendanceHistory(
+                currentStudentId
+            );
+
+        const subjectMap = {};
+
+        (records || []).forEach(record => {
+
+            const subjectId =
+                record.subjectId ||
+                record.subjectCode ||
+                record.subjectName;
+
+            if (!subjectId) return;
+
+            if (!subjectMap[subjectId]) {
+
+                subjectMap[subjectId] = {
+                    subjectId,
+                    subjectCode:
+                        record.subjectCode || "",
+                    subjectName:
+                        record.subjectName || "-",
+
+                    PRESENT: 0,
+                    LATE: 0,
+                    PERSONAL: 0,
+                    SICK: 0,
+                    ABSENT: 0,
+
+                    records: []
+                };
+            }
+
+            const subject =
+                subjectMap[subjectId];
+
+            const status =
+                String(record.status || "")
+                    .toUpperCase();
+
+            if (
+                Object.prototype.hasOwnProperty
+                    .call(subject, status)
+            ) {
+                subject[status]++;
+            }
+
+            if (
+                ["LATE", "PERSONAL", "SICK", "ABSENT"]
+                    .includes(status)
+            ) {
+                subject.records.push(record);
+            }
+        });
+
+        const subjects =
+            Object.values(subjectMap);
+
+        if (subjects.length === 0) {
+
+            content.innerHTML = `
+                <div class="student-detail-coming-soon">
+                    <div class="student-detail-coming-icon">
+                        📅
+                    </div>
+                    <div>
+                        <strong>ยังไม่มีข้อมูลการมาเรียน</strong>
+                        <p>
+                            ยังไม่พบประวัติการเข้าเรียนของนักเรียน
+                        </p>
+                    </div>
+                </div>
+            `;
+
+        } else {
+
+            content.innerHTML = `
+                <div style="margin-bottom:12px;color:#666;">
+                    📚 สรุปการเข้าเรียนรายวิชา
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table
+                        style="
+                            width:100%;
+                            border-collapse:collapse;
+                            min-width:850px;
+                        "
+                    >
+                        <thead>
+                            <tr>
+                                <th style="padding:12px;text-align:left;">
+                                    วิชา
+                                </th>
+
+                                <th style="padding:12px;text-align:center;">
+                                    มา
+                                </th>
+
+                                <th style="padding:12px;text-align:center;">
+                                    สาย
+                                </th>
+
+                                <th style="padding:12px;text-align:center;">
+                                    ลากิจ
+                                </th>
+
+                                <th style="padding:12px;text-align:center;">
+                                    ลาป่วย
+                                </th>
+
+                                <th style="padding:12px;text-align:center;">
+                                    ขาด
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            ${subjects.map(subject => `
+
+                                <tr style="border-top:1px solid #eee;">
+
+                                    <td style="padding:12px;">
+                                        <strong>
+                                            ${escapeHtml(
+                                                subject.subjectName
+                                            )}
+                                        </strong>
+                                        ${
+                                            subject.subjectCode
+                                                ? `
+                                                    <div style="
+                                                        font-size:12px;
+                                                        color:#888;
+                                                    ">
+                                                        ${escapeHtml(
+                                                            subject.subjectCode
+                                                        )}
+                                                    </div>
+                                                `
+                                                : ""
+                                        }
+                                    </td>
+
+                                    <td style="
+                                        padding:12px;
+                                        text-align:center;
+                                    ">
+                                        ${subject.PRESENT}
+                                    </td>
+
+                                    <td style="
+                                        padding:12px;
+                                        text-align:center;
+                                    ">
+                                        ${renderAttendanceCount(
+                                            subject.LATE,
+                                            "LATE",
+                                            subject.records
+                                        )}
+                                    </td>
+
+                                    <td style="
+                                        padding:12px;
+                                        text-align:center;
+                                    ">
+                                        ${renderAttendanceCount(
+                                            subject.PERSONAL,
+                                            "PERSONAL",
+                                            subject.records
+                                        )}
+                                    </td>
+
+                                    <td style="
+                                        padding:12px;
+                                        text-align:center;
+                                    ">
+                                        ${renderAttendanceCount(
+                                            subject.SICK,
+                                            "SICK",
+                                            subject.records
+                                        )}
+                                    </td>
+
+                                    <td style="
+                                        padding:12px;
+                                        text-align:center;
+                                    ">
+                                        ${renderAttendanceCount(
+                                            subject.ABSENT,
+                                            "ABSENT",
+                                            subject.records
+                                        )}
+                                    </td>
+
+                                </tr>
+
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="
+                    margin-top:12px;
+                    font-size:13px;
+                    color:#777;
+                ">
+                    💡 ตัวเลขที่ขีดเส้นใต้สามารถกดดูรายละเอียดวันที่ได้
+                </div>
+            `;
+
+        }
+
+        return temp.innerHTML;
+
+    } catch (error) {
+
+        console.error(
+            "[Student Detail] Attendance load error:",
+            error
+        );
+
+        content.innerHTML = `
+            <div class="student-detail-error">
+                <div class="student-detail-error-icon">
+                    ⚠️
+                </div>
+
+                <h3>
+                    ไม่สามารถโหลดข้อมูลการมาเรียนได้
+                </h3>
+
+                <p>
+                    ${escapeHtml(
+                        error.message ||
+                        "เกิดข้อผิดพลาด"
+                    )}
+                </p>
+            </div>
         `;
+
+        return temp.innerHTML;
     }
+}
+
+
+// =========================================================
+// Attendance Count
+// =========================================================
+function renderAttendanceCount(
+    count,
+    status,
+    records
+) {
+
+    if (!count) {
+        return "0";
+    }
+
+    return `
+        <button
+            type="button"
+            onclick='StudentDetail.showAttendanceDetail(
+                ${JSON.stringify(status)},
+                ${JSON.stringify(records)}
+            )'
+            style="
+                border:0;
+                background:none;
+                padding:0;
+                margin:0;
+                font:inherit;
+                color:#2563eb;
+                text-decoration:underline;
+                cursor:pointer;
+                font-weight:600;
+            "
+        >
+            ${count}
+        </button>
+    `;
+}
+
+
+// =========================================================
+// Attendance Detail Popup
+// =========================================================
+async function showAttendanceDetail(
+    status,
+    records
+) {
+
+    const labels = {
+        LATE: "สาย",
+        PERSONAL: "ลากิจ",
+        SICK: "ลาป่วย",
+        ABSENT: "ขาด"
+    };
+
+    const label =
+        labels[status] || status;
+
+    const filtered =
+        (records || [])
+            .filter(record =>
+                String(record.status || "")
+                    .toUpperCase() === status
+            )
+            .sort((a, b) =>
+                String(b.attendanceDate || "")
+                    .localeCompare(
+                        String(a.attendanceDate || "")
+                    )
+            );
+
+    const rows =
+        filtered.map(record => {
+
+            const date =
+                formatAttendanceDate(
+                    record.attendanceDate
+                );
+
+            return `
+                <tr>
+                    <td style="
+                        padding:10px 8px;
+                        white-space:nowrap;
+                    ">
+                        ${escapeHtml(date)}
+                    </td>
+
+                    <td style="
+                        padding:10px 8px;
+                        text-align:center;
+                    ">
+                        ${escapeHtml(
+                            record.lessonNo ?? "-"
+                        )}
+                    </td>
+
+                    <td style="padding:10px 8px;">
+                        ${escapeHtml(
+                            record.subjectName || "-"
+                        )}
+                    </td>
+                </tr>
+            `;
+
+        }).join("");
+
+    Swal.fire({
+        title: `รายละเอียด${label}`,
+        html: `
+            <div style="
+                text-align:left;
+                max-height:55vh;
+                overflow:auto;
+            ">
+
+                <table style="
+                    width:100%;
+                    border-collapse:collapse;
+                    font-size:14px;
+                ">
+
+                    <thead>
+                        <tr style="
+                            border-bottom:2px solid #eee;
+                        ">
+
+                            <th style="
+                                padding:10px 8px;
+                                text-align:left;
+                                white-space:nowrap;
+                            ">
+                                วันที่
+                            </th>
+
+                            <th style="
+                                padding:10px 8px;
+                                text-align:center;
+                                white-space:nowrap;
+                            ">
+                                คาบ
+                            </th>
+
+                            <th style="
+                                padding:10px 8px;
+                                text-align:left;
+                            ">
+                                วิชา
+                            </th>
+
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        ${rows}
+                    </tbody>
+
+                </table>
+
+            </div>
+        `,
+        confirmButtonText: "ปิด",
+        width: 600
+    });
+}
+
+
+// =========================================================
+// Attendance Date
+// =========================================================
+function formatAttendanceDate(date) {
+
+    if (!date) return "-";
+
+    const parts =
+        String(date).split("-");
+
+    if (parts.length !== 3) {
+        return date;
+    }
+
+    const buddhistYear =
+        Number(parts[0]) + 543;
+
+    return `
+        ${parts[2]}/${parts[1]}/${buddhistYear}
+    `;
+}
 
     // =========================================================
     // Education Placeholder
@@ -810,8 +1267,9 @@ async function renderStudentSelector() {
     // Public API
     // =========================================================
     return {
-        open,
-        switchTab,
-        back
+    open,
+    switchTab,
+    back,
+    showAttendanceDetail
     };
 })();
