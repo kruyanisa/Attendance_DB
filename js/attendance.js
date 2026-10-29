@@ -489,6 +489,25 @@ function resetAttendanceList() {
 
 async function loadActivityAttendanceOptions() {
 
+    // Student / Parent ไม่ใช่ผู้เช็กชื่อ
+    const role = await getCurrentUserRole();
+
+    if (role === "Student" || role === "Parent") {
+        resetAttendanceList();
+
+        window.selectedAttendanceActivity = null;
+        window.attendanceActivities = [];
+
+        return;
+    }
+
+    // ล้างรายชื่อนักเรียนและสถานะเช็กชื่อของวันที่เดิม
+    resetAttendanceList();
+
+    // ล้างกิจกรรมที่เลือกไว้ก่อนหน้า
+    window.selectedAttendanceActivity = null;
+    window.attendanceActivities = [];
+
     const attendanceDate =
         document.getElementById(
             "attendance-date"
@@ -888,11 +907,11 @@ async function handleAttendanceActivityChange() {
 
 if (scheduleDetails) {
 
-    const activitySchedule =
-        activity.schedules &&
-        activity.schedules.length > 0
-            ? activity.schedules[0]
-            : null;
+const activitySchedule =
+    getActivityScheduleForDate(
+        activity,
+        document.getElementById("attendance-date").value
+    );
 
     const teacherNames =
     activity.teachers &&
@@ -1172,6 +1191,42 @@ function handleAttendanceClassChange() {
         false;
 
 }
+
+function getActivityScheduleForDate(activity, attendanceDate) {
+
+    if (!activity || !attendanceDate) {
+        return null;
+    }
+
+    const schedules = activity.schedules || [];
+
+    const date = new Date(
+        `${attendanceDate}T12:00:00`
+    );
+
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    const weekday = date.getDay() || 7;
+
+    return schedules.find(schedule => {
+
+        const validFrom =
+            schedule.validFrom ?? schedule.valid_from;
+
+        const validUntil =
+            schedule.validUntil ?? schedule.valid_until;
+
+        return (
+            Number(schedule.weekday) === weekday &&
+            (!validFrom || attendanceDate >= validFrom) &&
+            (!validUntil || attendanceDate <= validUntil)
+        );
+
+    }) || null;
+}
+
 // ============================================================
 // Attendance — Activity Participants
 // โหลดนักเรียนที่เป็นสมาชิกของกิจกรรม
@@ -1215,10 +1270,10 @@ async function loadActivityParticipantsAndRender() {
         // ============================================
 
         displayedStudents =
-            await getActivityParticipants(
-                activity.activityId
-            );
-
+        await getActivityParticipants(
+        activity.activityId,
+        document.getElementById("attendance-date").value
+        );
 
         console.log(
             "ACTIVITY PARTICIPANTS:",
@@ -1241,11 +1296,12 @@ if (participantCountEl) {
 const attendanceDate =
     document.getElementById("attendance-date").value;
 
+
 const activitySchedule =
-    activity.schedules &&
-    activity.schedules.length > 0
-        ? activity.schedules[0]
-        : null;
+    getActivityScheduleForDate(
+        activity,
+        document.getElementById("attendance-date").value
+    );
 
 let activityAttendanceMap = {};
 
@@ -2147,11 +2203,11 @@ async function submitActivityAttendance() {
     // หา Activity Schedule
     // ============================================
 
-    const activitySchedule =
-        activity.schedules &&
-        activity.schedules.length > 0
-            ? activity.schedules[0]
-            : null;
+const activitySchedule =
+    getActivityScheduleForDate(
+        activity,
+        document.getElementById("attendance-date").value
+    );
 
     if (
     attendanceMode === "activity" &&
@@ -2172,6 +2228,14 @@ async function submitActivityAttendance() {
 
 const activityScheduleId =
     activitySchedule?.id ?? null;
+
+if (!activityScheduleId) {
+    return Swal.fire(
+        "ไม่พบตารางกิจกรรม",
+        "กิจกรรมนี้ไม่มีตารางที่ตรงกับวันที่เลือก จึงไม่สามารถบันทึกการเช็กชื่อได้",
+        "warning"
+    );
+}
 
     console.log(
         "SUBMIT ACTIVITY ATTENDANCE CONTEXT:",

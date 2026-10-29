@@ -648,15 +648,39 @@ function mapScheduleData(schedule) {
 // STEP 5B.5.1
 // ============================================================
 
-async function loadScheduleView() {
 
-    const content = document.getElementById('schedule-content');
+function scheduleLocalToday() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, "0");
 
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function scheduleIsValidOnDate(item, date) {
+    return (
+        (!item.validFrom || item.validFrom <= date) &&
+        (!item.validUntil || item.validUntil >= date)
+    );
+}
+
+async function loadScheduleView(referenceDate) {
+
+    const content = document.getElementById("schedule-content");
     if (!content) return;
+
+    const selectedDate =
+        typeof referenceDate === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(referenceDate)
+            ? referenceDate
+            : (
+                window.scheduleReferenceDate ||
+                scheduleLocalToday()
+            );
+
+    window.scheduleReferenceDate = selectedDate;
 
     content.innerHTML = `
         <div class="schedule-loading-state">
-            <div class="schedule-empty-icon">📅</div>
             <h2>กำลังโหลดตารางสอน...</h2>
         </div>
     `;
@@ -664,35 +688,485 @@ async function loadScheduleView() {
     try {
 
         const [
-    rawSchedules,
-    activitySchedules
-] = await Promise.all([
-    getClassSchedules(),
-    getActivitySchedules()
-]);
+            rawSchedules,
+            rawActivities,
+            role
+        ] = await Promise.all([
+            getClassSchedules(),
+            getActivitySchedules(),
+            getCurrentUserRole()
+        ]);
 
-const schedules =
-    rawSchedules.map(mapScheduleData);
+        let teacherId = null;
 
-renderScheduleTimetable(
-    schedules,
-    activitySchedules
-);
+        if (role === "Teacher") {
+
+            const context =
+                await getCurrentTeacherContext();
+
+            teacherId = context?.teacherId;
+
+            if (!teacherId) {
+                throw new Error(
+                    "ไม่พบข้อมูลครูผู้เข้าสู่ระบบ"
+                );
+            }
+
+        } else if (role !== "Admin") {
+
+            throw new Error(
+                "ไม่มีสิทธิ์ดูตารางสอน"
+            );
+        }
+
+        // ตารางสอนที่มีผลในวันที่เลือก
+        const validSchedules = (rawSchedules || [])
+            .map(mapScheduleData)
+            .filter(item =>
+                scheduleIsValidOnDate(item, selectedDate)
+            );
+
+        // Admin ต้องเลือกครูหนึ่งคนเสมอ
+        if (role === "Admin") {
+            const availableTeacherIds = [
+                ...new Set(
+                    validSchedules
+                        .map(item => item.teacherId)
+                        .filter(Boolean)
+                )
+            ];
+
+            if (
+                !availableTeacherIds.includes(
+                    window.scheduleAdminTeacherId
+                )
+            ) {
+                window.scheduleAdminTeacherId =
+                    availableTeacherIds[0] || "";
+            }
+        }
+
+        const selectedTeacherId =
+            role === "Admin"
+                ? window.scheduleAdminTeacherId
+                : teacherId;
+
+
+        const schedules = validSchedules.filter(item =>
+            !selectedTeacherId ||
+            item.teacherId === selectedTeacherId
+        );
+
+        const activities = (rawActivities || [])
+            .filter(item =>
+                scheduleIsValidOnDate(item, selectedDate)
+            )
+            .filter(item =>
+                role === "Admin" ||
+                (
+                    Array.isArray(item.teacherIds) &&
+                    item.teacherIds.includes(teacherId)
+                )
+            );
+
+        const filteredActivitySchedules =
+        (activities || []).filter(item =>
+        Array.isArray(item.teacherIds) &&
+        item.teacherIds.includes(selectedTeacherId)
+           );
+
+        renderScheduleTimetable(
+            schedules,
+            filteredActivitySchedules
+        );
+
+        // เพิ่มตัวเลือกวันที่เหนือแสดงตาราง
+        const toolbar = document.createElement("div");
+
+        toolbar.style.cssText = `
+            display:flex;
+            align-items:center;
+            gap:12px;
+            flex-wrap:wrap;
+            margin-bottom:16px;
+        `;
+
+        const label = document.createElement("label");
+        label.htmlFor = "schedule-reference-date";
+        label.textContent = "📅 ดูตารางที่ใช้ในวันที่";
+
+        const input = document.createElement("input");
+        input.type = "date";
+        input.id = "schedule-reference-date";
+        input.value = selectedDate;
+
+        input.style.cssText = `
+            padding:9px 12px;
+            border:1px solid #cbd5e1;
+            border-radius:9px;
+        `;
+
+        input.addEventListener("change", function () {
+            if (this.value) {
+                loadScheduleView(this.value);
+            }
+        });
+
+        toolbar.append(label, input);
+        content.prepend(toolbar);
+
+        // ============================================
+        // ADMIN — Teacher Filter
+        // ============================================
+
+        if (role === "Admin") {
+
+            const teacherMap = new Map();
+
+            validSchedules.forEach(item => {
+                if (
+                    item.teacherId &&
+                    !teacherMap.has(item.teacherId)
+                ) {
+                    teacherMap.set(item.teacherId, {
+                        id: item.teacherId,
+                        name: item.teacherName || "ไม่ระบุชื่อ"
+                    });
+                }
+            });
+
+            const teacherFilter =
+                document.createElement("select");
+
+            teacherFilter.id = "schedule-teacher-filter";
+
+            teacherFilter.style.cssText = `
+                padding: 9px 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 9px;
+                font-family: inherit;
+                max-width: 100%;
+            `;
+
+            [...teacherMap.values()]
+                .sort((a, b) =>
+                    a.name.localeCompare(b.name, "th")
+                )
+                .forEach(teacher => {
+                    const option =
+                        document.createElement("option");
+
+                    option.value = teacher.id;
+                    option.textContent = teacher.name;
+
+                    teacherFilter.appendChild(option);
+                });
+
+            teacherFilter.value =
+                window.scheduleAdminTeacherId || "";
+
+            teacherFilter.addEventListener("change", function () {
+                window.scheduleAdminTeacherId = this.value;
+                loadScheduleView(selectedDate);
+            });
+
+            const teacherLabel =
+                document.createElement("label");
+
+            teacherLabel.htmlFor =
+                "schedule-teacher-filter";
+
+            teacherLabel.textContent = "👨‍🏫 ครูผู้สอน";
+
+            toolbar.append(
+                teacherLabel,
+                teacherFilter
+            );
+        }
+
+        // ============================================
+        // SCHEDULE HEADER — Teacher / Admin
+        // ============================================
+
+        const scheduleHeader = document.createElement("div");
+
+        scheduleHeader.style.cssText = `
+            margin-bottom: 16px;
+            padding: 14px 18px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: var(--card-bg, #ffffff);
+        `;
+
+        if (role === "Teacher") {
+
+            const { data: teacher, error: teacherError } =
+                await supabaseClient
+                    .from("teachers")
+                    .select(`
+                        instructor_number,
+                        first_name,
+                        last_name
+                    `)
+                    .eq("id", teacherId)
+                    .single();
+
+            if (teacherError) {
+                throw teacherError;
+            }
+
+            const teacherName = [
+                teacher.first_name,
+                teacher.last_name
+            ].filter(Boolean).join(" ");
+
+            const instructorNumber =
+                teacher.instructor_number
+                    ? teacher.instructor_number + " "
+                    : "";
+
+            const heading = document.createElement("h2");
+            heading.textContent =
+                `ตารางสอน ${instructorNumber}${teacherName}`;
+
+            heading.style.cssText = `
+                margin: 0;
+                font-size: 20px;
+                font-weight: 700;
+            `;
+
+            scheduleHeader.appendChild(heading);
+
+        } else {
+
+            const heading = document.createElement("h2");
+
+            // Admin: แสดงชื่อครูตาม Filter ที่เลือก
+            heading.textContent = "ตารางสอนบุคลากร";
+
+            if (selectedTeacherId) {
+
+                const { data: selectedTeacher, error: teacherError } =
+                    await supabaseClient
+                        .from("teachers")
+                        .select(
+                            "instructor_number, first_name, last_name"
+                        )
+                        .eq("id", selectedTeacherId)
+                        .maybeSingle();
+
+                if (teacherError) {
+                    console.error(
+                        "Load selected teacher:",
+                        teacherError
+                    );
+                }
+
+                if (selectedTeacher) {
+
+                    const teacherName = [
+                        selectedTeacher.first_name,
+                        selectedTeacher.last_name
+                    ]
+                        .filter(Boolean)
+                        .join(" ");
+
+                    const instructorNumber =
+                        selectedTeacher.instructor_number || "";
+
+                    heading.textContent =
+                        `ตารางสอน ${[
+                            instructorNumber,
+                            teacherName
+                        ].filter(Boolean).join(" ")}`;
+                }
+            }
+
+            heading.style.cssText = `
+                margin: 0;
+                font-size: 20px;
+                font-weight: 700;
+            `;
+
+            scheduleHeader.appendChild(heading);
+        }
+
+        content.insertBefore(
+            scheduleHeader,
+            toolbar.nextSibling
+        );
+
+        // ============================================
+        // แสดงภาคเรียนจาก Supabase ตามวันที่เลือก
+        // ============================================
+
+        const { data: semester, error: semesterError } =
+            await supabaseClient
+                .from("semesters")
+                .select(
+                    "semester_no, academic_year_id, start_date, end_date"
+                )
+                .lte("start_date", selectedDate)
+                .gte("end_date", selectedDate)
+                .limit(1)
+                .maybeSingle();
+
+        if (semesterError) {
+            console.error("Load semester:", semesterError);
+        }
+
+        let semesterLabel = "ไม่พบภาคเรียนของวันที่เลือก";
+
+        if (semester) {
+
+            const { data: academicYear, error: yearError } =
+                await supabaseClient
+                    .from("academic_years")
+                    .select("year")
+                    .eq("id", semester.academic_year_id)
+                    .maybeSingle();
+
+            if (yearError) {
+                console.error("Load academic year:", yearError);
+            }
+
+            semesterLabel =
+                academicYear?.year != null
+                    ? `ภาคเรียนที่ ${semester.semester_no}/${academicYear.year}`
+                    : `ภาคเรียนที่ ${semester.semester_no}`;
+        }
+
+        const semesterText = document.createElement("p");
+
+        semesterText.textContent =
+            `${semesterLabel} · โรงเรียนศรีสุขวิทยา`;
+
+        semesterText.style.cssText = `
+            margin: 5px 0 0;
+            font-size: 14px;
+            color: #64748b;
+        `;
+
+        scheduleHeader.appendChild(semesterText);
+
+        // ============================================
+        // SEMESTER FILTER — โหลดจาก Supabase
+        // ============================================
+
+        const { data: semesterOptions, error: optionsError } =
+            await supabaseClient
+                .from("semesters")
+                .select(`
+                    id,
+                    semester_no,
+                    academic_year_id,
+                    start_date,
+                    end_date
+                `)
+                .order("start_date", { ascending: false });
+
+        if (optionsError) {
+            throw optionsError;
+        }
+
+        const { data: academicYears, error: yearsError } =
+            await supabaseClient
+                .from("academic_years")
+                .select("id, year");
+
+        if (yearsError) {
+            throw yearsError;
+        }
+
+        const yearsById = new Map(
+            (academicYears || []).map(year => [
+                year.id,
+                year.year
+            ])
+        );
+
+        const semesterFilter = document.createElement("select");
+        semesterFilter.id = "schedule-semester-filter";
+
+        semesterFilter.style.cssText = `
+            padding: 9px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            font-family: inherit;
+            max-width: 100%;
+        `;
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "-- เลือกภาคเรียน --";
+        placeholder.disabled = true;
+
+        semesterFilter.appendChild(placeholder);
+
+        let selectedSemesterId = "";
+
+        (semesterOptions || []).forEach(sem => {
+
+            const option = document.createElement("option");
+
+            option.value = sem.id;
+
+            const year = yearsById.get(sem.academic_year_id);
+
+            option.textContent =
+                `ภาคเรียนที่ ${sem.semester_no}/${year ?? "-"}`;
+
+            semesterFilter.appendChild(option);
+
+            if (
+                sem.start_date <= selectedDate &&
+                sem.end_date >= selectedDate
+            ) {
+                selectedSemesterId = sem.id;
+            }
+        });
+
+        semesterFilter.value = selectedSemesterId;
+
+        semesterFilter.addEventListener("change", function () {
+
+            const selected = (semesterOptions || []).find(
+                sem => sem.id === this.value
+            );
+
+            if (!selected) return;
+
+            // เลือกวันที่เริ่มภาคเรียนเพื่อโหลดตาราง
+            loadScheduleView(selected.end_date);
+        });
+
+        const semesterLabelElement = document.createElement("label");
+        semesterLabelElement.htmlFor = "schedule-semester-filter";
+        semesterLabelElement.textContent = "📚 ภาคเรียน";
+
+        toolbar.append(
+            semesterLabelElement,
+            semesterFilter
+        );
+
 
     } catch (error) {
 
-        console.error("Schedule Load Error:", error);
+        console.error(
+            "Schedule Load Error:",
+            error
+        );
 
         content.innerHTML = `
             <div class="schedule-empty-state">
-                <div class="schedule-empty-icon">⚠️</div>
                 <h2>ไม่สามารถโหลดตารางสอนได้</h2>
-                <p>กรุณาลองใหม่อีกครั้ง</p>
+                <p>กรุณาตรวจสอบการเชื่อมต่อหรือสิทธิ์การใช้งาน</p>
             </div>
         `;
-
     }
 }
+
+
 async function deleteActivityScheduleManage(scheduleId) {
 
     if (!scheduleId) {

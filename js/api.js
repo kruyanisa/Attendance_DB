@@ -1593,12 +1593,22 @@ async function getActivityAttendanceSession(
 // Attendance
 // ==============================
 
+
 async function saveAttendance(records) {
+
+    if (!Array.isArray(records) || records.length === 0) {
+        return [];
+    }
+
+    const activeRecords = records.map(record => ({
+        ...record,
+        deleted_at: null
+    }));
 
     const { data, error } = await supabaseClient
         .from("attendance")
         .upsert(
-            records,
+            activeRecords,
             {
                 onConflict: "attendance_session_id,student_id"
             }
@@ -1608,7 +1618,6 @@ async function saveAttendance(records) {
     if (error) throw error;
 
     return data;
-
 }
 
 async function getStudentById(studentId){
@@ -2563,17 +2572,23 @@ rooms!room_id(
 
 async function deleteAttendance(sessionId, studentIds) {
 
-    if (studentIds.length === 0) return;
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+        return;
+    }
 
     const { error } = await supabaseClient
         .from("attendance")
-        .delete()
+        .update({
+            deleted_at: new Date().toISOString()
+        })
         .eq("attendance_session_id", sessionId)
-        .in("student_id", studentIds);
+        .in("student_id", studentIds)
+        .is("deleted_at", null);
 
     if (error) throw error;
 
 }
+
 async function logout() {
 
     const result = await Swal.fire({
@@ -3972,6 +3987,28 @@ async function getAttendanceActivities(date) {
     // ============================================
 
     return (data || [])
+        // ตรวจสิทธิ์ครูที่รับผิดชอบกิจกรรม
+        .filter(activity => {
+            if (isAdmin) {
+                return true;
+            }
+
+            return (activity.activity_teachers || [])
+                .some(link => link.teacher_id === teacherId);
+        })
+        .filter(activity => {
+
+            const semester = activity.semesters || {};
+
+            // วันที่ต้องอยู่ภายในภาคเรียนของกิจกรรม
+            return (
+                semester.start_date &&
+                semester.end_date &&
+                date >= semester.start_date &&
+                date <= semester.end_date
+            );
+
+        })
         .map(activity => {
 
             const schedules =
@@ -4078,26 +4115,34 @@ if (
 // STEP 3.5.3 — Get Activity Participants
 // ============================================================
 
-async function getActivityParticipants(activityId) {
+async function getActivityParticipants(activityId, attendanceDate) {
 
     if (!activityId) {
         throw new Error("Activity ID is required.");
     }
+    // ============================================
+    // สมาชิกกิจกรรมตามวันที่เช็กชื่อ
+    // ============================================
 
+    if (
+        !attendanceDate ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(attendanceDate)
+    ) {
+        throw new Error(
+            "Attendance date is required (YYYY-MM-DD)."
+        );
+    }
 
-    // ========================================================
-    // 1. ดึง Participants + Student
-    //    ไม่ JOIN rooms ตรงนี้
-    // ========================================================
-
+    // โหลดช่วงสมาชิกทั้งหมดของกิจกรรมนี้
     const {
-        data: participants,
-        error: participantError
+        data: memberPeriods,
+        error: periodsError
     } = await supabaseClient
-        .from("activity_participants")
+        .from("activity_participant_periods")
         .select(`
             id,
-
+            valid_from,
+            valid_until,
             student:students!student_id(
                 id,
                 student_code,
@@ -4109,27 +4154,63 @@ async function getActivityParticipants(activityId) {
                 current_room_id
             )
         `)
-        .eq(
-            "activity_id",
-            activityId
-        )
-        .order(
-            "student_id",
-            {
-                ascending: true
-            }
-        );
+        .eq("activity_id", activityId);
 
-
-    if (participantError) {
-        throw participantError;
+    if (periodsError) {
+        throw periodsError;
     }
 
+    let participants = [];
+
+    if (memberPeriods && memberPeriods.length > 0) {
+
+        // กิจกรรมที่ใช้ระบบช่วงวันที่แล้ว
+        // ไม่ดึงรายชื่อเก่ามาปะปน
+        participants = memberPeriods.filter(item =>
+            item.valid_from <= attendanceDate &&
+            (
+                !item.valid_until ||
+                attendanceDate <= item.valid_until
+            )
+        );
+
+    } else {
+
+        // กิจกรรมเดิมที่ยังไม่มีช่วงสมาชิก
+        // รองรับข้อมูลภาคเรียน 1
+        const {
+            data: legacyParticipants,
+            error: legacyError
+        } = await supabaseClient
+            .from("activity_participants")
+            .select(`
+                id,
+                student:students!student_id(
+                    id,
+                    student_code,
+                    student_no,
+                    prefix,
+                    first_name,
+                    last_name,
+                    nickname,
+                    current_room_id
+                )
+            `)
+            .eq("activity_id", activityId)
+            .order("student_id", {
+                ascending: true
+            });
+
+        if (legacyError) {
+            throw legacyError;
+        }
+
+        participants = legacyParticipants || [];
+    }
 
     if (!participants || participants.length === 0) {
         return [];
     }
-
 
     // ========================================================
     // 2. รวบรวม current_room_id
