@@ -7,7 +7,7 @@ const navigationPlaceholder =
 if (navigationPlaceholder) {
     navigationPlaceholder.style.display = "none";
 }
-  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule', 'import', 'student-management', 'student-detail'];
+  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule', 'import', 'student-management', 'student-detail', 'admin-academic'];
   
   views.forEach(v => {
     // ซ่อน/แสดง เนื้อหา
@@ -46,6 +46,10 @@ if (view === "student-detail") {
 
 if(view === "schedule"){
     switchScheduleTab("timetable");
+}
+
+if (view === "admin-academic") {
+    loadAdminAcademicOverview();
 }
 
 /* =========================================================
@@ -178,7 +182,10 @@ function showNavigationPlaceholder(featureName) {
         "portal",
         "dashboard",
         "schedule",
-        'import'
+        'import',
+        "student-management",
+        "student-detail",
+        "admin-academic"
     ];
 
     views.forEach(viewName => {
@@ -5524,3 +5531,1109 @@ closeScheduleCreate();
     });
 }
 }
+
+/* ============================================================
+   ADMIN ACADEMIC MANAGEMENT
+   Module 1.3 — Academic Overview Renderer
+   READ ONLY
+   ============================================================ */
+
+async function loadAdminAcademicOverview() {
+
+    const status = document.getElementById(
+        "admin-academic-status"
+    );
+
+    const tbody = document.getElementById(
+        "admin-academic-table-body"
+    );
+
+    if (!status || !tbody) return;
+
+    status.textContent = "กำลังโหลดข้อมูล...";
+    tbody.replaceChildren();
+
+    try {
+
+        const result = await getAdminAcademicOverview();
+
+        const years = result.academicYears || [];
+        const semesters = result.semesters || [];
+
+        const appendRow = (values, semester = null) => {
+            const tr = document.createElement("tr");
+
+            values.forEach(value => {
+                const td = document.createElement("td");
+                td.textContent = String(value ?? "-");
+                tr.appendChild(td);
+            });
+
+            const actionCell = document.createElement("td");
+
+            if (semester?.id) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "btn";
+                button.textContent = "✏️ แก้ไข";
+
+                button.addEventListener("click", () => {
+                    openAdminSemesterDetails(semester);
+                });
+
+                actionCell.appendChild(button);
+            } else {
+                actionCell.textContent = "-";
+            }
+
+            tr.appendChild(actionCell);
+            tbody.appendChild(tr);
+        };
+
+        // เรียงปีจากน้อยไปมาก แล้วเรียงภาคเรียนภายในปี
+        [...years]
+            .sort((a, b) => a.year - b.year)
+            .forEach(year => {
+
+                const yearSemesters = semesters
+                    .filter(semester =>
+                        semester.academic_year_id === year.id
+                    )
+                    .sort((a, b) =>
+                        a.semester_no - b.semester_no
+                    );
+
+                if (yearSemesters.length === 0) {
+                    appendRow([
+                        year.year,
+                        year.is_current
+                            ? "ปีปัจจุบัน"
+                            : "ไม่ใช่ปีปัจจุบัน",
+                        "ยังไม่มีภาคเรียน",
+                        "-",
+                        "-"
+                    ]);
+                    return;
+                }
+
+                yearSemesters.forEach(semester => {
+                    appendRow([
+                        year.year,
+                        year.is_current
+                            ? "ปีปัจจุบัน"
+                            : "ไม่ใช่ปีปัจจุบัน",
+                        semester.semester_no,
+                        semester.start_date,
+                        semester.end_date
+                    ], {
+                        ...semester,
+                        academicYear: year.year
+                    });
+                });
+            });
+
+        if (tbody.children.length === 0) {
+            appendRow([
+                "ไม่พบข้อมูล",
+                "-",
+                "-",
+                "-",
+                "-"
+            ]);
+        }
+
+        status.textContent =
+            `โหลดสำเร็จ: ${years.length} ปีการศึกษา / ` +
+            `${semesters.length} ภาคเรียน`;
+
+    } catch (error) {
+
+        console.error(
+            "Admin Academic Overview:",
+            error
+        );
+
+        status.textContent =
+            "ไม่สามารถโหลดข้อมูลได้: " +
+            (error.message || "เกิดข้อผิดพลาด");
+
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+
+        td.colSpan = 6;
+        td.textContent = "ไม่สามารถแสดงข้อมูลได้";
+
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+    }
+}
+
+
+/* ============================================================
+   MODULE 2.9 — ADMIN SEMESTER DATE MANAGEMENT
+   Scoped module / regression-safe
+   ============================================================ */
+
+// false = ทดลองกระบวนการโดยไม่เขียนฐานข้อมูล
+// true  = เปิดบันทึกจริง (ต้องได้รับอนุมัติก่อน)
+const SEMESTER_LIVE_WRITE_ENABLED = false;
+
+const semesterEditState = {
+    revision: 0,
+    previewBusy: false,
+    saving: false
+};
+
+function semesterElements() {
+    const id = name => document.getElementById(name);
+
+    return {
+        modal: id("admin-semester-edit-modal"),
+        year: id("admin-semester-year"),
+        number: id("admin-semester-number"),
+        start: id("admin-semester-start-date"),
+        end: id("admin-semester-end-date"),
+        reason: id("admin-semester-reason"),
+        reasonGroup: id("admin-semester-reason-group"),
+        status: id("admin-semester-impact-status"),
+        preview: id("admin-semester-preview-btn"),
+        save: id("admin-semester-save-btn"),
+        cancel: id("admin-semester-cancel-btn"),
+        form: id("admin-semester-edit-form")
+    };
+}
+
+function semesterSetStatus(message, type = "warning") {
+    const { status } = semesterElements();
+    if (!status) return;
+
+    const colors = {
+        warning: ["#fffbeb", "#f59e0b", "#92400e"],
+        success: ["#f0fdf4", "#22c55e", "#15803d"],
+        error: ["#fef2f2", "#ef4444", "#b91c1c"],
+        info: ["#eff6ff", "#93c5fd", "#1d4ed8"]
+    };
+
+    const [background, border, color] =
+        colors[type] || colors.warning;
+
+    status.textContent = message;
+    status.style.background = background;
+    status.style.borderColor = border;
+    status.style.color = color;
+    status.style.fontWeight = "600";
+}
+
+function semesterSignature() {
+    const e = semesterElements();
+
+    return JSON.stringify({
+        semesterId: e.modal?.dataset.semesterId || "",
+        startDate: e.start?.value || "",
+        endDate: e.end?.value || ""
+    });
+}
+
+function semesterInvalidatePreview() {
+    const e = semesterElements();
+    semesterEditState.revision++;
+
+    if (!e.modal) return;
+
+    delete e.modal.dataset.previewApproved;
+    delete e.modal.dataset.previewSignature;
+
+    if (e.reasonGroup) {
+        e.reasonGroup.style.display = "none";
+    }
+
+    if (e.reason) e.reason.value = "";
+
+    semesterSetStatus(
+        "⚠️ วันที่มีการเปลี่ยนแปลง กรุณาตรวจสอบผลกระทบใหม่"
+    );
+
+    checkAdminSemesterSaveReadiness();
+}
+
+function openAdminSemesterDetails(semester) {
+    if (!semester?.id) {
+        Swal.fire("ไม่พบข้อมูล", "ไม่พบภาคเรียนที่เลือก", "error");
+        return;
+    }
+
+    const e = semesterElements();
+    if (!e.modal || !e.form) return;
+
+    if (semesterEditState.saving) return;
+
+    semesterEditState.revision++;
+
+    e.form.reset();
+
+    e.modal.dataset.semesterId = semester.id;
+    e.modal.dataset.originalStartDate =
+        semester.start_date || "";
+    e.modal.dataset.originalEndDate =
+        semester.end_date || "";
+
+    delete e.modal.dataset.previewApproved;
+    delete e.modal.dataset.previewSignature;
+
+    e.year.value = semester.academicYear ?? "-";
+    e.number.value = semester.semester_no ?? "-";
+    e.start.value = semester.start_date || "";
+    e.end.value = semester.end_date || "";
+    e.reason.value = "";
+
+    e.reasonGroup.style.display = "none";
+    e.modal.style.display = "flex";
+
+    semesterSetStatus(
+        "⚠️ กรุณาตรวจสอบผลกระทบก่อนบันทึก"
+    );
+
+    checkAdminSemesterSaveReadiness();
+}
+
+function closeAdminSemesterDetails() {
+    if (semesterEditState.saving) return;
+
+    const e = semesterElements();
+
+    semesterEditState.revision++;
+
+    if (e.modal) {
+        e.modal.style.display = "none";
+        delete e.modal.dataset.previewApproved;
+        delete e.modal.dataset.previewSignature;
+    }
+
+    if (e.reasonGroup) {
+        e.reasonGroup.style.display = "none";
+    }
+
+    checkAdminSemesterSaveReadiness();
+}
+
+function checkAdminSemesterSaveReadiness() {
+    const e = semesterElements();
+
+    if (!e.modal || !e.save) return null;
+
+    const semesterId = e.modal.dataset.semesterId;
+    const startDate = e.start?.value || "";
+    const endDate = e.end?.value || "";
+    const reason = e.reason?.value.trim() || "";
+
+    const datesValid =
+        /^\d{4}-\d{2}-\d{2}$/.test(startDate) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(endDate) &&
+        endDate >= startDate;
+
+    const datesChanged =
+        startDate !== e.modal.dataset.originalStartDate ||
+        endDate !== e.modal.dataset.originalEndDate;
+
+    const previewValid =
+        e.modal.dataset.previewApproved === "true" &&
+        e.modal.dataset.previewSignature ===
+            semesterSignature();
+
+    const reasonValid =
+        reason.length >= 5 && reason.length <= 2000;
+
+    const readyForSave = Boolean(
+        semesterId &&
+        datesValid &&
+        datesChanged &&
+        previewValid &&
+        reasonValid &&
+        !semesterEditState.previewBusy &&
+        !semesterEditState.saving
+    );
+
+    // ในโหมดทดลอง ปุ่มเปิดได้แต่ไม่มีการเขียนฐานข้อมูล
+    e.save.disabled = !readyForSave;
+
+    e.save.textContent = SEMESTER_LIVE_WRITE_ENABLED
+        ? "💾 บันทึกการเปลี่ยนแปลง"
+        : "🧪 ทดลองยืนยัน (ไม่บันทึก)";
+
+    e.save.setAttribute(
+        "aria-disabled",
+        String(!readyForSave)
+    );
+
+    e.save.style.background =
+        readyForSave ? "#2563eb" : "#94a3b8";
+    e.save.style.opacity = readyForSave ? "1" : "0.55";
+    e.save.style.cursor =
+        readyForSave ? "pointer" : "not-allowed";
+
+    return {
+        readyForSave,
+        previewValid,
+        reasonValid,
+        datesChanged
+    };
+}
+
+async function runAdminSemesterImpactPreview() {
+    const e = semesterElements();
+
+    if (
+        !e.modal || !e.start || !e.end ||
+        !e.preview || semesterEditState.previewBusy ||
+        semesterEditState.saving
+    ) return;
+
+    semesterEditState.revision++;
+    const revision = semesterEditState.revision;
+
+    delete e.modal.dataset.previewApproved;
+    delete e.modal.dataset.previewSignature;
+
+    e.reasonGroup.style.display = "none";
+    e.reason.value = "";
+
+    const semesterId = e.modal.dataset.semesterId;
+    const startDate = e.start.value;
+    const endDate = e.end.value;
+
+    if (!semesterId || !startDate || !endDate) {
+        semesterSetStatus("⚠️ กรุณาระบุวันที่ให้ครบ");
+        checkAdminSemesterSaveReadiness();
+        return;
+    }
+
+    if (endDate < startDate) {
+        semesterSetStatus(
+            "❌ วันสิ้นสุดต้องไม่อยู่ก่อนวันเริ่มต้น",
+            "error"
+        );
+        checkAdminSemesterSaveReadiness();
+        return;
+    }
+
+    if (
+        startDate === e.modal.dataset.originalStartDate &&
+        endDate === e.modal.dataset.originalEndDate
+    ) {
+        semesterSetStatus(
+            "ℹ️ ไม่มีการเปลี่ยนแปลง ไม่จำเป็นต้องบันทึก",
+            "info"
+        );
+        checkAdminSemesterSaveReadiness();
+        return;
+    }
+
+    semesterEditState.previewBusy = true;
+    e.preview.disabled = true;
+    checkAdminSemesterSaveReadiness();
+
+    semesterSetStatus(
+        "กำลังตรวจสอบผลกระทบ...",
+        "info"
+    );
+
+    try {
+        const result = await previewAdminSemesterDateImpact({
+            semesterId,
+            startDate,
+            endDate
+        });
+
+        if (
+            revision !== semesterEditState.revision ||
+            e.modal.style.display === "none" ||
+            e.modal.dataset.semesterId !== semesterId ||
+            e.start.value !== startDate ||
+            e.end.value !== endDate
+        ) return;
+
+        const subject =
+            Number(result.subject_sessions_outside) || 0;
+        const activity =
+            Number(result.activity_sessions_outside) || 0;
+        const total =
+            Number(result.total_affected_sessions) || 0;
+
+        if (
+            result.has_overlap === true ||
+            result.can_proceed !== true ||
+            total > 0
+        ) {
+            semesterSetStatus(
+                `❌ ไม่ผ่านการตรวจสอบ — ` +
+                `รายวิชา ${subject} รอบ, ` +
+                `กิจกรรม ${activity} รอบ` +
+                (result.has_overlap
+                    ? " และวันที่ทับซ้อนกับภาคเรียนอื่น"
+                    : ""),
+                "error"
+            );
+            return;
+        }
+
+        e.modal.dataset.previewApproved = "true";
+        e.modal.dataset.previewSignature =
+            semesterSignature();
+
+        e.reasonGroup.style.display = "";
+
+        semesterSetStatus(
+            "✅ ผ่านการตรวจสอบผลกระทบ " +
+            "กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร",
+            "success"
+        );
+
+    } catch (error) {
+        if (revision === semesterEditState.revision) {
+            console.error("Semester Preview:", error);
+            semesterSetStatus(
+                "❌ ตรวจสอบไม่สำเร็จ: " +
+                (error.message || "เกิดข้อผิดพลาด"),
+                "error"
+            );
+        }
+    } finally {
+        semesterEditState.previewBusy = false;
+        e.preview.disabled = false;
+        checkAdminSemesterSaveReadiness();
+    }
+}
+
+async function showAdminSemesterSaveConfirmation() {
+    if (semesterEditState.saving) return;
+
+    const readiness =
+        checkAdminSemesterSaveReadiness();
+
+    if (!readiness?.readyForSave) {
+        await Swal.fire(
+            "ยังไม่พร้อมบันทึก",
+            "กรุณาตรวจสอบผลกระทบและระบุเหตุผล",
+            "warning"
+        );
+        return;
+    }
+
+    const e = semesterElements();
+
+    // ล็อกสถานะก่อนเปิดหน้าต่างยืนยัน
+    semesterEditState.saving = true;
+    checkAdminSemesterSaveReadiness();
+
+    const semesterId = e.modal.dataset.semesterId;
+    const startDate = e.start.value;
+    const endDate = e.end.value;
+    const reason = e.reason.value.trim();
+    const signature = semesterSignature();
+
+    const confirmationText = [
+        `ปีการศึกษา: ${e.year.value}`,
+        `ภาคเรียน: ${e.number.value}`,
+        `วันเริ่มต้นเดิม: ${e.modal.dataset.originalStartDate}`,
+        `วันเริ่มต้นใหม่: ${startDate}`,
+        `วันสิ้นสุดเดิม: ${e.modal.dataset.originalEndDate}`,
+        `วันสิ้นสุดใหม่: ${endDate}`,
+        `เหตุผล: ${reason}`,
+        "",
+        SEMESTER_LIVE_WRITE_ENABLED
+            ? "การยืนยันจะบันทึกลง Supabase จริง"
+            : "โหมดทดลอง: ไม่มีการเปลี่ยนข้อมูลจริง"
+    ].join("\n");
+
+    try {
+        const confirmation = await Swal.fire({
+            icon: "question",
+            title: "ยืนยันการเปลี่ยนวันที่ภาคเรียน?",
+            text: confirmationText,
+            showCancelButton: true,
+            confirmButtonText:
+                SEMESTER_LIVE_WRITE_ENABLED
+                    ? "ยืนยันบันทึกจริง"
+                    : "ทดลองยืนยัน",
+            cancelButtonText: "ยกเลิก",
+            didOpen: () => {
+                const container =
+                    Swal.getHtmlContainer();
+
+                if (container) {
+                    container.style.whiteSpace = "pre-line";
+                    container.style.textAlign = "left";
+                }
+            }
+        });
+
+        if (!confirmation.isConfirmed) return;
+
+        // จุดป้องกัน: โหมดทดลองไม่เรียก RPC เขียนข้อมูล
+        if (!SEMESTER_LIVE_WRITE_ENABLED) {
+            await Swal.fire({
+                icon: "info",
+                title: "ทดลองสำเร็จ",
+                text: "ตรวจขั้นตอนยืนยันแล้ว " +
+                      "ไม่มีการบันทึกลงฐานข้อมูล",
+                confirmButtonText: "ตกลง"
+            });
+            return;
+        }
+
+        // ยืนยันสถานะ Preview อีกครั้ง
+        if (
+            e.modal.dataset.previewApproved !== "true" ||
+            e.modal.dataset.previewSignature !== signature ||
+            semesterSignature() !== signature ||
+            e.reason.value.trim() !== reason
+        ) {
+            throw new Error(
+                "ข้อมูลเปลี่ยนแปลง กรุณาตรวจสอบใหม่"
+            );
+        }
+
+        // ตรวจผลกระทบซ้ำก่อนส่งคำสั่งบันทึก
+        const impact =
+            await previewAdminSemesterDateImpact({
+                semesterId,
+                startDate,
+                endDate
+            });
+
+        if (
+            impact.can_proceed !== true ||
+            impact.has_overlap === true ||
+            Number(impact.total_affected_sessions) !== 0
+        ) {
+            throw new Error(
+                "ผลกระทบเปลี่ยนแปลง กรุณาตรวจสอบใหม่"
+            );
+        }
+
+        // RPC ฝั่งฐานข้อมูลตรวจสิทธิ์และผลกระทบซ้ำ
+        await updateAdminSemesterDates({
+            semesterId,
+            startDate,
+            endDate,
+            reason
+        });
+
+        closeAdminSemesterDetailsAfterSave();
+
+        await Swal.fire({
+            icon: "success",
+            title: "บันทึกสำเร็จ",
+            text: "ปรับวันที่ภาคเรียนเรียบร้อยแล้ว",
+            confirmButtonText: "ตกลง"
+        });
+
+        await loadAdminAcademicOverview();
+
+    } catch (error) {
+        console.error("Semester Save:", error);
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถบันทึกได้",
+            text: error.message || "เกิดข้อผิดพลาด",
+            confirmButtonText: "ตกลง"
+        });
+
+        semesterInvalidatePreview();
+
+    } finally {
+        semesterEditState.saving = false;
+        checkAdminSemesterSaveReadiness();
+    }
+}
+
+function closeAdminSemesterDetailsAfterSave() {
+    const e = semesterElements();
+
+    semesterEditState.revision++;
+
+    if (e.modal) {
+        e.modal.style.display = "none";
+        delete e.modal.dataset.previewApproved;
+        delete e.modal.dataset.previewSignature;
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const e = semesterElements();
+
+    if (
+        !e.modal || !e.form || !e.preview ||
+        !e.save || !e.cancel
+    ) {
+        console.warn("Semester Management: missing elements");
+        return;
+    }
+
+    e.cancel.addEventListener(
+        "click",
+        closeAdminSemesterDetails
+    );
+
+    e.modal.addEventListener("click", event => {
+        if (event.target === e.modal) {
+            closeAdminSemesterDetails();
+        }
+    });
+
+    document.addEventListener("keydown", event => {
+        if (
+            event.key === "Escape" &&
+            e.modal.style.display !== "none"
+        ) {
+            closeAdminSemesterDetails();
+        }
+    });
+
+    e.start.addEventListener(
+        "input",
+        semesterInvalidatePreview
+    );
+
+    e.end.addEventListener(
+        "input",
+        semesterInvalidatePreview
+    );
+
+    e.reason.addEventListener("input", () => {
+        const result =
+            checkAdminSemesterSaveReadiness();
+
+        if (!result?.previewValid) return;
+
+        semesterSetStatus(
+            result.reasonValid
+                ? "✅ ผ่านการตรวจสอบ พร้อมยืนยัน"
+                : "⚠️ กรุณาระบุเหตุผล 5–2,000 ตัวอักษร",
+            result.reasonValid ? "success" : "warning"
+        );
+    });
+
+    e.preview.addEventListener(
+        "click",
+        runAdminSemesterImpactPreview
+    );
+
+    e.form.addEventListener("submit", event => {
+        event.preventDefault();
+        showAdminSemesterSaveConfirmation();
+    });
+
+    checkAdminSemesterSaveReadiness();
+});
+
+/* =====================================================
+   MODULE 3.0 — ACADEMIC YEAR / SEMESTER CREATION
+   ===================================================== */
+
+const ACADEMIC_CREATE_LIVE_ENABLED = false;
+
+const academicCreateState = {
+    busy: false
+};
+
+function academicCreateText(value) {
+    return String(value ?? "").replace(
+        /[&<>"']/g,
+        ch => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[ch]
+    );
+}
+
+async function academicConfirmCreation(title, details, saveAction) {
+    if (academicCreateState.busy) return;
+
+    academicCreateState.busy = true;
+
+    const buttons = [
+        document.getElementById("admin-add-year-btn"),
+        document.getElementById("admin-add-semester-btn")
+    ];
+
+    buttons.forEach(button => {
+        if (button) button.disabled = true;
+    });
+
+    try {
+        const confirmation = await Swal.fire({
+            icon: "question",
+            title,
+            text: details +
+                (ACADEMIC_CREATE_LIVE_ENABLED
+                    ? "\n\nการยืนยันจะเพิ่มข้อมูลจริง"
+                    : "\n\nโหมดทดลอง: ไม่เพิ่มข้อมูลจริง"),
+            showCancelButton: true,
+            confirmButtonText: ACADEMIC_CREATE_LIVE_ENABLED
+                ? "ยืนยันเพิ่มข้อมูลจริง"
+                : "ทดลองยืนยัน",
+            cancelButtonText: "ยกเลิก",
+            didOpen: () => {
+                const el = Swal.getHtmlContainer();
+                if (el) {
+                    el.style.whiteSpace = "pre-line";
+                    el.style.textAlign = "left";
+                }
+            }
+        });
+
+        if (!confirmation.isConfirmed) return;
+
+        if (!ACADEMIC_CREATE_LIVE_ENABLED) {
+            await Swal.fire({
+                icon: "info",
+                title: "ทดลองสำเร็จ",
+                text: "ไม่มีการเพิ่มข้อมูลลง Supabase",
+                confirmButtonText: "ตกลง"
+            });
+            return;
+        }
+
+        await saveAction();
+
+        await loadAdminAcademicOverview();
+
+        await Swal.fire({
+            icon: "success",
+            title: "เพิ่มข้อมูลสำเร็จ",
+            confirmButtonText: "ตกลง"
+        });
+
+    } catch (error) {
+        console.error("Academic Create:", error);
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถเพิ่มข้อมูลได้",
+            text: error.message || "เกิดข้อผิดพลาด",
+            confirmButtonText: "ตกลง"
+        });
+
+    } finally {
+        academicCreateState.busy = false;
+        buttons.forEach(button => {
+            if (button) button.disabled = false;
+        });
+    }
+}
+
+async function openAdminCreateAcademicYear() {
+    if (academicCreateState.busy) return;
+
+    try {
+        const data = await getAdminAcademicOverview();
+        const existingYears = new Set(
+            data.academicYears.map(y => Number(y.year))
+        );
+
+        const result = await Swal.fire({
+            title: "＋ เพิ่มปีการศึกษา",
+            html: `
+                <div class="academic-create-form">
+                    <label>ปีการศึกษา (พ.ศ.)</label>
+                    <input id="new-academic-year"
+                           class="swal2-input"
+                           type="number"
+                           min="1901"
+                           max="9999"
+                           placeholder="เช่น 2575">
+
+                    <label>เหตุผลในการเพิ่ม</label>
+                    <textarea id="new-academic-year-reason"
+                              class="swal2-textarea"
+                              maxlength="2000"
+                              placeholder="ระบุเหตุผลอย่างน้อย 5 ตัวอักษร"></textarea>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: "ตรวจสอบข้อมูล",
+            cancelButtonText: "ยกเลิก",
+            focusConfirm: false,
+            preConfirm: () => {
+                const popup = Swal.getPopup();
+                const rawYear = popup.querySelector(
+                    "#new-academic-year"
+                ).value.trim();
+
+                const year = Number(rawYear);
+                const reason = popup.querySelector(
+                    "#new-academic-year-reason"
+                ).value.trim();
+
+                if (
+                    !/^\d{4}$/.test(rawYear) ||
+                    year <= 1900 ||
+                    year > 9999
+                ) {
+                    Swal.showValidationMessage(
+                        "กรุณาระบุปีการศึกษา พ.ศ. ให้ถูกต้อง"
+                    );
+                    return false;
+                }
+
+                if (existingYears.has(year)) {
+                    Swal.showValidationMessage(
+                        "ปีการศึกษานี้มีอยู่แล้ว"
+                    );
+                    return false;
+                }
+
+                if (
+                    reason.length < 5 ||
+                    reason.length > 2000
+                ) {
+                    Swal.showValidationMessage(
+                        "กรุณาระบุเหตุผล 5–2,000 ตัวอักษร"
+                    );
+                    return false;
+                }
+
+                return { year, reason };
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        const { year, reason } = result.value;
+
+        await academicConfirmCreation(
+            "ยืนยันเพิ่มปีการศึกษา?",
+            `ปีการศึกษา: ${year}\nสถานะ: ไม่ใช่ปีปัจจุบัน\nเหตุผล: ${reason}`,
+            () => createAdminAcademicYear({
+                year,
+                reason
+            })
+        );
+
+    } catch (error) {
+        await Swal.fire(
+            "ไม่สามารถเตรียมข้อมูลได้",
+            error.message || "เกิดข้อผิดพลาด",
+            "error"
+        );
+    }
+}
+
+async function openAdminCreateSemester() {
+    if (academicCreateState.busy) return;
+
+    try {
+        const data = await getAdminAcademicOverview();
+        const years = [...data.academicYears]
+            .sort((a, b) => a.year - b.year);
+
+        if (years.length === 0) {
+            await Swal.fire(
+                "ยังไม่มีปีการศึกษา",
+                "กรุณาเพิ่มปีการศึกษาก่อน",
+                "warning"
+            );
+            return;
+        }
+
+        const yearOptions = years.map(year => `
+            <option value="${academicCreateText(year.id)}">
+                ${academicCreateText(year.year)}
+            </option>
+        `).join("");
+
+        const result = await Swal.fire({
+            title: "＋ เพิ่มภาคเรียน",
+            html: `
+                <div class="academic-create-form">
+                    <label>ปีการศึกษา</label>
+                    <select id="new-semester-year"
+                            class="swal2-select">
+                        ${yearOptions}
+                    </select>
+
+                    <label>ภาคเรียน</label>
+                    <select id="new-semester-number"
+                            class="swal2-select">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+
+                    <label>วันเริ่มต้น</label>
+                    <input id="new-semester-start"
+                           type="date"
+                           class="swal2-input">
+
+                    <label>วันสิ้นสุด</label>
+                    <input id="new-semester-end"
+                           type="date"
+                           class="swal2-input">
+
+                    <label>เหตุผลในการเพิ่ม</label>
+                    <textarea id="new-semester-reason"
+                              class="swal2-textarea"
+                              maxlength="2000"></textarea>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: "ตรวจสอบข้อมูล",
+            cancelButtonText: "ยกเลิก",
+            focusConfirm: false,
+            preConfirm: () => {
+                const popup = Swal.getPopup();
+                const get = id =>
+                    popup.querySelector("#" + id).value;
+
+                const academicYearId =
+                    get("new-semester-year");
+                const semesterNo =
+                    Number(get("new-semester-number"));
+                const startDate =
+                    get("new-semester-start");
+                const endDate =
+                    get("new-semester-end");
+                const reason =
+                    get("new-semester-reason").trim();
+
+                if (!startDate || !endDate ||
+                    endDate < startDate) {
+                    Swal.showValidationMessage(
+                        "กรุณาตรวจสอบช่วงวันที่ภาคเรียน"
+                    );
+                    return false;
+                }
+
+                if (
+                    data.semesters.some(s =>
+                        s.academic_year_id === academicYearId &&
+                        Number(s.semester_no) === semesterNo
+                    )
+                ) {
+                    Swal.showValidationMessage(
+                        "ภาคเรียนนี้มีอยู่แล้วในปีที่เลือก"
+                    );
+                    return false;
+                }
+
+                // MODULE 3.0 — ตรวจปีการศึกษากับปีของวันที่
+                const selectedYear = years.find(
+                    y => y.id === academicYearId
+                );
+
+                if (!selectedYear) {
+                    Swal.showValidationMessage(
+                        "ไม่พบปีการศึกษาที่เลือก"
+                    );
+                    return false;
+                }
+
+                const firstADYear =
+                    Number(selectedYear.year) - 543;
+
+                const lastADYear = firstADYear + 1;
+
+                const startADYear =
+                    Number(startDate.slice(0, 4));
+
+                const endADYear =
+                    Number(endDate.slice(0, 4));
+
+                if (
+                    startADYear < firstADYear ||
+                    startADYear > lastADYear ||
+                    endADYear < firstADYear ||
+                    endADYear > lastADYear
+                ) {
+
+                Swal.showValidationMessage(
+    `ปีการศึกษา ${selectedYear.year} ` +
+    `ต้องเลือกวันที่ในช่วง พ.ศ. ` +
+    `${selectedYear.year}–${Number(selectedYear.year) + 1} ` +
+    `(ค.ศ. ${firstADYear}–${lastADYear}) เท่านั้น`
+                );
+
+                    return false;
+                }
+
+                const overlapping = data.semesters.some(s =>
+                    s.academic_year_id === academicYearId &&
+                    s.start_date &&
+                    s.end_date &&
+                    s.start_date <= endDate &&
+                    s.end_date >= startDate
+                );
+
+                if (overlapping) {
+                    Swal.showValidationMessage(
+                        "ช่วงวันที่ทับซ้อนภาคเรียนอื่นในปีเดียวกัน"
+                    );
+                    return false;
+                }
+
+                if (
+                    reason.length < 5 ||
+                    reason.length > 2000
+                ) {
+                    Swal.showValidationMessage(
+                        "กรุณาระบุเหตุผล 5–2,000 ตัวอักษร"
+                    );
+                    return false;
+                }
+
+                return {
+                    academicYearId,
+                    semesterNo,
+                    startDate,
+                    endDate,
+                    reason
+                };
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        const values = result.value;
+        const year = years.find(
+            y => y.id === values.academicYearId
+        );
+
+        await academicConfirmCreation(
+            "ยืนยันเพิ่มภาคเรียน?",
+            [
+                `ปีการศึกษา: ${year?.year ?? "-"}`,
+                `ภาคเรียน: ${values.semesterNo}`,
+                `วันเริ่มต้น: ${values.startDate}`,
+                `วันสิ้นสุด: ${values.endDate}`,
+                `เหตุผล: ${values.reason}`
+            ].join("\n"),
+            () => createAdminSemester(values)
+        );
+
+    } catch (error) {
+        await Swal.fire(
+            "ไม่สามารถเตรียมข้อมูลได้",
+            error.message || "เกิดข้อผิดพลาด",
+            "error"
+        );
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("admin-add-year-btn")
+        ?.addEventListener(
+            "click",
+            openAdminCreateAcademicYear
+        );
+
+    document.getElementById("admin-add-semester-btn")
+        ?.addEventListener(
+            "click",
+            openAdminCreateSemester
+        );
+});

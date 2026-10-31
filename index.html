@@ -244,6 +244,71 @@
             <span class="menu-text">ศูนย์รวมระบบ</span>
         </button>
 
+<!-- =========================================
+     ADMIN ACADEMIC MANAGEMENT
+     ========================================= -->
+
+<div
+    class="nav-group"
+    id="nav-group-academic"
+    style="display:none;"
+>
+    <button
+        type="button"
+        class="nav-group-btn"
+        onclick="toggleNavGroup('academic')"
+    >
+        <span class="menu-icon">📚</span>
+        <span class="menu-text">จัดการงานวิชาการ</span>
+        <span class="nav-arrow">▼</span>
+    </button>
+
+    <div
+        class="nav-submenu"
+        id="nav-submenu-academic"
+    >
+        <button
+            id="menu-admin-academic"
+            class="menu-btn submenu-btn"
+            onclick="switchView('admin-academic')"
+        >
+            <span class="menu-icon">📅</span>
+            <span class="menu-text">ปีการศึกษา / ภาคเรียน</span>
+        </button>
+
+        <button
+            class="menu-btn submenu-btn"
+            onclick="showNavigationPlaceholder('วิชา')"
+        >
+            <span class="menu-icon">📚</span>
+            <span class="menu-text">วิชา</span>
+        </button>
+
+        <button
+            class="menu-btn submenu-btn"
+            onclick="showNavigationPlaceholder('การมอบหมายการสอน')"
+        >
+            <span class="menu-icon">👨‍🏫</span>
+            <span class="menu-text">การมอบหมายการสอน</span>
+        </button>
+
+        <button
+            class="menu-btn submenu-btn"
+            onclick="showNavigationPlaceholder('ห้องสอน')"
+        >
+            <span class="menu-icon">🏫</span>
+            <span class="menu-text">ห้องสอน</span>
+        </button>
+
+        <button
+            class="menu-btn submenu-btn"
+            onclick="showNavigationPlaceholder('ประวัติการเปลี่ยนแปลงงานวิชาการ')"
+        >
+            <span class="menu-icon">📋</span>
+            <span class="menu-text">ประวัติการเปลี่ยนแปลง</span>
+        </button>
+    </div>
+</div>
 
         <!-- ตั้งค่าระบบ -->
         <div class="nav-group" id="nav-group-settings">
@@ -290,38 +355,6 @@
 
                 <button
                     class="menu-btn submenu-btn"
-                    onclick="showNavigationPlaceholder('ปีการศึกษา / ภาคเรียน')"
-                >
-                    <span class="menu-icon">📅</span>
-                    <span class="menu-text">ปีการศึกษา / ภาคเรียน</span>
-                </button>
-
-                <button
-                    class="menu-btn submenu-btn"
-                    onclick="showNavigationPlaceholder('วิชา')"
-                >
-                    <span class="menu-icon">📚</span>
-                    <span class="menu-text">วิชา</span>
-                </button>
-
-                <button
-                    class="menu-btn submenu-btn"
-                    onclick="showNavigationPlaceholder('การมอบหมายการสอน')"
-                >
-                    <span class="menu-icon">👨‍🏫</span>
-                    <span class="menu-text">การมอบหมายการสอน</span>
-                </button>
-
-                <button
-                    class="menu-btn submenu-btn"
-                    onclick="showNavigationPlaceholder('ห้องสอน')"
-                >
-                    <span class="menu-icon">🏫</span>
-                    <span class="menu-text">ห้องสอน</span>
-                </button>
-
-                <button
-                    class="menu-btn submenu-btn"
                     onclick="showNavigationPlaceholder('ตั้งค่าระบบ')"
                 >
                     <span class="menu-icon">⚙️</span>
@@ -332,7 +365,6 @@
         </div>
 
     </nav>
-
 
     <!-- เมนูด้านล่าง -->
     <div class="sidebar-bottom">
@@ -1301,6 +1333,253 @@
 </div>
 
 <div id="view-import" style="display:none;"></div>
+
+<!-- ==========================================
+     ADMIN ACADEMIC MANAGEMENT
+     Module 2.8 — Academic Overview UI
+     READ ONLY
+     ========================================== -->
+
+<div
+    id="view-admin-academic"
+    class="view-section"
+    style="display:none;"
+>
+    <div class="page-header">
+        <div>
+            <h1>📚 จัดการงานวิชาการ</h1>
+            <p>
+                บริหารปีการศึกษา ภาคเรียน
+                และข้อมูลการเรียนการสอน
+            </p>
+        </div>
+    </div>
+
+    <section class="academic-overview">
+
+        <div class="academic-overview-header">
+            <div>
+                <h2>📅 ปีการศึกษาและภาคเรียน</h2>
+                <p>
+                    ภาพรวมปฏิทินการศึกษาของโรงเรียน
+                </p>
+            </div>
+
+            <span class="academic-readonly-label">
+                ข้อมูลจาก Supabase
+            </span>
+
+<div class="academic-create-actions">
+    <button type="button"
+            id="admin-add-year-btn"
+            class="btn">
+        ＋ เพิ่มปีการศึกษา
+    </button>
+
+    <button type="button"
+            id="admin-add-semester-btn"
+            class="btn">
+        ＋ เพิ่มภาคเรียน
+    </button>
+</div>
+
+        </div>
+
+        <!-- สถานะการโหลดข้อมูล -->
+        <div
+            id="admin-academic-status"
+            class="academic-load-status"
+            role="status"
+        >
+            ยังไม่ได้โหลดข้อมูล
+        </div>
+
+        <!-- ตารางข้อมูล -->
+        <div class="academic-table-container">
+
+            <table class="academic-table">
+                <thead>
+                    <tr>
+                        <th>ปีการศึกษา</th>
+                        <th>สถานะปี</th>
+                        <th>ภาคเรียน</th>
+                        <th>วันเริ่มต้น</th>
+                        <th>วันสิ้นสุด</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+
+                <tbody id="admin-academic-table-body">
+                    <tr>
+                        <td colspan="6">
+                            ยังไม่มีข้อมูล
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+
+        <p class="academic-overview-note">
+            การเปลี่ยนแปลงวันที่ภาคเรียนต้องผ่าน
+            การตรวจสอบผลกระทบต่อข้อมูลเช็กชื่อ
+            และระบุเหตุผลก่อนดำเนินการ
+        </p>
+
+    </section>
+</div>
+
+<!-- ==========================================
+     MODULE 2.8 — SEMESTER EDIT MODAL
+     UI ONLY / NO DATABASE WRITES
+     ========================================== -->
+
+<div
+    id="admin-semester-edit-modal"
+    class="modal-overlay semester-modal-overlay"
+    style="display:none;"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="admin-semester-edit-title"
+>
+    <div class="modal-content semester-modal">
+
+        <div class="semester-modal-header">
+            <div>
+                <h2 id="admin-semester-edit-title">
+                    📅 แก้ไขวันที่ภาคเรียน
+                </h2>
+                <p>
+                    ตรวจสอบผลกระทบต่อข้อมูลการเช็กชื่อ
+                    ก่อนเปลี่ยนแปลงวันที่ภาคเรียน
+                </p>
+            </div>
+        </div>
+
+        <form
+            id="admin-semester-edit-form"
+            class="semester-modal-form"
+        >
+
+            <!-- Academic Context -->
+            <div class="semester-form-grid">
+                <div class="semester-field">
+                    <label for="admin-semester-year">
+                        ปีการศึกษา
+                    </label>
+                    <input
+                        id="admin-semester-year"
+                        type="text"
+                        readonly
+                    >
+                </div>
+
+                <div class="semester-field">
+                    <label for="admin-semester-number">
+                        ภาคเรียน
+                    </label>
+                    <input
+                        id="admin-semester-number"
+                        type="text"
+                        readonly
+                    >
+                </div>
+            </div>
+
+            <!-- Semester Date Range -->
+            <div class="semester-form-grid">
+                <div class="semester-field">
+                    <label for="admin-semester-start-date">
+                        วันเริ่มต้น
+                    </label>
+                    <input
+                        id="admin-semester-start-date"
+                        type="date"
+                        required
+                    >
+                </div>
+
+                <div class="semester-field">
+                    <label for="admin-semester-end-date">
+                        วันสิ้นสุด
+                    </label>
+                    <input
+                        id="admin-semester-end-date"
+                        type="date"
+                        required
+                    >
+                </div>
+            </div>
+
+            <!-- Impact Preview -->
+            <div class="semester-preview-section">
+                <button
+                    type="button"
+                    id="admin-semester-preview-btn"
+                    class="btn semester-preview-btn"
+                >
+                    🔍 ตรวจสอบผลกระทบ
+                </button>
+
+                <div
+                    id="admin-semester-impact-status"
+                    class="semester-impact-status"
+                    role="status"
+                    aria-live="polite"
+                >
+                    ยังไม่ได้ตรวจสอบผลกระทบ
+                </div>
+            </div>
+
+            <!-- Reason: show after preview approved -->
+            <div
+                id="admin-semester-reason-group"
+                class="semester-field semester-reason-group"
+                style="display:none;"
+            >
+                <label for="admin-semester-reason">
+                    เหตุผลในการเปลี่ยนแปลง
+                </label>
+
+                <textarea
+                    id="admin-semester-reason"
+                    rows="3"
+                    minlength="5"
+                    maxlength="2000"
+                    placeholder="เช่น ปรับวันเปิดภาคเรียนตามประกาศของโรงเรียน"
+                    required
+                ></textarea>
+
+                <small>
+                    กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร
+                </small>
+            </div>
+
+            <!-- Actions -->
+            <div class="semester-modal-actions">
+                <button
+                    type="button"
+                    id="admin-semester-cancel-btn"
+                    class="btn semester-cancel-btn"
+                >
+                    ยกเลิก
+                </button>
+
+                <button
+                    type="submit"
+                    id="admin-semester-save-btn"
+                    class="btn semester-save-btn"
+                    disabled
+                    aria-disabled="true"
+                >
+                    💾 บันทึกการเปลี่ยนแปลง
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
 <div id="view-settings" style="display:none;">
 
     <div class="page-header">
@@ -1425,6 +1704,14 @@
             <p>สื่อการเรียนออนไลน์สำหรับนักเรียน</p>
         </div>
 
+                <!-- HERO OBEC Care -->
+        <div class="portal-card"
+             onclick="window.open('https://heroobeccare.obec.go.th/index.html', '_blank', 'noopener,noreferrer')">
+            <div class="portal-icon">💙</div>
+            <h3>HERO OBEC Care</h3>
+            <p>ระบบดูแลช่วยเหลือนักเรียน</p>
+        </div>
+
         <div class="portal-card portal-coming">
             <div class="portal-icon">🚀</div>
             <h3>Coming Soon</h3>
@@ -1532,9 +1819,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         const role = await getCurrentUserRole();
         const menu = document.getElementById("menu-student-management");
 
-        if (menu && role === "Admin") {
-            menu.style.display = "";
-        }
+        if (role === "Admin") {
+        if (menu) {
+        menu.style.display = "";
+    }
+
+    const academicMenu = document.getElementById(
+        "menu-admin-academic"
+    );
+
+    if (academicMenu) {
+    academicMenu.style.display = "";
+    }
+
+const academicGroup = document.getElementById(
+    "nav-group-academic"
+);
+
+if (academicGroup) {
+    academicGroup.style.display = "";
+}
+
+}
+
     } catch (error) {
         console.error("Load user role failed:", error);
     }

@@ -5065,3 +5065,228 @@ async function commitStudentImport(payload) {
         attemptId: currentAttemptId
     };
 }
+
+/* ============================================================
+   ADMIN ACADEMIC MANAGEMENT
+   Module 1.1 — Academic Overview (Read Only)
+   ============================================================ */
+
+async function getAdminAcademicOverview() {
+
+    const role = await getCurrentUserRole();
+
+    if (role !== "Admin") {
+        throw new Error(
+            "ไม่มีสิทธิ์เข้าถึงข้อมูลจัดการงานวิชาการ"
+        );
+    }
+
+    const [yearResult, semesterResult] = await Promise.all([
+        supabaseClient
+            .from("academic_years")
+            .select("id, year, is_current")
+            .order("year", { ascending: false }),
+
+        supabaseClient
+            .from("semesters")
+            .select(
+                "id, academic_year_id, semester_no, start_date, end_date"
+            )
+            .order("start_date", { ascending: false })
+    ]);
+
+    if (yearResult.error) {
+        throw yearResult.error;
+    }
+
+    if (semesterResult.error) {
+        throw semesterResult.error;
+    }
+
+    return {
+        academicYears: yearResult.data || [],
+        semesters: semesterResult.data || []
+    };
+}
+
+window.getAdminAcademicOverview =
+    getAdminAcademicOverview;
+
+/* ============================================================
+   MODULE 2.5 — ADMIN SEMESTER IMPACT PREVIEW API
+   READ ONLY / NO DATABASE WRITES
+   ============================================================ */
+
+async function previewAdminSemesterDateImpact({
+    semesterId,
+    startDate,
+    endDate
+} = {}) {
+
+    const role = await getCurrentUserRole();
+
+    if (role !== "Admin") {
+        throw new Error(
+            "ไม่มีสิทธิ์ตรวจสอบการเปลี่ยนแปลงภาคเรียน"
+        );
+    }
+
+    if (!semesterId || !startDate || !endDate) {
+        throw new Error(
+            "กรุณาระบุภาคเรียนและช่วงวันที่ให้ครบ"
+        );
+    }
+
+    if (endDate < startDate) {
+        throw new Error(
+            "วันสิ้นสุดต้องไม่อยู่ก่อนวันเริ่มต้น"
+        );
+    }
+
+    const { data, error } = await supabaseClient.rpc(
+        "admin_preview_semester_date_impact",
+        {
+            p_semester_id: semesterId,
+            p_start_date: startDate,
+            p_end_date: endDate
+        }
+    );
+
+    if (error) {
+        console.error(
+            "Admin Semester Impact Preview:",
+            error
+        );
+        throw error;
+    }
+
+    if (!Array.isArray(data) || data.length !== 1) {
+        throw new Error(
+            "ผลการตรวจสอบจากฐานข้อมูลไม่ถูกต้อง"
+        );
+    }
+
+    return data[0];
+}
+
+window.previewAdminSemesterDateImpact =
+    previewAdminSemesterDateImpact;
+
+/* ============================================================
+   MODULE 2.7 — ADMIN SEMESTER UPDATE API
+   NOT CONNECTED TO UI
+   ============================================================ */
+
+async function updateAdminSemesterDates({
+    semesterId,
+    startDate,
+    endDate,
+    reason
+} = {}) {
+
+    const role = await getCurrentUserRole();
+
+    if (role !== "Admin") {
+        throw new Error(
+            "ไม่มีสิทธิ์แก้ไขวันที่ภาคเรียน"
+        );
+    }
+
+    const normalizedReason = String(
+        reason ?? ""
+    ).trim();
+
+    if (!semesterId || !startDate || !endDate) {
+        throw new Error(
+            "กรุณาระบุข้อมูลภาคเรียนและวันที่ให้ครบ"
+        );
+    }
+
+    if (endDate < startDate) {
+        throw new Error(
+            "วันสิ้นสุดต้องไม่อยู่ก่อนวันเริ่มต้น"
+        );
+    }
+
+    if (
+        normalizedReason.length < 5 ||
+        normalizedReason.length > 2000
+    ) {
+        throw new Error(
+            "กรุณาระบุเหตุผลระหว่าง 5–2000 ตัวอักษร"
+        );
+    }
+
+    const { data, error } = await supabaseClient.rpc(
+        "admin_update_semester_dates",
+        {
+            p_semester_id: semesterId,
+            p_start_date: startDate,
+            p_end_date: endDate,
+            p_reason: normalizedReason
+        }
+    );
+
+    if (error) {
+        console.error(
+            "Admin Semester Update:",
+            error
+        );
+        throw error;
+    }
+
+    return data;
+}
+
+window.updateAdminSemesterDates =
+    updateAdminSemesterDates;
+
+/* =====================================================
+   MODULE 3.0 — ACADEMIC CREATION API
+   ===================================================== */
+
+async function createAdminAcademicYear({
+    year,
+    reason
+}) {
+    if (await getCurrentUserRole() !== "Admin") {
+        throw new Error("ADMIN_REQUIRED");
+    }
+
+    const { data, error } = await supabaseClient.rpc(
+        "admin_create_academic_year",
+        {
+            p_year: Number(year),
+            p_reason: String(reason).trim()
+        }
+    );
+
+    if (error) throw error;
+    return data;
+}
+
+async function createAdminSemester({
+    academicYearId,
+    semesterNo,
+    startDate,
+    endDate,
+    reason
+}) {
+    if (await getCurrentUserRole() !== "Admin") {
+        throw new Error("ADMIN_REQUIRED");
+    }
+
+    const { data, error } = await supabaseClient.rpc(
+        "admin_create_semester",
+        {
+            p_academic_year_id: academicYearId,
+            p_semester_no: Number(semesterNo),
+            p_start_date: startDate,
+            p_end_date: endDate,
+            p_reason: String(reason).trim()
+        }
+    );
+
+    if (error) throw error;
+    return data;
+}
