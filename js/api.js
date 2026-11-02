@@ -3284,11 +3284,19 @@ async function getClassSchedules() {
             ),
 
             subject_assignments!subject_assignment_id(
-                teacher_id,
-                subject_id,
-                room_id,
+    teacher_id,
+    subject_id,
+    room_id,
+    semester_id,
 
-                teachers!teacher_id(
+    semesters!semester_id(
+        id,
+        start_date,
+        end_date,
+        schedule_locked_at
+    ),
+
+                    teachers!teacher_id(
                     first_name,
                     last_name,
                     nickname
@@ -3311,6 +3319,181 @@ async function getClassSchedules() {
 
     return data;
 }
+
+ // ============================================================
+ // B55.22 — Activity Types for New Activity Form
+ // ============================================================
+
+async function getActiveActivityTypes() {
+
+    const { data, error } = await supabaseClient
+        .from("activity_types")
+        .select("id, code, name")
+        .is("deleted_at", null)
+        .order("code", { ascending: true });
+
+    if (error) {
+        throw error;
+    }
+
+    return data || [];
+}
+
+
+// ============================================================
+ // B55.22 — Create New Activity via Secure RPC
+ // ============================================================
+
+async function createTeacherActivity({
+    activityTypeId,
+    activityName,
+    teacherId = null
+} = {}) {
+
+    if (!activityTypeId) {
+        throw new Error(
+            "กรุณาเลือกประเภทกิจกรรม"
+        );
+    }
+
+    const normalizedName =
+        String(activityName ?? "").trim();
+
+    if (normalizedName.length > 30) {
+    throw new Error(
+        "ชื่อชุมนุมต้องไม่เกิน 30 ตัวอักษร"
+    );
+}
+
+    const { data, error } = await supabaseClient.rpc(
+        "teacher_create_activity",
+        {
+            p_activity_type_id: activityTypeId,
+            p_activity_name: normalizedName,
+            p_teacher_id: teacherId || null
+        }
+    );
+
+    if (error) {
+        throw error;
+    }
+
+    if (!data) {
+        throw new Error(
+            "ไม่สามารถสร้างกิจกรรมใหม่ได้"
+        );
+    }
+
+    return data;
+}
+
+async function getClubNameForDate(
+    activityId,
+    referenceDate
+) {
+    if (!activityId) {
+        throw new Error("กรุณาระบุรหัสกิจกรรม");
+    }
+
+    if (
+        typeof referenceDate !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)
+    ) {
+        throw new Error(
+            "วันที่ต้องอยู่ในรูปแบบ YYYY-MM-DD"
+        );
+    }
+
+    // B55.46 — อ่านชื่อและประเภทจากกิจกรรมเดิม
+    const {
+        data: activity,
+        error: activityError
+    } = await supabaseClient
+        .from("activities")
+        .select(`
+            id,
+            activity_name,
+            activity_types!activity_type_id(
+                code
+            )
+        `)
+        .eq("id", activityId)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+    if (activityError) {
+        throw activityError;
+    }
+
+    if (!activity) {
+        throw new Error("ไม่พบกิจกรรม");
+    }
+
+    const currentName =
+        activity.activity_name || "";
+
+    // กิจกรรมอื่นไม่ต้องอ่านประวัติชื่อชุมนุม
+    if (
+        activity.activity_types?.code !== "CLUB"
+    ) {
+        return currentName;
+    }
+
+    // อ่านประวัติชื่อทั้งหมดของชุมนุมนี้
+    const {
+        data: periods,
+        error: periodError
+    } = await supabaseClient
+        .from("activity_club_name_periods")
+        .select(`
+            club_name,
+            valid_from,
+            valid_until
+        `)
+        .eq("activity_id", activityId)
+        .order("valid_from", {
+            ascending: true
+        });
+
+    if (periodError) {
+        throw periodError;
+    }
+
+    const history = periods || [];
+
+    // ชุมนุมเก่าที่ไม่เคยเก็บประวัติ
+    // รองรับข้อมูลเดิมโดยไม่แก้ Production
+    if (history.length === 0) {
+        return currentName || "ชุมนุม";
+    }
+
+    // มีประวัติแล้ว ต้องใช้ชื่อที่ตรงกับวันที่
+    const matchingPeriods = history.filter(period =>
+        period.valid_from <= referenceDate &&
+        (
+            period.valid_until === null ||
+            referenceDate <= period.valid_until
+        )
+    );
+
+    if (matchingPeriods.length > 1) {
+        throw new Error(
+            "พบประวัติชื่อชุมนุมซ้อนทับกัน"
+        );
+    }
+
+    if (matchingPeriods.length === 1) {
+        return matchingPeriods[0].club_name;
+    }
+
+    // มีประวัติ แต่ไม่ครอบคลุมวันที่ที่เลือก
+    // ห้ามนำชื่อปัจจุบันมาแสดงแทน
+    throw new Error(
+        "ไม่พบชื่อชุมนุมที่ตรงกับวันที่เลือก " +
+        "กรุณาให้ผู้ดูแลระบบตรวจสอบประวัติชื่อ"
+    );
+}
+
 // ============================================================
 // Activity Schedule
 // ใช้สำหรับแสดงกิจกรรมในตารางสอน
@@ -3322,10 +3505,12 @@ async function getActivitySchedules() {
         await supabaseClient
             .from("activities")
             .select(`
-                id,
-                activity_name,
+    id,
+    activity_name,
+    academic_year_id,
+    semester_id,
 
-                activity_types!activity_type_id(
+    activity_types!activity_type_id(
                     code,
                     name
                 ),
@@ -3367,11 +3552,17 @@ async function getActivitySchedules() {
 
             result.push({
 
-                activityId:
-                    activity.id,
+    activityId:
+        activity.id,
 
-                activityName:
-                    activity.activity_name || "",
+    semesterId:
+        activity.semester_id || null,
+
+    academicYearId:
+        activity.academic_year_id || null,
+
+    activityName:
+        activity.activity_name || "",
 
                 activityTypeCode:
                     activityType.code || "",
@@ -3413,6 +3604,7 @@ async function getActivitySchedules() {
 
     return result;
 }
+
 async function getActivitiesForScheduleCreate() {
 
     const { data, error } =
@@ -3421,39 +3613,53 @@ async function getActivitiesForScheduleCreate() {
             .select(`
                 id,
                 activity_name,
+                academic_year_id,
+                semester_id,
+
                 activity_types!activity_type_id(
                     code,
                     name
+                ),
+
+                activity_teachers!activity_id(
+                    teacher_id
                 )
             `)
             .is("deleted_at", null)
-            .order(
-                "activity_name",
-                {
-                    ascending: true
-                }
-            );
+            .order("activity_name", {
+                ascending: true
+            });
 
     if (error) {
         throw error;
     }
 
-    return (data || []).map(
-        activity => ({
-            activityId:
-                activity.id,
+    return (data || []).map(activity => ({
+        activityId:
+            activity.id,
 
-            activityName:
-                activity.activity_name || "",
+        activityName:
+            activity.activity_name || "",
 
-            activityTypeCode:
-                activity.activity_types?.code || "",
+        academicYearId:
+            activity.academic_year_id,
 
-            activityTypeName:
-                activity.activity_types?.name || ""
-        })
-    );
+        semesterId:
+            activity.semester_id,
+
+        teacherIds:
+            (activity.activity_teachers || [])
+                .map(teacher => teacher.teacher_id)
+                .filter(Boolean),
+
+        activityTypeCode:
+            activity.activity_types?.code || "",
+
+        activityTypeName:
+            activity.activity_types?.name || ""
+    }));
 }
+
 // ============================================================
 // Activity Schedule
 // CREATE Activity Schedule
@@ -3606,143 +3812,6 @@ async function createClassSchedule(scheduleData) {
     }
 
     return data;
-}
-
-// ============================================================
-// SUBJECT ASSIGNMENT
-// STEP 17 — Get or Create Subject Assignment
-// ============================================================
-
-async function getOrCreateSubjectAssignment({
-    teacherId,
-    subjectId,
-    roomId,
-    academicYearId,
-    semesterId
-}) {
-
-    // --------------------------------------------------------
-    // 1. ตรวจข้อมูล
-    // --------------------------------------------------------
-
-    if (
-        !teacherId ||
-        !subjectId ||
-        !roomId ||
-        !academicYearId ||
-        !semesterId
-    ) {
-
-        throw new Error(
-            "ข้อมูลสำหรับสร้างกลุ่มการสอนไม่ครบ"
-        );
-
-    }
-
-
-    // --------------------------------------------------------
-    // 2. ค้นหา Subject Assignment เดิม
-    // --------------------------------------------------------
-
-    const {
-        data: existingAssignment,
-        error: findError
-    } = await supabaseClient
-
-        .from("subject_assignments")
-
-        .select("*")
-
-        .eq(
-            "teacher_id",
-            teacherId
-        )
-
-        .eq(
-            "subject_id",
-            subjectId
-        )
-
-        .eq(
-            "room_id",
-            roomId
-        )
-
-        .eq(
-            "academic_year_id",
-            academicYearId
-        )
-
-        .eq(
-            "semester_id",
-            semesterId
-        )
-
-        .maybeSingle();
-
-
-    if (findError) {
-        throw findError;
-    }
-
-
-    // --------------------------------------------------------
-    // 3. ถ้ามีอยู่แล้ว → ใช้ของเดิม
-    // --------------------------------------------------------
-
-    if (existingAssignment) {
-
-        return existingAssignment;
-
-    }
-
-
-    // --------------------------------------------------------
-    // 4. ยังไม่มี → สร้างใหม่
-    // --------------------------------------------------------
-
-    const {
-        data: newAssignment,
-        error: createError
-    } = await supabaseClient
-
-        .from("subject_assignments")
-
-        .insert({
-
-            teacher_id:
-                teacherId,
-
-            subject_id:
-                subjectId,
-
-            room_id:
-                roomId,
-
-            academic_year_id:
-                academicYearId,
-
-            semester_id:
-                semesterId
-
-        })
-
-        .select()
-
-        .single();
-
-
-    if (createError) {
-        throw createError;
-    }
-
-
-    // --------------------------------------------------------
-    // 5. คืน Assignment ที่สร้าง
-    // --------------------------------------------------------
-
-    return newAssignment;
-
 }
 
 async function updateClassSchedule(scheduleId, scheduleData) {
@@ -3986,7 +4055,7 @@ async function getAttendanceActivities(date) {
     // 5. กรอง Schedule ตามวันที่
     // ============================================
 
-    return (data || [])
+    const attendanceActivities = (data || [])
         // ตรวจสิทธิ์ครูที่รับผิดชอบกิจกรรม
         .filter(activity => {
             if (isAdmin) {
@@ -4108,8 +4177,32 @@ if (
 
         })
         .filter(Boolean);
+ // ========================================================
+    // B55.45 — ชื่อชุมนุมตามวันที่เช็กชื่อ
+    // Read-only: ไม่แก้สมาชิกหรือ Attendance
+    // ========================================================
 
+    return await Promise.all(
+        attendanceActivities.map(async activity => {
+
+            // กิจกรรมอีก 8 ประเภทใช้ข้อมูลเดิม
+            if (activity.activityTypeCode !== "CLUB") {
+                return activity;
+            }
+
+            const clubName = await getClubNameForDate(
+                activity.activityId,
+                date
+            );
+
+            return {
+                ...activity,
+                activityName: clubName
+            };
+        })
+    );
 }
+
 // ============================================================
 // ACTIVITY ATTENDANCE
 // STEP 3.5.3 — Get Activity Participants
@@ -5089,9 +5182,7 @@ async function getAdminAcademicOverview() {
 
         supabaseClient
             .from("semesters")
-            .select(
-                "id, academic_year_id, semester_no, start_date, end_date"
-            )
+            .select("id, academic_year_id, semester_no, start_date, end_date, schedule_locked_at")
             .order("start_date", { ascending: false })
     ]);
 
@@ -5289,4 +5380,436 @@ async function createAdminSemester({
 
     if (error) throw error;
     return data;
+}
+
+/* ============================================================
+   B55-I — ACTIVITY MEMBERSHIP API
+   ใช้ RPC เดิมใน Supabase
+   ไม่แก้ไขระบบเช็กชื่อหรือวิชา
+   ============================================================ */
+
+// ตรวจข้อมูลก่อนเรียก RPC
+function validateActivityMemberId(value, label) {
+    if (
+        typeof value !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            value
+        )
+    ) {
+        throw new Error(`${label} ไม่ถูกต้อง`);
+    }
+
+    return value;
+}
+
+// ตัวกลางสำหรับเรียก RPC สมาชิกกิจกรรม
+async function callActivityMembershipRpc(
+    functionName,
+    parameters
+) {
+    const {
+        data: { user },
+        error: authError
+    } = await supabaseClient.auth.getUser();
+
+    if (authError) throw authError;
+
+    if (!user) {
+        throw new Error("กรุณาเข้าสู่ระบบ");
+    }
+
+    const { data, error } =
+        await supabaseClient.rpc(
+            functionName,
+            parameters
+        );
+
+    if (error) {
+        console.error(
+            `Activity RPC ${functionName}:`,
+            error
+        );
+
+        throw error;
+    }
+
+    return data;
+}
+
+/* ============================================================
+   B55-L — GENERAL ACTIVITY CANDIDATES
+   อ่านรายชื่อนักเรียนสำหรับเลือกเข้ากิจกรรม
+   รองรับกิจกรรมทั่วไป 8 ประเภท
+   READ ONLY
+   ============================================================ */
+
+async function getGeneralActivityCandidates(activityId) {
+
+    validateActivityMemberId(
+        activityId,
+        "รหัสกิจกรรม"
+    );
+
+    const data = await callActivityMembershipRpc(
+        "get_general_activity_candidates",
+        {
+            p_activity_id: activityId
+        }
+    );
+
+    if (!Array.isArray(data)) {
+        throw new Error(
+            "รูปแบบข้อมูลรายชื่อนักเรียนไม่ถูกต้อง"
+        );
+    }
+
+    return data.map(student => ({
+        studentId: student.student_id,
+        studentCode: student.student_code || "",
+        studentNo: student.student_no ?? null,
+
+        prefix: student.prefix || "",
+        firstName: student.first_name || "",
+        lastName: student.last_name || "",
+
+        roomId: student.room_id || null,
+        roomName: student.room_name || "",
+
+        alreadyMember:
+            student.already_member === true
+    }));
+}
+
+/* ============================================================
+   B55-O — Activity Membership API
+   แยกการจัดการสมาชิกรายคนและทั้งห้อง
+   ============================================================ */
+
+// SCOUT / ROTC — เพิ่มสมาชิกเป็นรายคน
+async function addIndividualActivityMembers(activityId, studentIds) {
+    validateActivityMemberId(activityId, "รหัสกิจกรรม");
+
+    if (
+        !Array.isArray(studentIds) ||
+        studentIds.length === 0
+    ) {
+        throw new Error("กรุณาเลือกนักเรียนก่อนเพิ่มสมาชิก");
+    }
+
+    const ids = [...new Set(studentIds)];
+
+    ids.forEach(id =>
+        validateActivityMemberId(id, "รหัสนักเรียน")
+    );
+
+    return await callActivityMembershipRpc(
+        "add_individual_activity_members",
+        {
+            p_activity_id: activityId,
+            p_student_ids: ids
+        }
+    );
+}
+
+// SCOUT / ROTC — สิ้นสุดสมาชิกเป็นรายคน
+async function endIndividualActivityMember(activityId, studentId) {
+    validateActivityMemberId(activityId, "รหัสกิจกรรม");
+    validateActivityMemberId(studentId, "รหัสนักเรียน");
+
+    return await callActivityMembershipRpc(
+        "end_individual_activity_member",
+        {
+            p_activity_id: activityId,
+            p_student_id: studentId
+        }
+    );
+}
+
+// กิจกรรม 6 ประเภท — เพิ่มหรือสิ้นสุดสมาชิกทั้งห้อง
+async function manageActivityRoomMembers(
+    activityId,
+    roomId,
+    action
+) {
+    validateActivityMemberId(activityId, "รหัสกิจกรรม");
+    validateActivityMemberId(roomId, "รหัสห้องเรียน");
+
+    if (!["ADD", "REMOVE"].includes(action)) {
+        throw new Error("คำสั่งจัดการห้องเรียนไม่ถูกต้อง");
+    }
+
+    const data = await callActivityMembershipRpc(
+        "manage_activity_room_members",
+        {
+            p_activity_id: activityId,
+            p_room_id: roomId,
+            p_action: action
+        }
+    );
+
+    if (!Array.isArray(data) || data.length !== 1) {
+        throw new Error(
+            "ฐานข้อมูลส่งผลการจัดการห้องเรียนไม่ถูกต้อง"
+        );
+    }
+
+    const result = data[0];
+
+    const roomSize = Number(result.room_size);
+    const changedCount = Number(result.changed_count);
+
+    const allowedResults = [
+        "ALREADY_MEMBER",
+        "NOT_MEMBER",
+        "ADDED",
+        "REMOVED"
+    ];
+
+    if (
+        !Number.isInteger(roomSize) ||
+        !Number.isInteger(changedCount) ||
+        roomSize < 0 ||
+        changedCount < 0 ||
+        !allowedResults.includes(result.result_code)
+    ) {
+        throw new Error(
+            "ผลการจัดการสมาชิกจากฐานข้อมูลไม่ถูกต้อง"
+        );
+    }
+
+    return {
+        roomSize,
+        changedCount,
+        resultCode: result.result_code
+    };
+}
+
+// ------------------------------------------------------------
+// 1. อ่านสถานะนักเรียนสำหรับเลือกเข้าชุมนุม
+// ------------------------------------------------------------
+async function getClubMemberStatuses(activityId) {
+    validateActivityMemberId(
+        activityId,
+        "รหัสชุมนุม"
+    );
+
+    return await callActivityMembershipRpc(
+        "get_club_student_statuses",
+        {
+            p_activity_id: activityId
+        }
+    );
+}
+
+// ------------------------------------------------------------
+// 2. เพิ่มสมาชิกชุมนุมทีละคน
+// ------------------------------------------------------------
+async function addClubActivityMember(
+    activityId,
+    studentId
+) {
+    validateActivityMemberId(
+        activityId,
+        "รหัสชุมนุม"
+    );
+
+    validateActivityMemberId(
+        studentId,
+        "รหัสนักเรียน"
+    );
+
+    return await callActivityMembershipRpc(
+        "teacher_add_club_member",
+        {
+            p_activity_id: activityId,
+            p_student_id: studentId
+        }
+    );
+}
+
+// ------------------------------------------------------------
+// 3. เพิ่มสมาชิก SCOUT / ROTC แบบรายคน
+//    หรืออีก 6 กิจกรรมแบบทั้งห้อง
+// ------------------------------------------------------------
+async function addGeneralActivityMembers({
+    activityId,
+    studentIds = null,
+    roomId = null
+}) {
+    validateActivityMemberId(
+        activityId,
+        "รหัสกิจกรรม"
+    );
+
+    const individualMode =
+        Array.isArray(studentIds);
+
+    if (individualMode === Boolean(roomId)) {
+        throw new Error(
+            "ต้องเลือกอย่างใดอย่างหนึ่ง: นักเรียนรายคนหรือห้องเรียน"
+        );
+    }
+
+    let checkedStudentIds = null;
+    let checkedRoomId = null;
+
+    if (individualMode) {
+        if (studentIds.length === 0) {
+            throw new Error(
+                "กรุณาเลือกนักเรียนอย่างน้อย 1 คน"
+            );
+        }
+
+        if (studentIds.length > 500) {
+            throw new Error(
+                "เลือกนักเรียนได้ไม่เกิน 500 คน"
+            );
+        }
+
+        checkedStudentIds = [
+            ...new Set(
+                studentIds.map(studentId =>
+                    validateActivityMemberId(
+                        studentId,
+                        "รหัสนักเรียน"
+                    )
+                )
+            )
+        ];
+    } else {
+        checkedRoomId = validateActivityMemberId(
+            roomId,
+            "รหัสห้องเรียน"
+        );
+    }
+
+    return await callActivityMembershipRpc(
+        "add_general_activity_members",
+        {
+            p_activity_id: activityId,
+            p_student_ids: checkedStudentIds,
+            p_room_id: checkedRoomId
+        }
+    );
+}
+
+// ------------------------------------------------------------
+// 4. สิ้นสุดสมาชิกกิจกรรมทั่วไป
+//    ไม่รองรับ CLUB ตามกฎ Backend
+// ------------------------------------------------------------
+async function endGeneralActivityMember(
+    activityId,
+    studentId
+) {
+    validateActivityMemberId(
+        activityId,
+        "รหัสกิจกรรม"
+    );
+
+    validateActivityMemberId(
+        studentId,
+        "รหัสนักเรียน"
+    );
+
+    return await callActivityMembershipRpc(
+        "end_activity_membership",
+        {
+            p_activity_id: activityId,
+            p_student_id: studentId
+        }
+    );
+}
+
+// ------------------------------------------------------------
+// 5. Admin ย้ายสมาชิกข้ามชุมนุม
+// ------------------------------------------------------------
+async function transferClubActivityMember({
+    studentId,
+    fromActivityId,
+    toActivityId,
+    reason
+}) {
+    validateActivityMemberId(
+        studentId,
+        "รหัสนักเรียน"
+    );
+
+    validateActivityMemberId(
+        fromActivityId,
+        "รหัสชุมนุมต้นทาง"
+    );
+
+    validateActivityMemberId(
+        toActivityId,
+        "รหัสชุมนุมปลายทาง"
+    );
+
+    if (fromActivityId === toActivityId) {
+        throw new Error(
+            "ชุมนุมต้นทางและปลายทางต้องต่างกัน"
+        );
+    }
+
+    if (!String(reason || "").trim()) {
+        throw new Error(
+            "กรุณาระบุเหตุผลการย้ายชุมนุม"
+        );
+    }
+
+    if (await getCurrentUserRole() !== "Admin") {
+        throw new Error(
+            "เฉพาะ Admin ที่ย้ายชุมนุมได้"
+        );
+    }
+
+    return await callActivityMembershipRpc(
+        "admin_transfer_club_member",
+        {
+            p_student_id: studentId,
+            p_from_activity_id: fromActivityId,
+            p_to_activity_id: toActivityId,
+            p_reason: String(reason).trim()
+        }
+    );
+}
+
+// ------------------------------------------------------------
+// 6. Admin ให้นักเรียนออกจากชุมนุม
+//    โดยไม่ย้ายไปชุมนุมอื่น
+// ------------------------------------------------------------
+async function exitClubActivityMember({
+    activityId,
+    studentId,
+    reason
+}) {
+    validateActivityMemberId(
+        activityId,
+        "รหัสชุมนุม"
+    );
+
+    validateActivityMemberId(
+        studentId,
+        "รหัสนักเรียน"
+    );
+
+    if (!String(reason || "").trim()) {
+        throw new Error(
+            "กรุณาระบุเหตุผลการออกจากชุมนุม"
+        );
+    }
+
+    if (await getCurrentUserRole() !== "Admin") {
+        throw new Error(
+            "เฉพาะ Admin ที่ให้สมาชิกออกจากชุมนุมได้"
+        );
+    }
+
+    return await callActivityMembershipRpc(
+        "admin_exit_club_member",
+        {
+            p_activity_id: activityId,
+            p_student_id: studentId,
+            p_reason: String(reason).trim()
+        }
+    );
 }

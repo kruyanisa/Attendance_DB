@@ -608,10 +608,13 @@ function switchScheduleTab(tabName) {
 function mapScheduleData(schedule) {
 
     const assignment = schedule.subject_assignments || {};
-    const subject = assignment.subjects || {};
-    const teacher = assignment.teachers || {};
-    const room = assignment.rooms || {};
-    const teachingRoom = schedule.teaching_rooms || {};
+const subject = assignment.subjects || {};
+const teacher = assignment.teachers || {};
+const room = assignment.rooms || {};
+const teachingRoom = schedule.teaching_rooms || {};
+
+// Semester Lock — อ่านจากภาคเรียนของ Assignment
+const semester = assignment.semesters || {};
 
     const teacherName = [
         teacher.first_name,
@@ -623,10 +626,22 @@ function mapScheduleData(schedule) {
     return {
         id: schedule.id,
         subjectAssignmentId:
-            schedule.subject_assignment_id,
+    schedule.subject_assignment_id,
 
-        teachingRoomId:
-            schedule.teaching_room_id,
+semesterId:
+    assignment.semester_id || null,
+
+semesterStart:
+    semester.start_date || null,
+
+semesterEnd:
+    semester.end_date || null,
+
+semesterLockedAt:
+    semester.schedule_locked_at || null,
+
+teachingRoomId:
+    schedule.teaching_room_id,
 
         weekday: schedule.weekday,
         lessonNo: schedule.lesson_no,
@@ -764,10 +779,37 @@ async function loadScheduleView(referenceDate) {
             item.teacherId === selectedTeacherId
         );
 
+        // B53 — หาภาคเรียนของวันที่เลือกดูตาราง
+        const {
+            data: dateSemesters,
+            error: dateSemesterError
+        } = await supabaseClient
+            .from("semesters")
+            .select("id")
+            .lte("start_date", selectedDate)
+            .gte("end_date", selectedDate);
+
+        if (dateSemesterError) {
+            throw dateSemesterError;
+        }
+
+        if ((dateSemesters || []).length > 1) {
+            throw new Error(
+                "พบภาคเรียนซ้อนทับกันในวันที่เลือก"
+            );
+        }
+
+        const activityDateSemesterId =
+        dateSemesters?.[0]?.id || null;
+
+        // กิจกรรมต้องอยู่ในภาคเรียนของวันที่เลือก
+        // และอยู่ในช่วงวันที่ใช้งานจริง
         const activities = (rawActivities || [])
             .filter(item =>
-                scheduleIsValidOnDate(item, selectedDate)
-            )
+    activityDateSemesterId !== null &&
+    item.semesterId === activityDateSemesterId &&
+    scheduleIsValidOnDate(item, selectedDate)
+                )
             .filter(item =>
                 role === "Admin" ||
                 (
@@ -776,16 +818,64 @@ async function loadScheduleView(referenceDate) {
                 )
             );
 
-        const filteredActivitySchedules =
-        (activities || []).filter(item =>
+const filteredActivitySchedules =
+    (activities || []).filter(item =>
         Array.isArray(item.teacherIds) &&
         item.teacherIds.includes(selectedTeacherId)
-           );
+    );
 
-        renderScheduleTimetable(
-            schedules,
-            filteredActivitySchedules
+// ============================================================
+// B55.44 — แสดงชื่อ CLUB ตามวันที่เลือกดูตารางสอน
+// Read-only / ไม่เปลี่ยนข้อมูล Attendance
+// ============================================================
+
+const clubNameById = new Map();
+
+const clubIds = [
+    ...new Set(
+        filteredActivitySchedules
+            .filter(item =>
+                item.activityTypeCode === "CLUB" &&
+                item.activityId
+            )
+            .map(item => item.activityId)
+    )
+];
+
+// อ่านชื่อเพียงหนึ่งครั้งต่อชุมนุม
+await Promise.all(
+    clubIds.map(async activityId => {
+        const name = await getClubNameForDate(
+            activityId,
+            selectedDate
         );
+
+        clubNameById.set(activityId, name);
+    })
+);
+
+// สร้างรายการสำหรับแสดงผลเท่านั้น
+// ไม่แก้ข้อมูลต้นฉบับที่โหลดจาก API
+const displayActivitySchedules =
+    filteredActivitySchedules.map(item => {
+
+        if (item.activityTypeCode !== "CLUB") {
+            return item;
+        }
+
+        return {
+            ...item,
+            activityName:
+                clubNameById.get(item.activityId) ||
+                item.activityName ||
+                "ชุมนุม"
+        };
+    });
+
+renderScheduleTimetable(
+    schedules,
+    displayActivitySchedules
+);
 
         // เพิ่มตัวเลือกวันที่เหนือแสดงตาราง
         const toolbar = document.createElement("div");
@@ -1156,7 +1246,6 @@ async function loadScheduleView(referenceDate) {
             semesterFilter
         );
 
-
     } catch (error) {
 
         console.error(
@@ -1185,10 +1274,10 @@ async function deleteActivityScheduleManage(scheduleId) {
 
     const result = await Swal.fire({
         title: "🗑️ ลบตารางกิจกรรม?",
-        text: "การลบจะไม่กระทบประวัติการเช็คชื่อที่มีอยู่",
+        text: "คุณกำลังลบเฉพาะคาบกิจกรรมนี้ หากเคยมีการเช็กชื่อแล้ว ระบบจะไม่อนุญาตให้ลบ",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "ลบ",
+        confirmButtonText: "ยืนยันลบคาบ",
         cancelButtonText: "ยกเลิก",
         confirmButtonColor: "#dc2626"
     });
@@ -1228,6 +1317,42 @@ async function deleteActivityScheduleManage(scheduleId) {
     }
 }
 
+function showScheduleManageCount(
+    list,
+    count,
+    semesterLabel = "",
+    teacherLabel = ""
+) {
+    if (!list) return;
+
+    const summary = document.createElement("div");
+
+    summary.style.cssText = `
+        margin: 0 0 14px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+    `;
+
+    const parts = [];
+
+    if (semesterLabel) {
+        parts.push(semesterLabel);
+    }
+
+    if (teacherLabel) {
+        parts.push(teacherLabel);
+    }
+
+    parts.push(
+        `จำนวนคาบที่แสดง: ${count} คาบ`
+    );
+
+    summary.textContent = parts.join(" · ");
+
+    list.prepend(summary);
+}
+
 // ============================================================
 // ACTIVITY SCHEDULE MANAGE
 // STEP 4.4.1 — Load Activity Schedule Cards
@@ -1244,9 +1369,188 @@ async function loadActivityScheduleManage() {
 
     try {
 
-        const schedules =
+    // B53 — ใช้ภาคเรียนปัจจุบันเดียวกับแท็บวิชา
+    const activeSemester =
+        await getScheduleManageActiveSemester();
+
+    if (!activeSemester) {
+        list.innerHTML = `
+            <div class="schedule-empty-state">
+                <div class="schedule-empty-icon">🔒</div>
+                <h2>ไม่มีภาคเรียนที่เปิดให้จัดการกิจกรรม</h2>
+                <p>กรุณาตรวจสอบสถานะภาคเรียนในเมนูจัดการงานวิชาการ</p>
+            </div>
+        `;
+        return;
+    }
+
+        // B53 — กรองกิจกรรมตามภาคเรียนปัจจุบัน
+        const allActivitySchedules =
             await getActivitySchedules();
-        const typeFilter =
+
+        const currentSemesterSchedules =
+            (allActivitySchedules || []).filter(activity =>
+                activity.semesterId === activeSemester.id
+            );
+
+        // ตรวจ Role ของผู้ใช้งาน
+        const role = await getCurrentUserRole();
+
+        let schedules = currentSemesterSchedules;
+
+        if (role === "Teacher") {
+
+            const teacherContext =
+                await getCurrentTeacherContext();
+
+            if (!teacherContext?.teacherId) {
+                throw new Error(
+                    "ไม่พบข้อมูลครูผู้เข้าสู่ระบบ"
+                );
+            }
+
+            // กิจกรรมหนึ่งอาจมีครูร่วมหลายคน
+            schedules = currentSemesterSchedules.filter(
+                activity =>
+                    Array.isArray(activity.teacherIds) &&
+                    activity.teacherIds.includes(
+                        teacherContext.teacherId
+                    )
+            );
+
+        } else if (role !== "Admin") {
+
+            throw new Error(
+                "ไม่มีสิทธิ์จัดการตารางกิจกรรม"
+            );
+
+        }
+
+        // B53 — ตัวกรองครูของ Admin สำหรับกิจกรรม
+        if (role === "Admin") {
+
+            const filterArea =
+                document.getElementById(
+                    "schedule-manage-filter"
+                );
+
+            if (filterArea) {
+
+                let teacherFilter =
+                    document.getElementById(
+                        "activity-manage-teacher-filter"
+                    );
+
+                if (!teacherFilter) {
+                    teacherFilter =
+                        document.createElement("select");
+
+                    teacherFilter.id =
+                        "activity-manage-teacher-filter";
+
+                    teacherFilter.className =
+                        "schedule-filter-select";
+
+                    filterArea.prepend(teacherFilter);
+                }
+
+                // ครูที่ผูกกับกิจกรรมในภาคเรียนปัจจุบัน
+                const teacherIds = [
+                    ...new Set(
+                        schedules.flatMap(activity =>
+                            Array.isArray(activity.teacherIds)
+                                ? activity.teacherIds
+                                : []
+                        ).filter(Boolean)
+                    )
+                ];
+
+                let teachers = [];
+
+                if (teacherIds.length > 0) {
+
+                    const { data, error } =
+                        await supabaseClient
+                            .from("teachers")
+                            .select(
+                                "id, first_name, last_name, nickname"
+                            )
+                            .in("id", teacherIds);
+
+                    if (error) throw error;
+
+                    teachers = data || [];
+                }
+
+                const previousTeacherId =
+                    window.activityManageTeacherFilterId || "";
+
+                teacherFilter.replaceChildren();
+
+                const allOption =
+                    document.createElement("option");
+
+                allOption.value = "";
+                allOption.textContent =
+                    "👨‍🏫 ครูทุกคน";
+
+                teacherFilter.appendChild(allOption);
+
+                teachers
+                    .sort((a, b) =>
+                        `${a.first_name || ""} ${a.last_name || ""}`
+                            .localeCompare(
+                                `${b.first_name || ""} ${b.last_name || ""}`,
+                                "th"
+                            )
+                    )
+                    .forEach(teacher => {
+
+                        const option =
+                            document.createElement("option");
+
+                        option.value = teacher.id;
+                        option.textContent =
+                            [teacher.first_name, teacher.last_name]
+                                .filter(Boolean)
+                                .join(" ") ||
+                            teacher.nickname ||
+                            "ไม่ระบุชื่อครู";
+
+                        teacherFilter.appendChild(option);
+                    });
+
+                const selectedTeacherId =
+                    teacherIds.includes(previousTeacherId)
+                        ? previousTeacherId
+                        : "";
+
+                teacherFilter.value =
+                    selectedTeacherId;
+
+                window.activityManageTeacherFilterId =
+                    selectedTeacherId;
+
+                teacherFilter.onchange = function () {
+                    window.activityManageTeacherFilterId =
+                        this.value;
+
+                    loadActivityScheduleManage();
+                };
+
+                if (selectedTeacherId) {
+                    schedules = schedules.filter(activity =>
+                        Array.isArray(activity.teacherIds) &&
+                        activity.teacherIds.includes(
+                            selectedTeacherId
+                        )
+                    );
+                }
+            }
+        }
+
+    const typeFilter =
+
     document.getElementById(
         "activity-manage-type-filter"
     );
@@ -1292,6 +1596,25 @@ if (typeFilter) {
     typeFilter.value = currentValue;
 }
 
+        // B53 — ชื่อภาคเรียนและครูสำหรับสรุปกิจกรรม
+        let summaryTeacherId = "";
+
+        if (role === "Admin") {
+            summaryTeacherId =
+                window.activityManageTeacherFilterId || "";
+        } else if (role === "Teacher") {
+            const context =
+                await getCurrentTeacherContext();
+
+            summaryTeacherId = context?.teacherId || "";
+        }
+
+        const summaryLabels =
+            await getScheduleManageSummaryLabels(
+                activeSemester,
+                summaryTeacherId
+            );
+
 const filteredSchedules =
     schedules.filter(activity => {
 
@@ -1326,7 +1649,12 @@ const filteredSchedules =
                     </p>
                 </div>
             `;
-
+            showScheduleManageCount(
+    list,
+    0,
+    summaryLabels.semesterLabel,
+    summaryLabels.teacherLabel
+             );
             return;
         }
 
@@ -1409,24 +1737,35 @@ const filteredSchedules =
 
                             <div class="schedule-manage-card-actions">
 
-                                <button
-                                   type="button"
-                                   class="schedule-delete-btn"
-                                   onclick="
-                                      deleteActivityScheduleManage(
-                                      '${activity.scheduleId}'
-                                    )
-                                "
-                                >
-                                    🗑️ ลบ
-                                </button>
+    <button
+        type="button"
+        class="schedule-edit-btn"
+        onclick="openActivityScheduleEdit('${activity.scheduleId}')"
+    >
+        ✏️ แก้ไข
+    </button>
 
-                            </div>
+    <button
+        type="button"
+        class="schedule-delete-btn"
+        onclick="deleteActivityScheduleManage('${activity.scheduleId}')"
+    >
+        🗑️ ลบ
+    </button>
+
+</div>
 
                         </div>
                     `;
                 }
             ).join("");
+
+        showScheduleManageCount(
+    list,
+    filteredSchedules.length,
+    summaryLabels.semesterLabel,
+    summaryLabels.teacherLabel
+       );
 
     } catch (error) {
 
@@ -1454,6 +1793,1233 @@ const filteredSchedules =
         `;
     }
 }
+
+async function openClubMembersPreview(activityId, returnScheduleId = null) {
+    try {
+        if (!activityId) throw new Error("ไม่พบรหัสชุมนุม");
+
+        const semester = await getScheduleManageActiveSemester();
+        if (!semester) throw new Error("ไม่มีภาคเรียนที่เปิดให้จัดการชุมนุม");
+
+        const [students, activities, role, roomResponse] = await Promise.all([
+            getClubMemberStatuses(activityId),
+            getActivitiesForScheduleCreate(),
+            getCurrentUserRole(),
+            supabaseClient.from("rooms")
+                .select("id, room_name")
+                .eq("academic_year_id", semester.academic_year_id)
+                .is("deleted_at", null)
+        ]);
+        if (roomResponse.error) throw roomResponse.error;
+        if (!Array.isArray(students)) throw new Error("ข้อมูลรายชื่อชุมนุมไม่ถูกต้อง");
+
+        const clubs = (activities || []).filter(a =>
+            a.semesterId === semester.id && a.activityTypeCode === "CLUB"
+        );
+        const currentClub = clubs.find(a => a.activityId === activityId);
+        if (!currentClub) throw new Error("ไม่พบชุมนุมในภาคเรียนที่กำลังจัดการ");
+
+        const roomNames = new Map((roomResponse.data || []).map(r => [r.id, r.room_name]));
+        const isAdmin = role === "Admin";
+        let canAdd = isAdmin;
+        if (role === "Teacher") {
+            const context = await getCurrentTeacherContext();
+            canAdd = !!context?.teacherId &&
+                (currentClub.teacherIds || []).includes(context.teacherId);
+        }
+        const otherClubs = clubs.filter(a => a.activityId !== activityId);
+        let openedAction = false;
+
+        const popup = await Swal.fire({
+            title: `👥 สมาชิกชุมนุม: ${currentClub.activityName}`,
+            width: 800,
+            showConfirmButton: true,
+            confirmButtonText: returnScheduleId ? "← กลับไปหน้าแก้ไข" : "ปิด",
+            html: `
+                <div style="text-align:left">
+                    <input id="club-member-search" class="swal2-input"
+                        placeholder="ค้นหาชื่อหรือรหัสนักเรียน"
+                        style="width:100%;box-sizing:border-box;margin:8px 0 12px">
+                    <div id="club-member-summary" style="font-size:13px;margin-bottom:10px"></div>
+                    <div id="club-member-list" style="max-height:370px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px"></div>
+                    <p style="font-size:12px;color:#64748b;margin-top:12px">
+                        เพิ่มสมาชิกได้เฉพาะผู้มีสิทธิ์ · ย้าย/ออกจากชุมนุมได้เฉพาะ Admin
+                    </p>
+                </div>`,
+            didOpen: () => {
+                const search = document.getElementById("club-member-search");
+                const list = document.getElementById("club-member-list");
+                const summary = document.getElementById("club-member-summary");
+                if (!search || !list || !summary) return;
+
+                const launch = async (student, action) => {
+                    openedAction = true;
+                    Swal.close();
+                    try {
+                        const studentId = student.student_id || student.id;
+                        if (!studentId) throw new Error("ไม่พบรหัสนักเรียนจากผล RPC");
+                        const fullName = [student.prefix, student.first_name, student.last_name]
+                            .filter(Boolean).join(" ");
+                        let destinationId = "";
+                        let reason = "";
+                        let message = "";
+
+                        if (action === "ADD") {
+                            message = `เพิ่ม ${fullName} เป็นสมาชิกชุมนุม ${currentClub.activityName}?`;
+                        } else if (action === "EXIT") {
+                            message = `ให้นักเรียน ${fullName} ออกจากชุมนุม ${currentClub.activityName} วันนี้?`;
+                        } else if (action === "TRANSFER") {
+                            message = `ย้าย ${fullName} ออกจาก ${currentClub.activityName} วันนี้?`;
+                        }
+
+                        const confirm = await Swal.fire({
+                            title: action === "ADD" ? "ยืนยันเพิ่มสมาชิก" :
+                                action === "EXIT" ? "ยืนยันให้ออกจากชุมนุม" : "ยืนยันย้ายชุมนุม",
+                            text: message,
+                            icon: "warning",
+                            showCancelButton: true,
+                            confirmButtonText: "ยืนยันดำเนินการ",
+                            cancelButtonText: "ยกเลิก",
+                            html: action === "ADD" ? undefined : `
+                                <p style="text-align:left">${action === "EXIT" ? "ระบุเหตุผลการออก" : "เลือกชุมนุมปลายทางและระบุเหตุผล"}</p>
+                                ${action === "TRANSFER" ? '<select id="club-destination" class="swal2-select" style="width:95%;margin:5px 0"></select>' : ''}
+                                <textarea id="club-reason" class="swal2-textarea"
+                                    placeholder="เหตุผล (จำเป็น)" style="width:95%;box-sizing:border-box;margin:5px 0"></textarea>`,
+                            didOpen: () => {
+                                if (action === "TRANSFER") {
+                                    const select = document.getElementById("club-destination");
+                                    select.add(new Option("-- เลือกชุมนุมปลายทาง --", ""));
+                                    otherClubs.forEach(club => select.add(new Option(club.activityName, club.activityId)));
+                                }
+                            },
+                            preConfirm: () => {
+                                if (action === "ADD") return true;
+                                reason = document.getElementById("club-reason")?.value.trim() || "";
+                                if (!reason) {
+                                    Swal.showValidationMessage("กรุณาระบุเหตุผล");
+                                    return false;
+                                }
+                                if (action === "TRANSFER") {
+                                    destinationId = document.getElementById("club-destination")?.value || "";
+                                    if (!destinationId) {
+                                        Swal.showValidationMessage("กรุณาเลือกชุมนุมปลายทาง");
+                                        return false;
+                                    }
+                                }
+                                return true;
+                            }
+                        });
+
+                        if (confirm.isConfirmed) {
+                            if (action === "ADD") {
+                                await addClubActivityMember(activityId, studentId);
+                            } else if (action === "EXIT") {
+                                await exitClubActivityMember({ activityId, studentId, reason });
+                            } else {
+                                await transferClubActivityMember({
+                                    studentId,
+                                    fromActivityId: activityId,
+                                    toActivityId: destinationId,
+                                    reason
+                                });
+                            }
+                            await Swal.fire("สำเร็จ", "ฐานข้อมูลบันทึกการจัดการสมาชิกแล้ว", "success");
+                        }
+                    } catch (error) {
+                        console.error("Club member change:", error);
+                        await Swal.fire("ไม่สามารถดำเนินการได้", error?.message || "กรุณาตรวจสอบข้อมูล", "error");
+                    }
+                    // โหลดข้อมูลใหม่ทุกครั้งหลังยืนยันหรือยกเลิก ไม่ใช้ข้อมูลสถานะเก่า
+                    await openClubMembersPreview(activityId, returnScheduleId);
+                };
+
+                const render = () => {
+                    const keyword = search.value.trim().toLocaleLowerCase();
+                    const filtered = students.filter(student => [
+                        student.prefix, student.first_name,
+                        student.last_name, student.student_code
+                    ].filter(Boolean).join(" ").toLocaleLowerCase().includes(keyword));
+                    const own = students.filter(s => s.club_status === "own").length;
+                    const other = students.filter(s => s.club_status === "other").length;
+                    summary.textContent = `สมาชิกชุมนุมนี้ ${own} คน · อยู่ชุมนุมอื่น ${other} คน · แสดง ${filtered.length} คน`;
+                    list.replaceChildren();
+                    filtered.forEach(student => {
+                        const row = document.createElement("div");
+                        row.style.cssText = "padding:10px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:10px;";
+                        const info = document.createElement("div");
+                        const name = document.createElement("div");
+                        name.style.fontWeight = "600";
+                        name.textContent = [student.prefix,student.first_name,student.last_name].filter(Boolean).join(" ");
+                        const subtitle = document.createElement("div");
+                        subtitle.style.cssText = "font-size:12px;color:#64748b";
+                        subtitle.textContent = `${student.student_code || "-"} · ${roomNames.get(student.room_id) || "ไม่พบห้องเรียน"}`;
+                        info.append(name, subtitle);
+                        const actions = document.createElement("div");
+                        actions.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end";
+                        const addButton = (label, action) => {
+                            const button = document.createElement("button");
+                            button.type = "button";
+                            button.textContent = label;
+                            button.style.cssText = "padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:12px";
+                            button.addEventListener("click", () => launch(student, action));
+                            actions.appendChild(button);
+                        };
+                        if (student.club_status === "available") {
+                            if (canAdd) addButton("＋ เพิ่ม", "ADD");
+                            else actions.textContent = "เพิ่มได้ (ไม่มีสิทธิ์)";
+                        } else if (student.club_status === "own") {
+                            if (isAdmin) {
+                                if (otherClubs.length) addButton("ย้าย", "TRANSFER");
+                                addButton("ออก", "EXIT");
+                            } else actions.textContent = "สมาชิกชุมนุมนี้";
+                        } else {
+                            actions.textContent = student.club_status === "other" ? "มีชุมนุมแล้ว 🔒" : "สถานะไม่พร้อม";
+                        }
+                        row.append(info, actions);
+                        list.appendChild(row);
+                    });
+                    if (!filtered.length) list.textContent = "ไม่พบรายชื่อนักเรียน";
+                };
+                search.addEventListener("input", render);
+                render();
+            }
+        });
+
+        if (!openedAction && returnScheduleId && popup.isConfirmed) {
+            await openActivityScheduleEdit(returnScheduleId);
+        }
+    } catch (error) {
+        console.error("Club Members:", error);
+        await Swal.fire("ไม่สามารถโหลดสมาชิกชุมนุม", error?.message || "กรุณาตรวจสอบข้อมูลและสิทธิ์", "error");
+    }
+}
+
+/* =====================================================
+   B55-L2 — GENERAL ACTIVITY MEMBER MANAGEMENT
+   SCOUT / ROTC: เลือกรายคนคละห้อง
+   อีก 6 ประเภท: เลือกทั้งห้อง
+   ===================================================== */
+
+async function openGeneralActivityMembers(
+    activityId,
+    returnScheduleId = null
+) {
+    try {
+        const semester =
+            await getScheduleManageActiveSemester();
+
+        if (!semester) {
+            throw new Error("ไม่มีภาคเรียนที่เปิดให้จัดการ");
+        }
+
+        const activities = await getActivitiesForScheduleCreate();
+        const activity = (activities || []).find(
+            a => a.activityId === activityId &&
+                 a.semesterId === semester.id
+        );
+
+        if (!activity || activity.activityTypeCode === "CLUB") {
+            throw new Error("ไม่พบกิจกรรมทั่วไปในภาคเรียนนี้");
+        }
+
+        const individualMode = ["SCOUT", "ROTC"].includes(
+            activity.activityTypeCode
+        );
+
+        const today = new Date().toLocaleDateString(
+            "sv-SE",
+            { timeZone: "Asia/Bangkok" }
+        );
+
+        const [candidates, participants] = await Promise.all([
+            getGeneralActivityCandidates(activityId),
+            getActivityParticipants(activityId, today)
+        ]);
+
+        const members = Array.isArray(participants)
+            ? participants
+            : [];
+
+        const activeIds = new Set(
+            members.map(s => s.studentId)
+        );
+
+        const rooms = [
+            ...new Map(
+                candidates
+                    .filter(s => s.roomId)
+                    .map(s => [
+                        s.roomId,
+                        {
+                            id: s.roomId,
+                            name: s.roomName
+                        }
+                    ])
+            ).values()
+        ].sort((a, b) =>
+            a.name.localeCompare(b.name, "th", {
+                numeric: true
+            })
+        );
+
+        const selected = new Set();
+        let handled = false;
+
+        const result = await Swal.fire({
+            title: "👥 จัดการผู้เข้าร่วม",
+            width: 780,
+            showCancelButton: true,
+            confirmButtonText: "ดำเนินการเพิ่มสมาชิก",
+            cancelButtonText: returnScheduleId
+                ? "← กลับไปหน้าแก้ไข"
+                : "ปิด",
+            html: `
+                <div style="text-align:left">
+                    <p id="b55-activity-title"
+                       style="font-weight:600"></p>
+
+                    <p id="b55-member-count"
+                       style="color:#64748b;font-size:13px"></p>
+
+                    <div id="b55-room-section"
+                         style="margin:10px 0">
+                        <label for="b55-room-select">
+                            เลือกห้องเรียน
+                        </label>
+                        <select id="b55-room-select"
+                            class="swal2-select"
+                            style="width:100%;margin:6px 0">
+                        </select>
+                    </div>
+
+                    <input id="b55-member-search"
+                        class="swal2-input"
+                        placeholder="ค้นหาชื่อ รหัส หรือห้อง"
+                        style="width:100%;
+                               box-sizing:border-box;
+                               margin:8px 0">
+
+                    <p id="b55-selection-count"
+                       style="font-size:13px;color:#64748b">
+                    </p>
+
+                    <div id="b55-candidate-list"
+                         style="max-height:280px;
+                                overflow-y:auto;
+                                border:1px solid #e2e8f0;
+                                border-radius:10px">
+                    </div>
+
+                            <h4 id="b55-current-heading"
+                                style="margin:18px 0 8px">
+                                สมาชิกปัจจุบัน
+                            </h4>
+
+                    <div id="b55-current-list"
+                         style="max-height:220px;
+                                overflow-y:auto;
+                                border:1px solid #e2e8f0;
+                                border-radius:10px">
+                    </div>
+
+                    <p style="font-size:12px;
+                              color:#64748b;margin-top:12px">
+                        การเพิ่มหรือสิ้นสุดสมาชิกมีผลตามวันที่
+                        ที่ฐานข้อมูลกำหนด และต้องยืนยันก่อนบันทึก
+                    </p>
+                </div>
+            `,
+            didOpen: () => {
+                const title = document.getElementById(
+                    "b55-activity-title"
+                );
+                const memberCount = document.getElementById(
+                    "b55-member-count"
+                );
+                const roomSection = document.getElementById(
+                    "b55-room-section"
+                );
+                const roomSelect = document.getElementById(
+                    "b55-room-select"
+                );
+                const search = document.getElementById(
+                    "b55-member-search"
+                );
+                const candidateList = document.getElementById(
+                    "b55-candidate-list"
+                );
+                const currentList = document.getElementById(
+                    "b55-current-list"
+                );
+                const selectionCount = document.getElementById(
+                    "b55-selection-count"
+                );
+
+                title.textContent =
+                    activity.activityName ||
+                    activity.activityTypeName ||
+                    "กิจกรรม";
+
+memberCount.textContent =
+    `สมาชิกปัจจุบัน ${members.length} คน`;
+
+const currentHeading =
+    document.getElementById("b55-current-heading");
+
+if (currentHeading) {
+    currentHeading.textContent = individualMode
+        ? "สมาชิกปัจจุบัน"
+        : "ห้องเรียนที่เป็นสมาชิก";
+}
+
+roomSection.style.display =
+    individualMode ? "none" : "block";
+
+search.style.display =
+    individualMode ? "" : "none";
+
+candidateList.style.display =
+    individualMode ? "" : "none";
+
+                const placeholder = document.createElement(
+                    "option"
+                );
+                placeholder.value = "";
+                placeholder.textContent = "-- เลือกห้องเรียน --";
+                roomSelect.appendChild(placeholder);
+
+                rooms.forEach(room => {
+                    const option = document.createElement(
+                        "option"
+                    );
+                    option.value = room.id;
+                    option.textContent = room.name;
+                    roomSelect.appendChild(option);
+                });
+
+                function fullName(student) {
+                    return [
+                        student.prefix,
+                        student.firstName,
+                        student.lastName
+                    ].filter(Boolean).join(" ");
+                }
+
+                function makeRow(student, suffix) {
+                    const row = document.createElement("div");
+                    row.style.cssText = `
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:12px;
+                        padding:10px 12px;
+                        border-bottom:1px solid #e2e8f0;
+                    `;
+
+                    const details = document.createElement("div");
+
+                    const name = document.createElement("div");
+                    name.style.fontWeight = "600";
+                    name.textContent = fullName(student);
+
+                    const secondary = document.createElement("div");
+                    secondary.style.cssText =
+                        "color:#64748b;font-size:12px";
+
+                    secondary.textContent =
+                        `${student.studentCode || "-"} · ` +
+                        `${student.roomName || "-"}`;
+
+                    details.append(name, secondary);
+
+                    row.appendChild(details);
+
+                    if (suffix) {
+                        row.appendChild(suffix);
+                    }
+
+                    return row;
+                }
+
+                function renderCandidates() {
+                    candidateList.replaceChildren();
+
+                    const keyword = search.value
+                        .trim()
+                        .toLocaleLowerCase();
+
+                    const roomId = roomSelect.value;
+
+                    const available = candidates.filter(s =>
+                        !activeIds.has(s.studentId) &&
+                        !s.alreadyMember
+                    );
+
+                    const displayed = available.filter(s => {
+                        if (!individualMode &&
+                            s.roomId !== roomId) {
+                            return false;
+                        }
+
+                        const text = [
+                            fullName(s),
+                            s.studentCode,
+                            s.roomName
+                        ].join(" ").toLocaleLowerCase();
+
+                        return text.includes(keyword);
+                    });
+
+                    if (!individualMode) {
+                         selected.clear();
+
+    if (roomId) {
+        const roomStudents = candidates.filter(
+            s => s.roomId === roomId
+        );
+
+        const memberCount = roomStudents.filter(
+            s => activeIds.has(s.studentId) ||
+                 s.alreadyMember
+        ).length;
+
+        if (
+            roomStudents.length > 0 &&
+            memberCount === 0
+        ) {
+            roomStudents.forEach(
+                s => selected.add(s.studentId)
+            );
+        }
+    }
+}
+
+if (individualMode) {
+    selectionCount.textContent =
+        `เลือกแล้ว ${selected.size} คน`;
+    selectionCount.style.color = "#64748b";
+} else if (!roomId) {
+    selectionCount.textContent = "กรุณาเลือกห้องเรียน";
+    selectionCount.style.color = "#64748b";
+} else {
+    const roomStudents = candidates.filter(
+        s => s.roomId === roomId
+    );
+
+    const existing = roomStudents.filter(
+        s => activeIds.has(s.studentId) ||
+             s.alreadyMember
+    ).length;
+
+    if (roomStudents.length === 0) {
+        selectionCount.textContent =
+            "ไม่พบรายชื่อนักเรียนในห้องนี้";
+        selectionCount.style.color = "#dc2626";
+    } else if (existing === roomStudents.length) {
+        selectionCount.textContent =
+            "ห้องนี้เป็นสมาชิกกิจกรรมแล้ว";
+        selectionCount.style.color = "#64748b";
+    } else if (existing > 0) {
+        selectionCount.textContent =
+            "ตรวจสอบไม่ผ่าน: สมาชิกในห้องไม่ครบ กรุณาตรวจสอบข้อมูล";
+        selectionCount.style.color = "#dc2626";
+    } else {
+        selectionCount.textContent =
+            "✓ ตรวจสอบข้อมูลเบื้องต้นผ่าน";
+        selectionCount.style.color = "#15803d";
+    }
+}
+
+                    displayed.forEach(student => {
+                        let control = null;
+
+                        if (individualMode) {
+                            control = document.createElement(
+                                "input"
+                            );
+                            control.type = "checkbox";
+                            control.checked = selected.has(
+                                student.studentId
+                            );
+
+                            control.addEventListener(
+                                "change",
+                                () => {
+                                    if (control.checked) {
+                                        selected.add(
+                                            student.studentId
+                                        );
+                                    } else {
+                                        selected.delete(
+                                            student.studentId
+                                        );
+                                    }
+
+                                    selectionCount.textContent =
+                                        `เลือกแล้ว ${selected.size} คน`;
+                                }
+                            );
+                        }
+
+                        candidateList.appendChild(
+                            makeRow(student, control)
+                        );
+                    });
+
+                    if (displayed.length === 0) {
+                        const empty = document.createElement(
+                            "p"
+                        );
+                        empty.style.cssText =
+                            "padding:12px;color:#64748b";
+                        empty.textContent =
+                            "ไม่มีนักเรียนที่เพิ่มได้ในรายการนี้";
+                        candidateList.appendChild(empty);
+                    }
+                }
+
+                function renderMembers() {
+                    currentList.replaceChildren();
+
+if (individualMode) {
+    members.forEach(student => {
+        const endButton = document.createElement("button");
+
+        endButton.type = "button";
+        endButton.textContent = "สิ้นสุดสมาชิก";
+        endButton.className = "schedule-edit-btn";
+
+        endButton.addEventListener("click", async () => {
+            handled = true;
+            Swal.close();
+
+            const confirm = await Swal.fire({
+                icon: "warning",
+                title: "ยืนยันสิ้นสุดสมาชิก?",
+                text:
+                    `${fullName(student)} จะสิ้นสุดสมาชิก` +
+                    "หลังจบวันนี้",
+                showCancelButton: true,
+                confirmButtonText: "ยืนยันสิ้นสุดสมาชิก",
+                cancelButtonText: "ยกเลิก"
+            });
+
+            if (confirm.isConfirmed) {
+                try {
+                    await endIndividualActivityMember(
+                        activityId,
+                        student.studentId
+                    );
+
+                    await Swal.fire({
+                        icon: "success",
+                        title: "บันทึกสำเร็จ",
+                        text: "สมาชิกจะสิ้นสุดหลังจบวันนี้"
+                    });
+                } catch (error) {
+                    await Swal.fire({
+                        icon: "error",
+                        title: "บันทึกไม่สำเร็จ",
+                        text: error.message
+                    });
+                }
+            }
+
+            await openGeneralActivityMembers(
+                activityId,
+                returnScheduleId
+            );
+        });
+
+        currentList.appendChild(
+            makeRow(student, endButton)
+        );
+    });
+} else {
+    const roomGroups = new Map();
+
+    candidates.forEach(student => {
+        if (!student.roomId) return;
+
+        if (!roomGroups.has(student.roomId)) {
+            roomGroups.set(student.roomId, {
+                roomName: student.roomName,
+                students: []
+            });
+        }
+
+        roomGroups.get(student.roomId)
+            .students.push(student);
+    });
+
+    roomGroups.forEach((group, roomId) => {
+        const existing = group.students.filter(
+            s => activeIds.has(s.studentId) ||
+                 s.alreadyMember
+        ).length;
+
+        if (existing === 0) return;
+
+        const row = document.createElement("div");
+        row.style.cssText =
+            "display:flex;align-items:center;" +
+            "justify-content:space-between;" +
+            "gap:12px;padding:12px;" +
+            "border-bottom:1px solid #e2e8f0";
+
+        const detail = document.createElement("div");
+
+        const name = document.createElement("strong");
+        name.textContent = group.roomName;
+
+        const status = document.createElement("div");
+        status.style.cssText =
+            "font-size:12px;color:#64748b";
+
+        const complete = existing === group.students.length;
+
+        status.textContent = complete
+            ? "เป็นสมาชิกทั้งห้องแล้ว"
+            : "สมาชิกไม่ครบห้อง — ต้องตรวจสอบ";
+
+        detail.append(name, status);
+        row.appendChild(detail);
+
+        if (complete) {
+            const removeButton = document.createElement("button");
+            removeButton.type = "button";
+            removeButton.textContent = "นำออกทั้งห้อง";
+            removeButton.className = "schedule-edit-btn";
+
+            removeButton.addEventListener("click", async () => {
+                handled = true;
+                Swal.close();
+
+                const confirm = await Swal.fire({
+                    icon: "warning",
+                    title: "ยืนยันนำสมาชิกออกทั้งห้อง?",
+                    text:
+                        `ระบบจะสิ้นสุดสมาชิกห้อง ` +
+                        `${group.roomName} ทั้งห้อง ` +
+                        `หลังจบวันนี้`,
+                    showCancelButton: true,
+                    confirmButtonText: "ยืนยันนำออกทั้งห้อง",
+                    cancelButtonText: "ยกเลิก"
+                });
+
+                if (confirm.isConfirmed) {
+                    try {
+                        const result =
+                            await manageActivityRoomMembers(
+                                activityId,
+                                roomId,
+                                "REMOVE"
+                            );
+
+                        await Swal.fire({
+                            icon: "success",
+                            title: result.resultCode === "REMOVED"
+                                ? "บันทึกสำเร็จ"
+                                : "ไม่มีสมาชิกที่ต้องนำออก",
+                            text:
+                                result.resultCode === "REMOVED"
+                                    ? `สิ้นสุดสมาชิก ${result.changedCount} คน หลังจบวันนี้`
+                                    : "ไม่พบสมาชิกที่ต้องสิ้นสุด"
+                        });
+                    } catch (error) {
+                        await Swal.fire({
+                            icon: "error",
+                            title: "บันทึกไม่สำเร็จ",
+                            text: error.message
+                        });
+                    }
+                }
+
+                await openGeneralActivityMembers(
+                    activityId,
+                    returnScheduleId
+                );
+            });
+
+            row.appendChild(removeButton);
+        }
+
+        currentList.appendChild(row);
+    });
+}
+
+                    if (members.length === 0) {
+                        currentList.textContent =
+                            "ยังไม่มีสมาชิกในกิจกรรมนี้";
+                    }
+                }
+
+                search.addEventListener(
+                    "input",
+                    renderCandidates
+                );
+
+                roomSelect.addEventListener(
+                    "change",
+                    renderCandidates
+                );
+
+                renderCandidates();
+                renderMembers();
+            },
+            preConfirm: () => {
+                if (selected.size === 0) {
+                    Swal.showValidationMessage(
+                        "กรุณาเลือกนักเรียนหรือห้องเรียนก่อน"
+                    );
+                    return false;
+                }
+
+                return {
+                    studentIds: [...selected],
+                    roomId: document.getElementById(
+                        "b55-room-select"
+                    ).value
+                };
+            }
+        });
+
+        if (handled) return;
+
+        if (result.isConfirmed) {
+            const requested = result.value;
+
+const confirm = await Swal.fire({
+    icon: "question",
+    title: "ยืนยันเพิ่มสมาชิก?",
+    text:
+        `ระบบจะเพิ่มนักเรียน ${requested.studentIds.length} คน` +
+        "ลงในระบบทันที",
+    showCancelButton: true,
+    confirmButtonText: "ยืนยันเพิ่มสมาชิก",
+    cancelButtonText: "ยกเลิก"
+});
+
+if (confirm.isConfirmed) {
+    try {
+        let added = 0;
+        let resultCode = "ADDED";
+
+        if (individualMode) {
+            added = await addIndividualActivityMembers(
+                activityId,
+                requested.studentIds
+            );
+        } else {
+            const roomResult = await manageActivityRoomMembers(
+                activityId,
+                requested.roomId,
+                "ADD"
+            );
+
+            added = roomResult.changedCount;
+            resultCode = roomResult.resultCode;
+        }
+
+        if (resultCode === "ALREADY_MEMBER") {
+            await Swal.fire({
+                icon: "info",
+                title: "เป็นสมาชิกอยู่แล้ว",
+                text: "ห้องเรียนนี้เป็นสมาชิกกิจกรรมแล้ว ไม่มีการเพิ่มซ้ำ"
+            });
+        } else {
+            await Swal.fire({
+                icon: "success",
+                title: "เพิ่มสมาชิกสำเร็จ",
+                text: `เพิ่มสมาชิก ${added} คน`
+            });
+        }
+
+    } catch (error) {
+        await Swal.fire({
+            icon: "error",
+            title: "บันทึกไม่สำเร็จ",
+            text: error?.message || "ไม่สามารถเพิ่มสมาชิกได้"
+        });
+    }
+}
+
+await openGeneralActivityMembers(
+    activityId,
+    returnScheduleId
+);
+return;
+}
+
+if (returnScheduleId) {
+    await openActivityScheduleEdit(
+        returnScheduleId
+    );
+}
+
+} catch (error) {
+
+        console.error(
+            "General Activity Members:",
+            error
+        );
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถจัดการสมาชิก",
+            text: error?.message || "เกิดข้อผิดพลาด"
+        });
+    }
+}
+
+/* =====================================================
+   B55-J — Activity Schedule Edit
+   รวมเครื่องมือจัดการกิจกรรมตามรูปแบบวิชา
+   ===================================================== */
+
+async function openActivityScheduleEdit(scheduleId) {
+    try {
+        const semester =
+            await getScheduleManageActiveSemester();
+
+        if (!semester) {
+            throw new Error(
+                "ไม่มีภาคเรียนที่เปิดให้จัดการ"
+            );
+        }
+
+        const role =
+            await getCurrentUserRole();
+
+        if (!["Admin", "Teacher"].includes(role)) {
+            throw new Error(
+                "ไม่มีสิทธิ์จัดการตารางกิจกรรม"
+            );
+        }
+
+        const schedules =
+            await getActivitySchedules();
+
+        const activity = (schedules || []).find(
+            item =>
+                item.scheduleId === scheduleId &&
+                item.semesterId === semester.id
+        );
+
+        if (!activity) {
+            throw new Error(
+                "ไม่พบตารางกิจกรรมในภาคเรียนนี้"
+            );
+        }
+
+        if (role === "Teacher") {
+            const context =
+                await getCurrentTeacherContext();
+
+            if (
+                !context?.teacherId ||
+                !Array.isArray(activity.teacherIds) ||
+                !activity.teacherIds.includes(
+                    context.teacherId
+                )
+            ) {
+                throw new Error(
+                    "คุณไม่ได้รับผิดชอบกิจกรรมนี้"
+                );
+            }
+        }
+
+        const days = {
+            1: "จันทร์",
+            2: "อังคาร",
+            3: "พุธ",
+            4: "พฤหัสบดี",
+            5: "ศุกร์",
+            6: "เสาร์",
+            7: "อาทิตย์"
+        };
+
+        const oldModal =
+            document.getElementById(
+                "activity-schedule-edit-modal"
+            );
+
+        oldModal?.remove();
+
+        const modal = document.createElement("div");
+        modal.id = "activity-schedule-edit-modal";
+
+        modal.innerHTML = `
+            <div class="schedule-modal-backdrop">
+                <div class="schedule-modal">
+
+                    <div class="schedule-modal-header">
+                        <div>
+                            <h2>✏️ แก้ไขตารางกิจกรรม</h2>
+                            <p>
+                                จัดการคาบและสมาชิกกิจกรรม
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="schedule-modal-close"
+                            id="activity-edit-close"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <div class="schedule-modal-body">
+
+                        <div class="schedule-form-group">
+                            <label>กิจกรรม</label>
+                            <div id="activity-edit-name"></div>
+                        </div>
+
+                        <div class="schedule-form-group">
+                            <label>ประเภทกิจกรรม</label>
+                            <div id="activity-edit-type"></div>
+                        </div>
+
+                        <div class="schedule-form-group">
+                            <label>วัน / คาบ / เวลา</label>
+                            <div id="activity-edit-time"></div>
+                        </div>
+
+                        <div class="schedule-form-group">
+                            <label>ช่วงวันที่ใช้ตาราง</label>
+                            <div id="activity-edit-dates"></div>
+                        </div>
+
+                        <hr style="
+                            border:0;
+                            border-top:1px solid #e2e8f0;
+                            margin:20px 0;
+                        ">
+
+                        <h3>👥 สมาชิก / ผู้เข้าร่วม</h3>
+
+                        <p id="activity-edit-member-mode"
+                           style="font-size:13px;color:#64748b;">
+                        </p>
+
+                        <button
+                            type="button"
+                            class="schedule-add-btn"
+                            id="activity-edit-members"
+                        >
+                            👥 จัดการรายชื่อ
+                        </button>
+
+                    </div>
+
+                    <div class="schedule-modal-footer">
+                        <button
+                            type="button"
+                            class="schedule-modal-cancel"
+                            id="activity-edit-cancel"
+                        >
+                            ปิด
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const setText = (id, value) => {
+            const element =
+                document.getElementById(id);
+
+            if (element) {
+                element.textContent = value;
+            }
+        };
+
+        setText(
+            "activity-edit-name",
+            activity.activityName || "ไม่ระบุชื่อ"
+        );
+
+        setText(
+            "activity-edit-type",
+            activity.activityTypeName ||
+            activity.activityTypeCode ||
+            "-"
+        );
+
+        setText(
+            "activity-edit-time",
+            `${days[activity.weekday] || "-"} · ` +
+            `คาบ ${activity.lessonNo ?? "-"} · ` +
+            `${activity.startTime || "-"} – ` +
+            `${activity.endTime || "-"}`
+        );
+
+        setText(
+            "activity-edit-dates",
+            `${activity.validFrom || "-"} → ` +
+            `${activity.validUntil || "ไม่กำหนด"}`
+        );
+
+        const individualTypes = [
+            "CLUB",
+            "SCOUT",
+            "ROTC"
+        ];
+
+        const individualMode =
+            individualTypes.includes(
+                activity.activityTypeCode
+            );
+
+        setText(
+            "activity-edit-member-mode",
+            individualMode
+                ? "สมาชิกแบบรายคน สามารถคละห้องเรียนได้"
+                : "ผู้เข้าร่วมแบบเลือกห้องเรียน"
+        );
+
+        const closeModal = () => modal.remove();
+
+        document.getElementById(
+            "activity-edit-close"
+        ).addEventListener("click", closeModal);
+
+        document.getElementById(
+            "activity-edit-cancel"
+        ).addEventListener("click", closeModal);
+
+        document.getElementById(
+    "activity-edit-members"
+).addEventListener("click", async () => {
+    closeModal();
+
+    if (activity.activityTypeCode === "CLUB") {
+        await openClubMembersPreview(
+            activity.activityId,
+            activity.scheduleId
+        );
+    } else {
+        await openGeneralActivityMembers(
+            activity.activityId,
+            activity.scheduleId
+        );
+    }
+});
+
+    } catch (error) {
+        console.error(
+            "Activity Schedule Edit:",
+            error
+        );
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถเปิดแก้ไขกิจกรรม",
+            text:
+                error?.message ||
+                "เกิดข้อผิดพลาด"
+        });
+    }
+}
+
+async function getScheduleManageActiveSemester() {
+
+    // วันที่ปัจจุบันตามเวลาประเทศไทย
+    const todayBangkok = new Date().toLocaleDateString(
+        "sv-SE",
+        { timeZone: "Asia/Bangkok" }
+    );
+
+    // อ่านภาคเรียนที่ครอบคลุมวันนี้
+    const { data, error } = await supabaseClient
+        .from("semesters")
+        .select(`
+            id,
+            academic_year_id,
+            semester_no,
+            start_date,
+            end_date,
+            schedule_locked_at
+        `)
+        .lte("start_date", todayBangkok)
+        .gte("end_date", todayBangkok);
+
+    if (error) {
+        throw error;
+    }
+
+    // ไม่พบภาคเรียนปัจจุบัน
+    if (!data || data.length === 0) {
+        return null;
+    }
+
+    // ป้องกันข้อมูลภาคเรียนทับซ้อน
+    if (data.length !== 1) {
+        throw new Error(
+            "พบภาคเรียนปัจจุบันมากกว่า 1 รายการ กรุณาตรวจสอบข้อมูลภาคเรียน"
+        );
+    }
+
+    const semester = data[0];
+
+    // ถูกล็อกแล้ว ไม่อนุญาตให้จัดการ
+    if (semester.schedule_locked_at != null) {
+        return null;
+    }
+
+    return semester;
+}
+
+async function getScheduleManageSummaryLabels(
+    semester,
+    teacherId = ""
+) {
+    const { data: year, error: yearError } =
+        await supabaseClient
+            .from("academic_years")
+            .select("year")
+            .eq("id", semester.academic_year_id)
+            .single();
+
+    if (yearError) throw yearError;
+
+    const semesterLabel =
+        `ภาคเรียนที่ ${semester.semester_no}/${year.year}`;
+
+    if (!teacherId) {
+        return {
+            semesterLabel,
+            teacherLabel: "ครูทุกคน"
+        };
+    }
+
+    const { data: teacher, error: teacherError } =
+        await supabaseClient
+            .from("teachers")
+            .select("first_name, last_name, nickname")
+            .eq("id", teacherId)
+            .single();
+
+    if (teacherError) throw teacherError;
+
+    const teacherLabel =
+        [teacher.first_name, teacher.last_name]
+            .filter(Boolean)
+            .join(" ") ||
+        teacher.nickname ||
+        "ไม่ระบุชื่อครู";
+
+    return {
+        semesterLabel,
+        teacherLabel
+    };
+}
+
 // ============================================================
 // SCHEDULE MANAGE
 // STEP 5B.9.2 — Group Schedule Records for UI
@@ -1466,7 +3032,6 @@ async function loadScheduleManage() {
 
     if (!list) return;
 
-
     try {
 
         // ====================================================
@@ -1476,17 +3041,169 @@ async function loadScheduleManage() {
         const rawSchedules =
             await getClassSchedules();
 
+        const activeSemester =
+            await getScheduleManageActiveSemester();
 
-        // ====================================================
-        // 2. แปลงข้อมูลด้วย mapper เดิม
-        // ====================================================
+// ไม่มีภาคเรียนที่เปิดให้จัดการ
+if (!activeSemester) {
 
-        const schedules =
-            rawSchedules.map(mapScheduleData);
+    window.scheduleManageGroups = [];
+
+    list.innerHTML = `
+        <div class="schedule-empty-state">
+            <div class="schedule-empty-icon">🔒</div>
+            <h2>ไม่มีภาคเรียนที่เปิดให้จัดการตารางสอน</h2>
+            <p>
+                กรุณาตรวจสอบสถานะภาคเรียน
+                ในเมนูจัดการงานวิชาการ
+            </p>
+        </div>
+    `;
+
+    return;
+}
+
+// แสดงเฉพาะคาบของภาคเรียนปัจจุบัน
+const schedules = (rawSchedules || [])
+    .map(mapScheduleData)
+    .filter(schedule =>
+        schedule.semesterId === activeSemester.id
+    );
+
+        // B53 — จำกัดรายการตาม Role ของผู้ใช้งาน
+        const role = await getCurrentUserRole();
+
+        let scopedSchedules = schedules;
+
+        if (role === "Teacher") {
+
+            const teacherContext =
+                await getCurrentTeacherContext();
+
+            if (!teacherContext?.teacherId) {
+                throw new Error(
+                    "ไม่พบข้อมูลครูผู้เข้าสู่ระบบ"
+                );
+            }
+
+            scopedSchedules = schedules.filter(schedule =>
+                schedule.teacherId === teacherContext.teacherId
+            );
+
+        } else if (role !== "Admin") {
+
+            throw new Error(
+                "ไม่มีสิทธิ์จัดการตารางสอน"
+            );
+
+        }
 
         // ====================================================
 // CLASS SCHEDULE FILTER
 // ====================================================
+
+        // B53 — Admin Teacher Filter
+        // ใช้เฉพาะภาคเรียนปัจจุบันที่กรองไว้แล้ว
+
+        if (role === "Admin") {
+
+            const filterArea =
+                document.getElementById(
+                    "schedule-manage-filter"
+                );
+
+            if (filterArea) {
+
+                let teacherFilter =
+                    document.getElementById(
+                        "schedule-manage-teacher-filter"
+                    );
+
+                if (!teacherFilter) {
+                    teacherFilter =
+                        document.createElement("select");
+
+                    teacherFilter.id =
+                        "schedule-manage-teacher-filter";
+
+                    teacherFilter.className =
+                        "schedule-filter-select";
+
+                    filterArea.prepend(teacherFilter);
+                }
+
+                const teachersById = new Map();
+
+                schedules.forEach(schedule => {
+                    if (schedule.teacherId) {
+                        teachersById.set(
+                            schedule.teacherId,
+                            schedule.teacherName ||
+                                "ไม่ระบุชื่อครู"
+                        );
+                    }
+                });
+
+                const previousTeacherId =
+                    teacherFilter.value ||
+                    window.scheduleManageTeacherFilterId ||
+                    "";
+
+                teacherFilter.replaceChildren();
+
+                const allTeachersOption =
+                    document.createElement("option");
+
+                allTeachersOption.value = "";
+                allTeachersOption.textContent =
+                    "👨‍🏫 ครูทุกคน";
+
+                teacherFilter.appendChild(
+                    allTeachersOption
+                );
+
+                [...teachersById.entries()]
+                    .sort((a, b) =>
+                        a[1].localeCompare(b[1], "th")
+                    )
+                    .forEach(([teacherId, teacherName]) => {
+
+                        const option =
+                            document.createElement("option");
+
+                        option.value = teacherId;
+                        option.textContent = teacherName;
+
+                        teacherFilter.appendChild(option);
+                    });
+
+                const selectedTeacherId =
+                    teachersById.has(previousTeacherId)
+                        ? previousTeacherId
+                        : "";
+
+                teacherFilter.value =
+                    selectedTeacherId;
+
+                window.scheduleManageTeacherFilterId =
+                    selectedTeacherId;
+
+                teacherFilter.onchange = function () {
+                    window.scheduleManageTeacherFilterId =
+                        this.value;
+
+                    loadScheduleManage();
+                };
+
+                if (selectedTeacherId) {
+                    scopedSchedules =
+                        scopedSchedules.filter(schedule =>
+                            schedule.teacherId ===
+                            selectedTeacherId
+                        );
+                }
+            }
+        }
 
 const dayFilter =
     document.getElementById(
@@ -1504,8 +3221,27 @@ const selectedDay =
 const selectedLesson =
     lessonFilter?.value || "";
 
+        // B53 — ข้อความสรุปภาคเรียนและครู
+        let summaryTeacherId = "";
+
+        if (role === "Admin") {
+            summaryTeacherId =
+                window.scheduleManageTeacherFilterId || "";
+        } else if (role === "Teacher") {
+            const context =
+                await getCurrentTeacherContext();
+
+            summaryTeacherId = context?.teacherId || "";
+        }
+
+        const summaryLabels =
+            await getScheduleManageSummaryLabels(
+                activeSemester,
+                summaryTeacherId
+            );
+
 const filteredSchedules =
-    schedules.filter(schedule => {
+    scopedSchedules.filter(schedule => {
 
         const matchDay =
             !selectedDay ||
@@ -1543,7 +3279,12 @@ const filteredSchedules =
 
                 </div>
             `;
-
+            showScheduleManageCount(
+    list,
+    0,
+    summaryLabels.semesterLabel,
+    summaryLabels.teacherLabel
+        );
             return;
         }
 
@@ -1830,8 +3571,14 @@ const filteredSchedules =
                     `;
 
                 }
-            ).join("");
+                        ).join("");
 
+        showScheduleManageCount(
+    list,
+    groupedSchedules.length,
+    summaryLabels.semesterLabel,
+    summaryLabels.teacherLabel
+);
 
     } catch (error) {
 
@@ -2669,26 +4416,33 @@ async function openScheduleAddClass(groupIndex) {
         // 12. สร้าง / หา Subject Assignment
         // ----------------------------------------------------
 
-        const subjectAssignment =
-            await getOrCreateSubjectAssignment({
+const {
+    data: assignmentId,
+    error: assignmentError
+} = await supabaseClient.rpc(
+    "schedule_get_or_create_assignment_for_room",
+    {
+        p_source_assignment_id:
+            currentAssignment.id,
 
-                teacherId:
-                    currentAssignment.teacher_id,
+        p_room_id:
+            roomId
+    }
+);
 
-                subjectId:
-                    currentAssignment.subject_id,
+if (assignmentError) {
+    throw assignmentError;
+}
 
-                roomId:
-                    roomId,
+if (!assignmentId) {
+    throw new Error(
+        "ไม่สามารถสร้างหรือค้นหาการมอบหมายวิชาได้"
+    );
+}
 
-                academicYearId:
-                    currentAssignment.academic_year_id,
-
-                semesterId:
-                    currentAssignment.semester_id
-
-            });
-
+const subjectAssignment = {
+    id: assignmentId
+};
 
         // ----------------------------------------------------
         // 13. สร้าง Schedule ใหม่
@@ -4482,16 +6236,29 @@ async function openActivityScheduleCreate() {
                             กิจกรรม
                         </label>
 
-                        <select
-                            id="activity-schedule-activity"
-                        >
-                            <option value="">
-                                -- เลือกกิจกรรม --
-                            </option>
-                        </select>
+<select
+    id="activity-schedule-activity"
+>
+    <option value="">
+        -- เลือกกิจกรรม --
+    </option>
+</select>
 
-                    </div>
+<div style="
+    display:flex;
+    justify-content:flex-end;
+    margin-top:10px;
+">
+    <button
+        type="button"
+        class="schedule-add-btn"
+        onclick="openTeacherActivityCreateForm()"
+    >
+        ＋ เพิ่ม/จัดการชุมนุม
+    </button>
+</div>
 
+</div>
 
                     <!-- Day / Lesson -->
 
@@ -4709,13 +6476,64 @@ async function openActivityScheduleCreate() {
 
     document.body.appendChild(modal);
 
-
-    // Load Activity options
-
+    // B53 — Load Activity options ตามภาคเรียนและครู
     try {
 
-        const activities =
+        const activeSemester =
+            await getScheduleManageActiveSemester();
+
+        if (!activeSemester) {
+            throw new Error(
+                "ไม่มีภาคเรียนที่เปิดให้เพิ่มตารางกิจกรรม"
+            );
+        }
+
+        const role =
+            await getCurrentUserRole();
+
+        let selectedTeacherId = "";
+
+        if (role === "Teacher") {
+
+            const context =
+                await getCurrentTeacherContext();
+
+            if (!context?.teacherId) {
+                throw new Error(
+                    "ไม่พบข้อมูลครูผู้เข้าสู่ระบบ"
+                );
+            }
+
+            selectedTeacherId = context.teacherId;
+
+        } else if (role === "Admin") {
+
+            selectedTeacherId =
+                window.activityManageTeacherFilterId || "";
+
+        } else {
+
+            throw new Error(
+                "ไม่มีสิทธิ์เพิ่มตารางกิจกรรม"
+            );
+        }
+
+        const allActivities =
             await getActivitiesForScheduleCreate();
+
+        const activities = (allActivities || [])
+            .filter(activity =>
+                activity.semesterId === activeSemester.id
+            )
+            .filter(activity =>
+                !selectedTeacherId ||
+                (
+                    Array.isArray(activity.teacherIds) &&
+                    activity.teacherIds.includes(
+                        selectedTeacherId
+                    )
+                )
+            );
 
         const select =
             document.getElementById(
@@ -4724,25 +6542,42 @@ async function openActivityScheduleCreate() {
 
         if (!select) return;
 
-        select.innerHTML = `
-            <option value="">
-                -- เลือกกิจกรรม --
-            </option>
+        select.replaceChildren();
 
-            ${activities.map(
-                activity => `
-                    <option
-                        value="${activity.activityId}"
-                    >
-                        ${activity.activityName}
-                        ${activity.activityTypeName
-                            ? ` — ${activity.activityTypeName}`
-                            : ""
-                        }
-                    </option>
-                `
-            ).join("")}
-        `;
+        const placeholder =
+            document.createElement("option");
+
+        placeholder.value = "";
+        placeholder.textContent =
+            "-- เลือกกิจกรรม --";
+
+        select.appendChild(placeholder);
+
+        activities.forEach(activity => {
+
+            const option =
+                document.createElement("option");
+
+            option.value = activity.activityId;
+
+            option.textContent =
+                activity.activityName +
+                (
+                    activity.activityTypeName
+                        ? ` — ${activity.activityTypeName}`
+                        : ""
+                );
+
+            select.appendChild(option);
+        });
+
+        if (activities.length === 0) {
+
+            placeholder.textContent =
+                "-- ไม่มีกิจกรรมที่เลือกได้ --";
+
+            select.disabled = true;
+        }
 
     } catch (error) {
 
@@ -4751,7 +6586,32 @@ async function openActivityScheduleCreate() {
             error
         );
 
+        const select =
+            document.getElementById(
+                "activity-schedule-activity"
+            );
+
+        if (select) {
+            select.replaceChildren();
+
+            const option =
+                document.createElement("option");
+
+            option.value = "";
+            option.textContent =
+                "ไม่สามารถโหลดกิจกรรมได้";
+
+            select.appendChild(option);
+            select.disabled = true;
+        }
+
+        await Swal.fire(
+            "ไม่สามารถโหลดกิจกรรม",
+            error?.message || "กรุณาลองใหม่อีกครั้ง",
+            "error"
+        );
     }
+
 }
 const lessonSelect =
     document.getElementById(
@@ -4803,6 +6663,253 @@ if (
         }
     );
 }
+
+async function openTeacherActivityCreateForm() {
+    try {
+        const semester =
+            await getScheduleManageActiveSemester();
+
+        if (!semester) {
+            throw new Error(
+                "ไม่มีภาคเรียนที่เปิดให้จัดการชุมนุม"
+            );
+        }
+
+        const role = await getCurrentUserRole();
+        let teacherId = null;
+
+        if (role === "Teacher") {
+            const context =
+                await getCurrentTeacherContext();
+
+            teacherId = context?.teacherId || null;
+
+        } else if (role === "Admin") {
+            teacherId =
+                window.activityManageTeacherFilterId || null;
+
+            if (!teacherId) {
+                await Swal.fire(
+                    "กรุณาเลือกครู",
+                    "เลือกครูในตัวกรองกิจกรรมก่อน",
+                    "info"
+                );
+                return;
+            }
+        } else {
+            throw new Error("ไม่มีสิทธิ์จัดการชุมนุม");
+        }
+
+        if (!teacherId) {
+            throw new Error("ไม่พบข้อมูลครู");
+        }
+
+        const types = await getActiveActivityTypes();
+        const clubType = types.find(
+            type => type.code === "CLUB"
+        );
+
+        if (!clubType) {
+            throw new Error(
+                "ไม่พบประเภทกิจกรรม CLUB"
+            );
+        }
+
+        const activities =
+            await getActivitiesForScheduleCreate();
+
+        const clubs = (activities || []).filter(
+            activity =>
+                activity.semesterId === semester.id &&
+                activity.activityTypeCode === "CLUB" &&
+                Array.isArray(activity.teacherIds) &&
+                activity.teacherIds.includes(teacherId)
+        );
+
+        if (clubs.length > 1) {
+            throw new Error(
+                "ครูมีชุมนุมมากกว่าหนึ่งรายการ " +
+                "กรุณาให้ Admin ตรวจสอบ"
+            );
+        }
+
+        const existingClub = clubs[0] || null;
+
+        const oldName =
+            (existingClub?.activityName || "").trim();
+
+        const unnamed =
+            !oldName || oldName === "ชุมนุม";
+
+        // ------------------------------------------
+        // กรณีมีชุมนุมแล้ว
+        // ------------------------------------------
+        if (existingClub) {
+            const result = await Swal.fire({
+                title: unnamed
+                    ? "กำหนดชื่อชุมนุม"
+                    : "เปลี่ยนชื่อชุมนุม",
+
+                text: unnamed
+                    ? "มีชุมนุมเดิมอยู่แล้ว กรุณาตั้งชื่อเมื่อพร้อม"
+                    : `ชื่อปัจจุบัน: ${oldName}`,
+
+                input: "text",
+                inputValue: unnamed ? "" : oldName,
+                inputPlaceholder: "ชื่อชุมนุม",
+                inputAttributes: {
+                    maxlength: "30"
+                },
+
+                showCancelButton: true,
+                confirmButtonText: "บันทึกชื่อ",
+                cancelButtonText: "ยกเลิก",
+
+                inputValidator: value => {
+                    const name = String(value || "").trim();
+
+                    if (!name) {
+                        return "กรุณากรอกชื่อชุมนุม";
+                    }
+
+                    if (name.length > 30) {
+                        return "ชื่อชุมนุมต้องไม่เกิน 30 ตัวอักษร";
+                    }
+                }
+            });
+
+            if (!result.isConfirmed) return;
+
+            const newName = result.value.trim();
+
+            if (newName === oldName) {
+                await Swal.fire(
+                    "ไม่มีการเปลี่ยนแปลง",
+                    "ชื่อชุมนุมยังเหมือนเดิม",
+                    "info"
+                );
+                return;
+            }
+
+            const confirmation = await Swal.fire({
+                icon: "question",
+                title: unnamed
+                    ? "ยืนยันการกำหนดชื่อชุมนุม?"
+                    : "ยืนยันการเปลี่ยนชุมนุม?",
+                text: unnamed
+                    ? `กำหนดชื่อเป็น "${newName}" โดยใช้ชุมนุมเดิม`
+                    : `เปลี่ยนจาก "${oldName}" เป็น "${newName}" โดยคงสมาชิกและคาบเดิม`,
+                showCancelButton: true,
+                confirmButtonText: "ยืนยันบันทึก",
+                cancelButtonText: "ยกเลิก"
+            });
+
+            if (!confirmation.isConfirmed) return;
+
+            const reason = unnamed
+                ? "กำหนดชื่อชุมนุมครั้งแรก"
+                : "เปลี่ยนชุมนุมกลางภาคเรียน";
+
+            const { error } = await supabaseClient.rpc(
+                "teacher_change_club_name",
+                {
+                    p_activity_id: existingClub.activityId,
+                    p_new_name: newName,
+                    p_reason: reason
+                }
+            );
+
+            if (error) throw error;
+
+            await Swal.fire({
+                icon: "success",
+                title: "บันทึกชื่อชุมนุมสำเร็จ",
+                text: "ใช้ชุมนุมเดิม คาบและสมาชิกไม่เปลี่ยน"
+            });
+
+            await openActivityScheduleCreate();
+            await loadActivityScheduleManage();
+            return;
+        }
+
+        // ------------------------------------------
+        // กรณียังไม่มีชุมนุม
+        // ------------------------------------------
+        const result = await Swal.fire({
+            title: "＋ เพิ่มชุมนุมใหม่",
+            text: "เว้นชื่อว่างไว้ก่อนได้ และกลับมาตั้งชื่อภายหลัง",
+            input: "text",
+            inputPlaceholder: "ชื่อชุมนุม (ไม่บังคับ)",
+            inputAttributes: {
+                maxlength: "30"
+            },
+            showCancelButton: true,
+            confirmButtonText: "สร้างชุมนุม",
+            cancelButtonText: "ยกเลิก",
+            inputValidator: value => {
+                if (String(value || "").trim().length > 30) {
+                    return "ชื่อชุมนุมต้องไม่เกิน 30 ตัวอักษร";
+                }
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        const clubName = String(result.value || "").trim();
+
+        const confirmation = await Swal.fire({
+            icon: "question",
+            title: "ยืนยันสร้างชุมนุม?",
+            text: clubName
+                ? `ชื่อชุมนุม: ${clubName}`
+                : "สร้างชุมนุมโดยยังไม่กำหนดชื่อ",
+            showCancelButton: true,
+            confirmButtonText: "ยืนยันบันทึก",
+            cancelButtonText: "ยกเลิก"
+        });
+
+        if (!confirmation.isConfirmed) return;
+
+        const activityId = await createTeacherActivity({
+            activityTypeId: clubType.id,
+            activityName: clubName,
+            teacherId: role === "Admin" ? teacherId : null
+        });
+
+        await Swal.fire({
+            icon: "success",
+            title: "สร้างชุมนุมสำเร็จ",
+            text: "สามารถเลือกชุมนุมเพื่อเพิ่มคาบได้แล้ว"
+        });
+
+        await openActivityScheduleCreate();
+
+        const activitySelect =
+            document.getElementById(
+                "activity-schedule-activity"
+            );
+
+        if (activitySelect) {
+            activitySelect.value = activityId;
+        }
+
+        await loadActivityScheduleManage();
+
+    } catch (error) {
+        console.error(
+            "Club Management Error:",
+            error
+        );
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถจัดการชุมนุม",
+            text: error?.message ||
+                "เกิดข้อผิดพลาด"
+        });
+    }
+}
+
 function closeActivityScheduleCreate() {
 
     const modal =
@@ -4814,6 +6921,382 @@ function closeActivityScheduleCreate() {
         modal.remove();
     }
 }
+
+ // ============================================================
+ // B55 — Teacher Subject Create Form
+ // UI Preview Only: ยังไม่บันทึกฐานข้อมูล
+ // ============================================================
+
+async function openTeacherSubjectCreateForm() {
+    try {
+        // 1. ตรวจภาคเรียนที่เปิดให้จัดการ
+        const semester =
+            await getScheduleManageActiveSemester();
+
+        if (!semester) {
+            throw new Error(
+                "ไม่มีภาคเรียนที่เปิดให้จัดการตารางสอน"
+            );
+        }
+
+        // 2. ตรวจสิทธิ์และครูผู้รับผิดชอบ
+        const role = await getCurrentUserRole();
+
+        if (role !== "Teacher" && role !== "Admin") {
+            throw new Error("ไม่มีสิทธิ์เพิ่มวิชา");
+        }
+
+        const context =
+            await getCurrentTeacherContext();
+
+        const teacherId = context?.teacherId || null;
+
+        if (!teacherId) {
+            throw new Error(
+                "ไม่พบข้อมูลครูผู้รับผิดชอบ " +
+                "ฟอร์มนี้ต้องผูกวิชากับครูที่เข้าสู่ระบบ"
+            );
+        }
+
+        // RPC เดิมสร้าง Assignment ให้ครูที่เข้าสู่ระบบ
+        // ห้าม Admin เลือกครูอื่นแล้วสร้างผิดคน
+        if (role === "Admin") {
+            const selectedTeacherId =
+                window.scheduleManageTeacherFilterId || "";
+
+            if (
+                selectedTeacherId &&
+                selectedTeacherId !== teacherId
+            ) {
+                throw new Error(
+                    "ฟอร์มนี้สร้างวิชาให้ครูคนอื่นไม่ได้ " +
+                    "กรุณาเลือกครูเจ้าของบัญชี หรือใช้ระบบ Admin"
+                );
+            }
+        }
+
+        // 3. โหลดห้องเรียนจากปีการศึกษาปัจจุบัน
+        const { data: rooms, error: roomError } =
+            await supabaseClient
+                .from("rooms")
+                .select("id, room_name")
+                .eq(
+                    "academic_year_id",
+                    semester.academic_year_id
+                )
+                .is("deleted_at", null)
+                .order("room_name", {
+                    ascending: true
+                });
+
+        if (roomError) throw roomError;
+
+        if (!rooms || rooms.length === 0) {
+            throw new Error(
+                "ไม่พบห้องเรียนในปีการศึกษาปัจจุบัน"
+            );
+        }
+
+        const availableRoomIds = new Set(
+            rooms.map(room => room.id)
+        );
+
+        // 4. เปิดแบบฟอร์มเพิ่มวิชา
+        const result = await Swal.fire({
+            title: "＋ เพิ่มวิชาใหม่",
+
+            html: `
+                <div style="text-align:left;">
+
+                    <label for="new-subject-code">
+                        รหัสวิชา
+                    </label>
+                    <input
+                        id="new-subject-code"
+                        class="swal2-input"
+                        maxlength="50"
+                        style="
+                            width:100%;
+                            box-sizing:border-box;
+                            margin:6px 0 14px;
+                        "
+                        placeholder="เช่น อ21101"
+                    >
+
+                    <label for="new-subject-name">
+                        ชื่อวิชา
+                    </label>
+                    <input
+                        id="new-subject-name"
+                        class="swal2-input"
+                        maxlength="255"
+                        style="
+                            width:100%;
+                            box-sizing:border-box;
+                            margin:6px 0 14px;
+                        "
+                        placeholder="เช่น ภาษาอังกฤษพื้นฐาน"
+                    >
+
+                    <label for="new-subject-credit">
+                        หน่วยกิต
+                    </label>
+                    <input
+                        id="new-subject-credit"
+                        class="swal2-input"
+                        type="number"
+                        min="0"
+                        max="9.5"
+                        step="0.5"
+                        style="
+                            width:100%;
+                            box-sizing:border-box;
+                            margin:6px 0 14px;
+                        "
+                        placeholder="เช่น 1.0"
+                    >
+
+                    <label for="new-subject-room">
+                        ห้องเรียนเริ่มต้น
+                    </label>
+                    <select
+                        id="new-subject-room"
+                        class="swal2-select"
+                        style="
+                            width:100%;
+                            box-sizing:border-box;
+                            margin:6px 0 14px;
+                            padding:10px;
+                        "
+                    ></select>
+
+                    <p style="
+                        color:#64748b;
+                        font-size:13px;
+                        margin-top:8px;
+                    ">
+                        เมื่อสร้างวิชาแล้ว
+                        จะกลับไปกำหนดวัน คาบ เวลา
+                        และห้องสอนในหน้าต่างเดิม
+                    </p>
+
+                </div>
+            `,
+
+            didOpen: () => {
+                const roomSelect =
+                    document.getElementById(
+                        "new-subject-room"
+                    );
+
+                if (!roomSelect) return;
+
+                const placeholder =
+                    document.createElement("option");
+
+                placeholder.value = "";
+                placeholder.textContent =
+                    "-- เลือกห้องเรียน --";
+
+                roomSelect.appendChild(placeholder);
+
+                rooms.forEach(room => {
+                    const option =
+                        document.createElement("option");
+
+                    option.value = room.id;
+                    option.textContent = room.room_name;
+
+                    roomSelect.appendChild(option);
+                });
+            },
+
+            showCancelButton: true,
+            confirmButtonText: "สร้างวิชา",
+            cancelButtonText: "ยกเลิก",
+            showLoaderOnConfirm: false,
+
+            preConfirm: () => {
+                const code =
+                    document.getElementById(
+                        "new-subject-code"
+                    )?.value.trim() || "";
+
+                const name =
+                    document.getElementById(
+                        "new-subject-name"
+                    )?.value.trim() || "";
+
+                const creditText =
+                    document.getElementById(
+                        "new-subject-credit"
+                    )?.value.trim() || "";
+
+                const roomId =
+                    document.getElementById(
+                        "new-subject-room"
+                    )?.value || "";
+
+                if (!code || !name) {
+                    Swal.showValidationMessage(
+                        "กรุณากรอกรหัสวิชาและชื่อวิชา"
+                    );
+                    return false;
+                }
+
+                if (
+                    code.length > 50 ||
+                    name.length > 255
+                ) {
+                    Swal.showValidationMessage(
+                        "รหัสวิชาหรือชื่อวิชายาวเกินกำหนด"
+                    );
+                    return false;
+                }
+
+                if (!availableRoomIds.has(roomId)) {
+                    Swal.showValidationMessage(
+                        "กรุณาเลือกห้องเรียนเริ่มต้น"
+                    );
+                    return false;
+                }
+
+                if (creditText === "") {
+                    Swal.showValidationMessage(
+                        "กรุณาระบุหน่วยกิต"
+                    );
+                    return false;
+                }
+
+                const credit = Number(creditText);
+
+                if (
+                    !Number.isFinite(credit) ||
+                    credit < 0 ||
+                    credit > 9.5 ||
+                    !Number.isInteger(credit * 2)
+                ) {
+                    Swal.showValidationMessage(
+                        "หน่วยกิตต้องเป็น 0 ถึง 9.5 " +
+                        "โดยเพิ่มทีละ 0.5"
+                    );
+                    return false;
+                }
+
+                return {
+                    code,
+                    name,
+                    credit,
+                    roomId
+                };
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        const input = result.value;
+
+        // 5. ให้ผู้ใช้ยืนยันก่อนเขียนข้อมูลจริง
+        const selectedRoom = rooms.find(
+            room => room.id === input.roomId
+        );
+
+        const confirmation = await Swal.fire({
+            icon: "question",
+            title: "ยืนยันเพิ่มวิชา?",
+            text:
+                `${input.code} — ${input.name} ` +
+                `ห้อง ${selectedRoom?.room_name || "-"}`,
+            showCancelButton: true,
+            confirmButtonText: "ยืนยันบันทึก",
+            cancelButtonText: "ยกเลิก"
+        });
+
+        if (!confirmation.isConfirmed) return;
+
+        // 6. บันทึกผ่าน RPC เดิมใน Supabase
+        // RPC เป็นผู้ตรวจวิชาและ Assignment ซ้ำ
+        const { data: assignmentId, error } =
+            await supabaseClient.rpc(
+                "teacher_create_subject_assignment",
+                {
+                    p_subject_code: input.code,
+                    p_subject_name: input.name,
+                    p_credit: input.credit,
+                    p_room_id: input.roomId
+                }
+            );
+
+        if (error) throw error;
+
+        if (
+            typeof assignmentId !== "string" ||
+            !assignmentId
+        ) {
+            throw new Error(
+                "RPC ไม่ส่งรหัส Subject Assignment กลับมา"
+            );
+        }
+
+        await Swal.fire({
+            icon: "success",
+            title: "บันทึกวิชาสำเร็จ",
+            text:
+                "สร้างหรือพบวิชาและห้องเรียนเดิมแล้ว " +
+                "ขั้นต่อไปกำหนดวันและคาบสอน",
+            confirmButtonText: "กำหนดตารางสอน"
+        });
+
+        // 7. ใช้ฟอร์มเพิ่มตารางสอนเดิม
+        // ไม่สร้างระบบวัน/คาบ/ห้องสอนใหม่
+        await openScheduleCreate();
+
+        const assignmentSelect =
+            document.getElementById(
+                "schedule-assignment"
+            );
+
+        if (!assignmentSelect) {
+            throw new Error(
+                "ไม่พบช่องเลือกวิชาในหน้าต่างเพิ่มตารางสอน"
+            );
+        }
+
+        // ยืนยันว่า Assignment ใหม่โหลดมาแล้วจริง
+        const assignmentOption =
+            Array.from(assignmentSelect.options)
+                .find(option =>
+                    option.value === assignmentId
+                );
+
+        if (!assignmentOption) {
+            throw new Error(
+                "บันทึกวิชาสำเร็จแล้ว แต่ยังไม่พบวิชา " +
+                "ในรายการ กรุณาเปิดหน้าต่างเพิ่มตารางสอนใหม่"
+            );
+        }
+
+        assignmentSelect.value = assignmentId;
+
+        // ครูกรอกวัน คาบ ห้องสอน และวันที่ต่อเอง
+        assignmentSelect.focus();
+
+    } catch (error) {
+        console.error(
+            "Teacher Subject Create Error:",
+            error
+        );
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถดำเนินการได้",
+            text:
+                error?.message ||
+                "เกิดข้อผิดพลาดในการเพิ่มวิชา"
+        });
+    }
+}
+
 // ============================================================
 // SCHEDULE CREATE
 // STEP 5B.8.5 — Create Schedule Form
@@ -4862,14 +7345,22 @@ async function openScheduleCreate() {
                             วิชา / ห้องเรียน
                         </label>
 
-                        <select id="schedule-assignment">
-                            <option value="">
-                                กำลังโหลดข้อมูล...
-                            </option>
-                        </select>
+<select id="schedule-assignment">
+    <option value="">
+        กำลังโหลดข้อมูล...
+    </option>
+</select>
 
-                    </div>
+<button
+    type="button"
+    class="schedule-add-btn"
+    style="margin-top:10px;"
+    onclick="openTeacherSubjectCreateForm()"
+>
+    ＋ เพิ่มวิชาใหม่
+</button>
 
+</div>
 
                     <div class="schedule-form-row">
 
@@ -5020,10 +7511,48 @@ async function openScheduleCreate() {
 
     try {
 
-        const { data, error } = await supabaseClient
+        // B53 — จำกัดวิชาให้ตรงกับภาคเรียนและครู
+        const activeSemester =
+            await getScheduleManageActiveSemester();
 
+        if (!activeSemester) {
+            throw new Error(
+                "ไม่มีภาคเรียนที่เปิดให้จัดการตารางสอน"
+            );
+        }
+
+        const role = await getCurrentUserRole();
+
+        let selectedTeacherId = "";
+
+        if (role === "Teacher") {
+
+            const context =
+                await getCurrentTeacherContext();
+
+            if (!context?.teacherId) {
+                throw new Error(
+                    "ไม่พบข้อมูลครูผู้เข้าสู่ระบบ"
+                );
+            }
+
+            selectedTeacherId = context.teacherId;
+
+        } else if (role === "Admin") {
+
+            selectedTeacherId =
+                window.scheduleManageTeacherFilterId || "";
+
+        } else {
+
+            throw new Error(
+                "ไม่มีสิทธิ์เพิ่มตารางสอน"
+            );
+        }
+
+        // Query เฉพาะ Assignment ของภาคเรียนปัจจุบัน
+        let query = supabaseClient
             .from("subject_assignments")
-
             .select(`
                 id,
                 teacher_id,
@@ -5039,11 +7568,21 @@ async function openScheduleCreate() {
                     room_name
                 )
             `)
+            .eq("semester_id", activeSemester.id);
 
+        // Teacher เห็นเฉพาะวิชาของตนเอง
+        // Admin เห็นเฉพาะครูที่เลือก หรือทุกคน
+        if (selectedTeacherId) {
+            query = query.eq(
+                "teacher_id",
+                selectedTeacherId
+            );
+        }
+
+        const { data, error } = await query
             .order("subject_id", {
                 ascending: true
             });
-
 
         if (error) throw error;
 
@@ -5572,19 +8111,44 @@ async function loadAdminAcademicOverview() {
             const actionCell = document.createElement("td");
 
             if (semester?.id) {
-                const button = document.createElement("button");
-                button.type = "button";
-                button.className = "btn";
-                button.textContent = "✏️ แก้ไข";
 
-                button.addEventListener("click", () => {
-                    openAdminSemesterDetails(semester);
-                });
+    const todayBangkok = new Date().toLocaleDateString(
+        "sv-SE",
+        { timeZone: "Asia/Bangkok" }
+    );
 
-                actionCell.appendChild(button);
-            } else {
-                actionCell.textContent = "-";
-            }
+    const isLocked =
+        semester.schedule_locked_at != null;
+
+    const isExpired =
+        semester.end_date < todayBangkok;
+
+    if (isLocked || isExpired) {
+
+        actionCell.textContent = isLocked
+            ? "🔒 ล็อกแล้ว"
+            : "⏳ หมดอายุ";
+
+        actionCell.title =
+            "ภาคเรียนนี้ไม่สามารถแก้ไขผ่านหน้าจอปกติได้";
+
+    } else {
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn";
+        button.textContent = "✏️ แก้ไข";
+
+        button.addEventListener("click", () => {
+            openAdminSemesterDetails(semester);
+        });
+
+        actionCell.appendChild(button);
+    }
+
+} else {
+    actionCell.textContent = "-";
+}
 
             tr.appendChild(actionCell);
             tbody.appendChild(tr);
@@ -5617,19 +8181,39 @@ async function loadAdminAcademicOverview() {
                 }
 
                 yearSemesters.forEach(semester => {
-                    appendRow([
-                        year.year,
-                        year.is_current
-                            ? "ปีปัจจุบัน"
-                            : "ไม่ใช่ปีปัจจุบัน",
-                        semester.semester_no,
-                        semester.start_date,
-                        semester.end_date
-                    ], {
-                        ...semester,
-                        academicYear: year.year
-                    });
-                });
+
+    const todayBangkok = new Date().toLocaleDateString(
+        "sv-SE",
+        { timeZone: "Asia/Bangkok" }
+    );
+
+    const isPermanentlyLocked =
+        semester.schedule_locked_at != null;
+
+    const isExpired =
+        !isPermanentlyLocked &&
+        semester.end_date < todayBangkok;
+
+    const semesterStatus = isPermanentlyLocked
+        ? "🔒 ล็อกแล้ว"
+        : isExpired
+            ? "⏳ หมดอายุ"
+            : "🟢 เปิดใช้งาน";
+
+    appendRow([
+        year.year,
+        year.is_current
+            ? "ปีปัจจุบัน"
+            : "ไม่ใช่ปีปัจจุบัน",
+        `${semester.semester_no} ${semesterStatus}`,
+        semester.start_date,
+        semester.end_date
+    ], {
+        ...semester,
+        academicYear: year.year
+    });
+});
+
             });
 
         if (tbody.children.length === 0) {
@@ -5676,7 +8260,7 @@ async function loadAdminAcademicOverview() {
 
 // false = ทดลองกระบวนการโดยไม่เขียนฐานข้อมูล
 // true  = เปิดบันทึกจริง (ต้องได้รับอนุมัติก่อน)
-const SEMESTER_LIVE_WRITE_ENABLED = false;
+const SEMESTER_LIVE_WRITE_ENABLED = true;
 
 const semesterEditState = {
     revision: 0,
@@ -6232,7 +8816,7 @@ document.addEventListener("DOMContentLoaded", () => {
    MODULE 3.0 — ACADEMIC YEAR / SEMESTER CREATION
    ===================================================== */
 
-const ACADEMIC_CREATE_LIVE_ENABLED = false;
+const ACADEMIC_CREATE_LIVE_ENABLED = true;
 
 const academicCreateState = {
     busy: false
