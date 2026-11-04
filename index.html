@@ -300,6 +300,18 @@
             <span class="menu-text">ห้องสอน</span>
         </button>
 
+<!-- B56-ACTIVITY-09: Admin Activity Assignment -->
+<button
+    id="menu-admin-activities"
+    type="button"
+    class="menu-btn submenu-btn"
+    style="display:none;"
+    onclick="switchView('admin-activities')"
+>
+    <span class="menu-icon">🎯</span>
+    <span class="menu-text">มอบหมายกิจกรรม</span>
+</button>
+
         <button
             class="menu-btn submenu-btn"
             onclick="showNavigationPlaceholder('ประวัติการเปลี่ยนแปลงงานวิชาการ')"
@@ -337,13 +349,15 @@
                     <span class="menu-text">ข้อมูลผู้ใช้</span>
                 </button>
 
-                <button
-                    class="menu-btn submenu-btn"
-                    onclick="showNavigationPlaceholder('ผู้ใช้งานและบัญชี')"
-                >
-                    <span class="menu-icon">👥</span>
-                    <span class="menu-text">ผู้ใช้งานและบัญชี</span>
-                </button>
+<button
+    id="menu-admin-users"
+    class="menu-btn submenu-btn"
+    style="display:none;"
+    onclick="switchView('admin-users')"
+>
+    <span class="menu-icon">👥</span>
+    <span class="menu-text">ผู้ใช้งานและบัญชี</span>
+</button>
 
                 <button
                     class="menu-btn submenu-btn"
@@ -1430,6 +1444,133 @@
 </div>
 
 <!-- ==========================================
+     B56 — ADMIN USER MANAGEMENT
+     UI SHELL / NO DATABASE WRITES
+     ========================================== -->
+
+<div
+    id="view-admin-users"
+    class="view-section"
+    style="display:none;"
+>
+    <div class="page-header">
+        <div>
+            <h1>👥 ผู้ใช้งานและบัญชี</h1>
+            <p>
+                จัดการบัญชีผู้ใช้งานของโรงเรียน
+                และข้อมูลทั้ง 4 บทบาท
+            </p>
+        </div>
+    </div>
+
+    <div class="glass-card">
+
+        <!-- B56 Tabs -->
+        <div
+            id="admin-users-tabs"
+            style="
+                display:flex;
+                flex-wrap:wrap;
+                gap:8px;
+                margin-bottom:20px;
+            "
+        >
+            <button type="button"
+                class="btn"
+                data-admin-users-tab="overview">
+                📊 ภาพรวม
+            </button>
+
+            <button type="button"
+                class="btn"
+                data-admin-users-tab="admin">
+                🛡️ Admin
+            </button>
+
+            <button type="button"
+                class="btn"
+                data-admin-users-tab="teacher">
+                👩‍🏫 Teacher
+            </button>
+
+            <button type="button"
+                class="btn"
+                data-admin-users-tab="parent">
+                👨‍👩‍👧 Parent
+            </button>
+
+            <button type="button"
+                class="btn"
+                data-admin-users-tab="student">
+                🎓 Student
+            </button>
+        </div>
+
+        <!-- Overview -->
+        <section data-admin-users-panel="overview">
+            <h2>📊 ภาพรวมผู้ใช้งาน</h2>
+            <p>
+                แสดงจำนวนบัญชีและสถานะผู้ใช้งาน
+                ทั้ง 4 บทบาท
+            </p>
+            <div id="admin-users-overview-content">
+                กำลังเตรียมเชื่อมต่อข้อมูล
+            </div>
+        </section>
+
+        <!-- Admin -->
+        <section data-admin-users-panel="admin"
+                 style="display:none;">
+            <h2>🛡️ Admin</h2>
+            <p>ข้อมูลและสถานะบัญชีผู้ดูแลระบบ</p>
+            <div id="admin-users-admin-content">
+                กำลังเตรียมเชื่อมต่อข้อมูล
+            </div>
+        </section>
+
+        <!-- Teacher -->
+        <section data-admin-users-panel="teacher"
+                 style="display:none;">
+            <h2>👩‍🏫 Teacher</h2>
+            <p>
+                จัดการข้อมูลครูและสร้างบัญชี
+                Email / Password
+            </p>
+            <div id="admin-users-teacher-content">
+                กำลังเตรียมระบบเพิ่มบัญชีครู
+            </div>
+        </section>
+
+        <!-- Parent -->
+        <section data-admin-users-panel="parent"
+                 style="display:none;">
+            <h2>👨‍👩‍👧 Parent</h2>
+            <p>
+                ข้อมูลผู้ปกครองและการเตรียมเชื่อมต่อ
+                LINE Alert ในอนาคต
+            </p>
+            <div id="admin-users-parent-content">
+                กำลังเตรียมเชื่อมต่อข้อมูล
+            </div>
+        </section>
+
+        <!-- Student -->
+        <section data-admin-users-panel="student"
+                 style="display:none;">
+            <h2>🎓 Student</h2>
+            <p>
+                ข้อมูลนักเรียนและสถานะ
+                การเชื่อมบัญชี Login
+            </p>
+            <div id="admin-users-student-content">
+                กำลังเตรียมเชื่อมต่อข้อมูล
+            </div>
+        </section>
+
+    </div>
+</div>
+
+<!-- ==========================================
      MODULE 2.8 — SEMESTER EDIT MODAL
      UI ONLY / NO DATABASE WRITES
      ========================================== -->
@@ -1638,6 +1779,28 @@
 
     </table>
 
+    <!-- B56-06: Password Management -->
+    <div style="margin-top:24px;">
+        <h3 style="margin-bottom:8px;">
+            🔐 ความปลอดภัยของบัญชี
+        </h3>
+
+        <p style="
+            color:#64748b;
+            font-size:14px;
+            margin-bottom:14px;
+        ">
+            เปลี่ยนรหัสผ่านสำหรับเข้าสู่ระบบของคุณ
+        </p>
+
+        <button
+            type="button"
+            id="btn-change-password"
+            class="btn">
+            🔑 เปลี่ยนรหัสผ่าน
+        </button>
+    </div>
+
 </div>
 
             <div id="setting-clear" class="setting-page">
@@ -1795,11 +1958,49 @@
 
 </div>
 
+<!-- ==========================================
+     B56-ACTIVITY-09
+     ADMIN ACTIVITY ASSIGNMENT
+     UI SHELL ONLY / NO DATABASE WRITES
+     ========================================== -->
+
+<div
+    id="view-admin-activities"
+    class="view-section"
+    style="display:none;"
+>
+    <div class="page-header">
+        <div>
+            <h1>🎯 มอบหมายกิจกรรม</h1>
+            <p>
+                มอบหมายกิจกรรมให้ครูผู้รับผิดชอบ
+                ตามปีการศึกษาและภาคเรียน
+            </p>
+        </div>
+    </div>
+
+    <div class="glass-card">
+        <h2>จัดการกิจกรรมครู</h2>
+
+        <p>
+            เลือกครูผู้รับผิดชอบ ตรวจรายการกิจกรรม
+            และมอบหมายกิจกรรมทั้ง 9 ประเภท
+        </p>
+
+        <div
+            id="admin-activities-content"
+            style="margin-top:20px;"
+        >
+            กำลังเตรียมระบบมอบหมายกิจกรรม
+        </div>
+    </div>
+</div>
+
 </div>
 
   <!-- โหลด JavaScript ของเรา (ต้องอยู่ด้านล่างสุด) -->
   <!-- Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
 
 <!-- Config -->
 <script src="js/config.js"></script>
@@ -1812,6 +2013,7 @@
 <script src="js/attendance.js"></script>
 <script src="js/student-management.js"></script>
 <script src="js/student-detail.js"></script>
+<script src="js/admin-users.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1831,6 +2033,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (academicMenu) {
     academicMenu.style.display = "";
     }
+    const adminUsersMenu = document.getElementById(
+    "menu-admin-users"
+    );
+
+    if (adminUsersMenu) {
+    adminUsersMenu.style.display = "";
+}
+
+// B56-ACTIVITY-09 — แสดงเมนูมอบหมายกิจกรรมเฉพาะ Admin
+const adminActivitiesMenu = document.getElementById(
+    "menu-admin-activities"
+);
+
+if (adminActivitiesMenu) {
+    adminActivitiesMenu.style.display = "";
+}
 
 const academicGroup = document.getElementById(
     "nav-group-academic"
@@ -1918,6 +2136,49 @@ if (activityRoomHeader) {
 
     });
 
+});
+</script>
+
+<!-- B56 — Admin Users Tab Navigation -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const tabs = document.querySelectorAll(
+        "#admin-users-tabs [data-admin-users-tab]"
+    );
+
+    const panels = document.querySelectorAll(
+        "#view-admin-users [data-admin-users-panel]"
+    );
+
+    function activateAdminUsersTab(tabName) {
+        tabs.forEach(button => {
+            const active =
+                button.dataset.adminUsersTab === tabName;
+
+            button.style.opacity = active ? "1" : "0.65";
+            button.setAttribute(
+                "aria-pressed",
+                String(active)
+            );
+        });
+
+        panels.forEach(panel => {
+            panel.style.display =
+                panel.dataset.adminUsersPanel === tabName
+                    ? ""
+                    : "none";
+        });
+    }
+
+    tabs.forEach(button => {
+        button.addEventListener("click", () => {
+            activateAdminUsersTab(
+                button.dataset.adminUsersTab
+            );
+        });
+    });
+
+    activateAdminUsersTab("overview");
 });
 </script>
 

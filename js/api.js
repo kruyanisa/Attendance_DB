@@ -3339,6 +3339,43 @@ async function getActiveActivityTypes() {
     return data || [];
 }
 
+ // ============================================================
+ // B56-ACTIVITY-10
+ // Load Active Teachers for Admin Activity Assignment
+ // READ ONLY
+ // ============================================================
+
+async function getAdminActivityTeachers() {
+
+    const role = await getCurrentUserRole();
+
+    if (role !== "Admin") {
+        throw new Error(
+            "เฉพาะ Admin เท่านั้นที่ดูรายชื่อครูเพื่อมอบหมายกิจกรรมได้"
+        );
+    }
+
+    const { data, error } = await supabaseClient
+        .from("teachers")
+        .select(`
+            id,
+            teacher_code,
+            instructor_number,
+            first_name,
+            last_name,
+            nickname
+        `)
+        .is("deleted_at", null)
+        .order("teacher_code", {
+            ascending: true
+        });
+
+    if (error) {
+        throw error;
+    }
+
+    return data || [];
+}
 
 // ============================================================
  // B55.22 — Create New Activity via Secure RPC

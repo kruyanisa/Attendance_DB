@@ -26,11 +26,23 @@
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" required placeholder="Enter your email">
                 </div>
-                
-                <div class="input-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required placeholder="Enter your password">
-                </div>
+
+<div class="input-group">
+    <label for="password">Password</label>
+    <div class="password-wrapper">
+        <input type="password" id="password" name="password" required placeholder="Enter your password">
+
+        <button type="button" class="password-toggle"
+                id="toggle-password"
+                aria-label="Show password"
+                aria-pressed="false">
+            <svg id="password-eye" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        </button>
+    </div>
+</div>
                 
                 <button id="login-btn" type="submit" class="login-btn">Login</button>
             </form>
@@ -38,6 +50,33 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.js"></script>
-    <script src="js/auth.js"></script>
+
+<script src="js/auth.js"></script>
+
+<script>
+    const passwordInput = document.getElementById("password");
+    const togglePassword = document.getElementById("toggle-password");
+    const passwordEye = document.getElementById("password-eye");
+
+    togglePassword.addEventListener("click", () => {
+        const isPasswordVisible = passwordInput.type === "text";
+
+        passwordInput.type = isPasswordVisible ? "password" : "text";
+
+        togglePassword.setAttribute(
+            "aria-label",
+            isPasswordVisible ? "Show password" : "Hide password"
+        );
+
+        togglePassword.setAttribute(
+            "aria-pressed",
+            String(!isPasswordVisible)
+        );
+
+        passwordEye.innerHTML = isPasswordVisible
+            ? '<path d="M2 12s3.5-7 10-7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
+            : '<path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a15.5 15.5 0 0 1-4.1 4.7"/><path d="M6.3 6.3C3.5 8.2 2 12 2 12s3.5 7 10 7a10.2 10.2 0 0 0 4.4-1"/><path d="M10 10a3 3 0 0 0 4 4"/>';
+    });
+</script>
 </body>
 </html>

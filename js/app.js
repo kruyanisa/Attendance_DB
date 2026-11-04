@@ -7,7 +7,7 @@ const navigationPlaceholder =
 if (navigationPlaceholder) {
     navigationPlaceholder.style.display = "none";
 }
-  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule', 'import', 'student-management', 'student-detail', 'admin-academic'];
+  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule', 'import', 'student-management', 'student-detail', 'admin-academic', 'admin-users', 'admin-activities'];
   
   views.forEach(v => {
     // ซ่อน/แสดง เนื้อหา
@@ -52,6 +52,17 @@ if (view === "admin-academic") {
     loadAdminAcademicOverview();
 }
 
+if (view === "admin-users") {
+    if (typeof AdminUsers !== "undefined") {
+        AdminUsers.init();
+    } else {
+        console.error("B56: AdminUsers module not loaded.");
+    }
+}
+// B56-ACTIVITY-10 — โหลดหน้ามอบหมายกิจกรรม
+if (view === "admin-activities") {
+    loadAdminActivityAssignment();
+}
 /* =========================================================
    Navigation — Auto Open Active Group
    ========================================================= */
@@ -68,6 +79,615 @@ if (activeMenu) {
 }
   
 }
+
+ // ============================================================
+ // B56-ACTIVITY-10 — Admin Activity Assignment
+ // READ ONLY — ยังไม่มีการบันทึกข้อมูล
+ // ============================================================
+
+async function loadAdminActivityAssignment() {
+    const container = document.getElementById(
+        "admin-activities-content"
+    );
+
+    if (!container) return;
+
+    container.textContent = "กำลังโหลดข้อมูลครูและกิจกรรม...";
+
+    try {
+        const role = await getCurrentUserRole();
+
+        if (role !== "Admin") {
+            container.textContent =
+                "ไม่มีสิทธิ์เข้าถึงหน้ามอบหมายกิจกรรม";
+            return;
+        }
+
+        const semester = await getScheduleManageActiveSemester();
+
+        if (!semester) {
+            container.textContent =
+                "ไม่พบภาคเรียนปัจจุบันที่เปิดให้จัดการกิจกรรม";
+            return;
+        }
+
+        const [teachers, types, activities, yearResponse] =
+            await Promise.all([
+                getAdminActivityTeachers(),
+                getActiveActivityTypes(),
+                getActivitiesForScheduleCreate(),
+                supabaseClient
+                    .from("academic_years")
+                    .select("year")
+                    .eq("id", semester.academic_year_id)
+                    .single()
+            ]);
+
+        if (yearResponse.error) {
+            throw yearResponse.error;
+        }
+
+        // ตรวจความครบถ้วนก่อนแสดงผล
+        if (types.length !== 9) {
+            throw new Error(
+                "จำนวนประเภทกิจกรรมไม่ครบ 9 ประเภท"
+            );
+        }
+
+        const currentActivities = activities.filter(
+            activity => activity.semesterId === semester.id
+        );
+
+        container.replaceChildren();
+
+        const context = document.createElement("p");
+        context.textContent =
+            `ปีการศึกษา ${yearResponse.data.year} · ` +
+            `ภาคเรียนที่ ${semester.semester_no}`;
+
+        context.style.marginBottom = "16px";
+        container.appendChild(context);
+
+        const label = document.createElement("label");
+        label.textContent = "👩‍🏫 เลือกครูผู้รับผิดชอบ";
+        label.htmlFor = "admin-activity-teacher-select";
+
+        const select = document.createElement("select");
+        select.id = "admin-activity-teacher-select";
+        select.className = "schedule-filter-select";
+
+        select.style.cssText = [
+            "display:block",
+            "width:100%",
+            "max-width:480px",
+            "margin:8px 0 20px",
+            "padding:10px"
+        ].join(";");
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "-- เลือกครู --";
+
+        select.appendChild(placeholder);
+
+        teachers.forEach(teacher => {
+            const option = document.createElement("option");
+
+            option.value = teacher.id;
+
+            const name = [
+                teacher.first_name,
+                teacher.last_name
+            ].filter(Boolean).join(" ");
+
+            const number =
+                teacher.instructor_number || teacher.teacher_code || "";
+
+            option.textContent =
+                [number, name].filter(Boolean).join(" — ");
+
+            select.appendChild(option);
+        });
+
+        const heading = document.createElement("h3");
+        heading.textContent = "🎯 รายการกิจกรรม";
+
+        const list = document.createElement("div");
+        list.style.cssText = [
+            "display:grid",
+            "gap:10px",
+            "margin-top:12px"
+        ].join(";");
+
+        const note = document.createElement("p");
+        note.style.cssText = [
+            "font-size:13px",
+            "color:#64748b",
+            "margin-top:16px"
+        ].join(";");
+
+        note.textContent =
+        "เลือกรายการที่ต้องการ แล้วตรวจสอบข้อมูลก่อนยืนยัน " +
+        "การมอบหมายจะบันทึกลงฐานข้อมูลจริง";
+
+        // B56-ACTIVITY-11
+        // เลือกกิจกรรมและตรวจสอบก่อนบันทึก
+        // UI ONLY — ไม่มีการเขียนข้อมูล
+
+        const selectedCodes = new Set();
+        let assignmentSaving = false;
+
+        const previewButton = document.createElement("button");
+        previewButton.type = "button";
+        previewButton.className = "btn";
+        previewButton.textContent = "🔍 ตรวจสอบรายการที่เลือก";
+        previewButton.disabled = true;
+        previewButton.style.marginTop = "16px";
+
+        const selectionSummary = document.createElement("p");
+        selectionSummary.style.marginTop = "10px";
+
+        function updateSelectionSummary() {
+            selectionSummary.textContent =
+                `เลือกกิจกรรมใหม่ ${selectedCodes.size} ประเภท`;
+
+            previewButton.disabled =
+                !select.value || selectedCodes.size === 0;
+        }
+
+        function renderActivities(teacherId) {
+            list.replaceChildren();
+
+            if (!teacherId) {
+                list.textContent =
+                    "กรุณาเลือกครูเพื่อดูสถานะกิจกรรม";
+                updateSelectionSummary();
+                return;
+            }
+
+            types.forEach(type => {
+                const existing = currentActivities.filter(
+                    activity =>
+                        activity.activityTypeCode === type.code &&
+                        Array.isArray(activity.teacherIds) &&
+                        activity.teacherIds.includes(teacherId)
+                );
+
+                const row = document.createElement("div");
+
+                row.style.cssText = [
+                    "display:flex",
+                    "justify-content:space-between",
+                    "align-items:center",
+                    "flex-wrap:wrap",
+                    "gap:12px",
+                    "padding:12px",
+                    "border:1px solid #e2e8f0",
+                    "border-radius:10px"
+                ].join(";");
+
+                const label = document.createElement("label");
+                label.style.cssText = [
+                    "display:flex",
+                    "align-items:center",
+                    "gap:10px",
+                    "cursor:pointer"
+                ].join(";");
+
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.value = type.code;
+                checkbox.checked = selectedCodes.has(type.code);
+
+                // รายการที่มีอยู่แล้ว ห้ามเลือกสร้างซ้ำ
+                checkbox.disabled = existing.length > 0;
+
+                checkbox.addEventListener("change", () => {
+                    if (checkbox.checked) {
+                        selectedCodes.add(type.code);
+                    } else {
+                        selectedCodes.delete(type.code);
+                    }
+
+                    updateSelectionSummary();
+                });
+
+                const name = document.createElement("span");
+                name.textContent = `${type.name} (${type.code})`;
+
+                label.append(checkbox, name);
+
+                const status = document.createElement("strong");
+
+                if (existing.length > 1) {
+                    status.textContent = "⚠️ พบรายการซ้ำ";
+                    status.style.color = "#dc2626";
+                } else if (existing.length === 1) {
+                    status.textContent = "✅ มีแล้ว";
+                    status.style.color = "#16a34a";
+                } else {
+                    status.textContent = "ยังไม่ได้มอบหมาย";
+                    status.style.color = "#64748b";
+                }
+
+                row.append(label, status);
+                list.appendChild(row);
+            });
+
+            updateSelectionSummary();
+        }
+
+        select.addEventListener("change", () => {
+            selectedCodes.clear();
+            renderActivities(select.value);
+        });
+
+        previewButton.addEventListener("click", async () => {
+            const teacher = teachers.find(
+                item => item.id === select.value
+            );
+
+            if (!teacher || selectedCodes.size === 0) return;
+
+            const teacherName = [
+                teacher.first_name,
+                teacher.last_name
+            ].filter(Boolean).join(" ");
+
+            const teacherNumber =
+                teacher.instructor_number ||
+                teacher.teacher_code ||
+                "";
+
+            const chosenTypes = types.filter(
+                type => selectedCodes.has(type.code)
+            );
+
+            // B56-ACTIVITY-12
+            // หน้าสรุปแบบจัดหมวดหมู่ อ่านง่าย
+            // UI ONLY — ยังไม่บันทึกข้อมูลจริง
+
+            const summaryBox = document.createElement("div");
+
+            summaryBox.style.cssText = [
+                "text-align:left",
+                "font-size:15px",
+                "line-height:1.7"
+            ].join(";");
+
+            // ส่วนข้อมูลครูและภาคเรียน
+            const teacherBox = document.createElement("div");
+
+            teacherBox.style.cssText = [
+                "background:#f8fafc",
+                "border:1px solid #e2e8f0",
+                "border-radius:12px",
+                "padding:16px",
+                "margin-bottom:18px",
+                "color:#334155"
+            ].join(";");
+
+            const teacherCaption = document.createElement("div");
+            teacherCaption.textContent = "👩‍🏫 ครูผู้รับผิดชอบ";
+            teacherCaption.style.cssText =
+                "font-size:13px;color:#64748b;margin-bottom:4px";
+
+            const teacherValue = document.createElement("div");
+            teacherValue.textContent =
+                [teacherNumber, teacherName]
+                    .filter(Boolean)
+                    .join(" — ");
+            teacherValue.style.cssText =
+                "font-size:17px;font-weight:700;margin-bottom:12px";
+
+            const academicInfo = document.createElement("div");
+            academicInfo.textContent =
+                `📅 ปีการศึกษา ${yearResponse.data.year}` +
+                `   |   ภาคเรียนที่ ${semester.semester_no}`;
+            academicInfo.style.fontSize = "14px";
+
+            teacherBox.append(
+                teacherCaption,
+                teacherValue,
+                academicInfo
+            );
+
+            // ส่วนรายการกิจกรรม
+            const activityHeading = document.createElement("h3");
+            activityHeading.textContent = "🎯 กิจกรรมที่เลือก";
+            activityHeading.style.cssText = [
+                "font-size:16px",
+                "margin:0 0 12px",
+                "color:#1e293b"
+            ].join(";");
+
+            const activityList = document.createElement("div");
+activityList.style.cssText = [
+    "display:grid",
+    "gap:8px",
+    "max-height:220px",
+    "overflow-y:auto",
+    "overscroll-behavior:contain",
+    "padding:2px 6px 2px 0"
+].join(";");
+
+            chosenTypes.forEach(type => {
+                const item = document.createElement("div");
+
+                item.style.cssText = [
+                    "display:flex",
+                    "gap:10px",
+                    "align-items:flex-start",
+                    "padding:10px 12px",
+                    "border:1px solid #e2e8f0",
+                    "border-radius:9px",
+                    "color:#334155"
+                ].join(";");
+
+                const check = document.createElement("span");
+                check.textContent = "✅";
+
+                const name = document.createElement("span");
+                name.textContent = `${type.name} (${type.code})`;
+
+                item.append(check, name);
+                activityList.appendChild(item);
+            });
+
+            // จำนวนกิจกรรมทั้งหมด
+            const total = document.createElement("div");
+            total.style.cssText = [
+                "display:flex",
+                "justify-content:space-between",
+                "gap:10px",
+                "font-weight:700",
+                "margin-top:16px",
+                "padding-top:14px",
+                "border-top:1px solid #e2e8f0",
+                "color:#1e293b"
+            ].join(";");
+
+            const totalLabel = document.createElement("span");
+            totalLabel.textContent = "รวมทั้งหมด";
+
+            const totalValue = document.createElement("span");
+            totalValue.textContent =
+                `${chosenTypes.length} กิจกรรม`;
+
+            total.append(totalLabel, totalValue);
+
+            const notice = document.createElement("p");
+            notice.textContent =
+            "โปรดตรวจสอบชื่อครู ปีการศึกษา และรายการกิจกรรม " +
+            "ก่อนกดยืนยัน เพราะปุ่มยืนยันจะบันทึกข้อมูลจริง";
+
+            notice.style.cssText = [
+                "font-size:13px",
+                "color:#64748b",
+                "margin:16px 0 0"
+            ].join(";");
+
+            summaryBox.append(
+                teacherBox,
+                activityHeading,
+                activityList,
+                total,
+                notice
+            );
+
+            // B56-ACTIVITY-13 — ยืนยันและบันทึกจริง
+            // ใช้ RPC เดิมและตรวจผลจากฐานข้อมูลทุกกิจกรรม
+
+            if (assignmentSaving) return;
+
+            const confirmation = await Swal.fire({
+                title: "ตรวจสอบการมอบหมายกิจกรรม",
+                html: summaryBox,
+                width: "min(600px, calc(100vw - 24px))",
+                padding: "16px",
+                confirmButtonText: "ยืนยันมอบหมาย",
+                cancelButtonText: "ยกเลิก",
+                confirmButtonColor: "#2563eb",
+                showCancelButton: true,
+                reverseButtons: true,
+                heightAuto: false,
+                didOpen: (popup) => {
+                    popup.style.maxHeight = "calc(100dvh - 20px)";
+                    popup.style.overflowY = "auto";
+                    popup.style.boxSizing = "border-box";
+                }
+            });
+
+            if (!confirmation.isConfirmed) return;
+            if (assignmentSaving) return;
+
+            assignmentSaving = true;
+            previewButton.disabled = true;
+            select.disabled = true;
+
+            const teacherId = teacher.id;
+            const verified = [];
+            let processingType = null;
+
+            // แสดงสถานะระหว่างบันทึก
+            Swal.fire({
+                title: "กำลังมอบหมายกิจกรรม",
+                text: "กำลังตรวจสอบข้อมูลล่าสุด...",
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            try {
+                // ตรวจ Role อีกครั้งก่อนเขียนข้อมูล
+                const currentRole = await getCurrentUserRole();
+
+                if (currentRole !== "Admin") {
+                    throw new Error("ไม่มีสิทธิ์มอบหมายกิจกรรม");
+                }
+
+                // ตรวจรายการล่าสุดจากฐานข้อมูล
+                const before = await getActivitiesForScheduleCreate();
+
+                for (const type of chosenTypes) {
+                    const existing = before.filter(activity =>
+                        activity.semesterId === semester.id &&
+                        activity.academicYearId ===
+                            semester.academic_year_id &&
+                        activity.activityTypeCode === type.code &&
+                        Array.isArray(activity.teacherIds) &&
+                        activity.teacherIds.includes(teacherId)
+                    );
+
+                    if (existing.length > 0) {
+                        throw new Error(
+                            `${type.name} มีอยู่แล้วในฐานข้อมูล ` +
+                            "กรุณาโหลดหน้าใหม่ก่อนดำเนินการ"
+                        );
+                    }
+
+                    if (!type.id || !type.code) {
+                        throw new Error("ข้อมูลประเภทกิจกรรมไม่ครบถ้วน");
+                    }
+
+                    if (
+                        type.code !== "CLUB" &&
+                        (
+                            !type.name ||
+                            type.name.trim().length > 30
+                        )
+                    ) {
+                        throw new Error(
+                            `ชื่อกิจกรรม ${type.code} ไม่ถูกต้อง`
+                        );
+                    }
+                }
+
+                // บันทึกทีละประเภทและตรวจผลหลังบันทึก
+                for (const type of chosenTypes) {
+                    processingType = type;
+
+                    Swal.update({
+                        text:
+                            `กำลังมอบหมาย ${type.name} ` +
+                            `(${verified.length + 1}/${chosenTypes.length})`
+                    });
+
+                    const activityId = await createTeacherActivity({
+                        activityTypeId: type.id,
+                        activityName:
+                            type.code === "CLUB" ? "" : type.name,
+                        teacherId
+                    });
+
+                    // อ่านฐานข้อมูลใหม่ ไม่เชื่อผลจาก RPC อย่างเดียว
+                    const after = await getActivitiesForScheduleCreate();
+
+                    const matches = after.filter(activity =>
+                        activity.activityId === activityId &&
+                        activity.semesterId === semester.id &&
+                        activity.academicYearId ===
+                            semester.academic_year_id &&
+                        activity.activityTypeCode === type.code &&
+                        Array.isArray(activity.teacherIds) &&
+                        activity.teacherIds.includes(teacherId)
+                    );
+
+                    const sameType = after.filter(activity =>
+                        activity.semesterId === semester.id &&
+                        activity.academicYearId ===
+                            semester.academic_year_id &&
+                        activity.activityTypeCode === type.code &&
+                        Array.isArray(activity.teacherIds) &&
+                        activity.teacherIds.includes(teacherId)
+                    );
+
+                    if (matches.length !== 1 ||
+                        sameType.length !== 1) {
+                        throw new Error(
+                            "ยังยืนยันผลจากฐานข้อมูลไม่ได้ " +
+                            `สำหรับ ${type.name}`
+                        );
+                    }
+
+                    verified.push(type);
+                }
+
+                // ยืนยันครบทุกกิจกรรม
+                await Swal.fire({
+                    icon: "success",
+                    title: "มอบหมายกิจกรรมสำเร็จ",
+                    text:
+                        `ตรวจสอบแล้ว ${verified.length} กิจกรรม ` +
+                        `สำหรับครู ${teacherNumber} ${teacherName}`,
+                    confirmButtonText: "ตกลง"
+                });
+
+            } catch (error) {
+                console.error(
+                    "B56 Activity Assignment:",
+                    error
+                );
+
+                const completedText = verified.length
+                    ? verified.map(type =>
+                        `• ${type.name} (${type.code})`
+                    ).join("\n")
+                    : "ไม่มีรายการที่ยืนยันสำเร็จ";
+
+                const uncertainText = processingType
+                    ? `\nรายการที่ต้องตรวจสอบเพิ่มเติม: ` +
+                      processingType.name
+                    : "";
+
+                await Swal.fire({
+                    icon: "error",
+                    title: "มอบหมายกิจกรรมไม่ครบ",
+                    text:
+                        `ตรวจยืนยันสำเร็จ ${verified.length} รายการ\n` +
+                        completedText +
+                        uncertainText +
+                        "\n\nสาเหตุ: " +
+                        (error.message || "เกิดข้อผิดพลาด") +
+                        "\nกรุณาตรวจสถานะล่าสุดก่อนลองอีกครั้ง",
+                    confirmButtonText: "ตกลง"
+                });
+
+            } finally {
+                assignmentSaving = false;
+                select.disabled = false;
+
+                // โหลดสถานะจริงใหม่ทุกกรณี
+                await loadAdminActivityAssignment();
+            }
+
+        });
+
+        container.append(
+            label,
+            select,
+            heading,
+            list,
+            selectionSummary,
+            previewButton,
+            note
+        );
+
+        renderActivities("");
+
+    } catch (error) {
+        console.error(
+            "B56 Admin Activity Assignment:",
+            error
+        );
+
+        container.textContent =
+            "ไม่สามารถโหลดข้อมูลกิจกรรมได้: " +
+            (error.message || "เกิดข้อผิดพลาด");
+    }
+}
+
 function openStudentDetailFromMenu() {
     if (typeof StudentDetail === "undefined") {
         Swal.fire("ระบบไม่พร้อม", "ไม่พบโมดูลรายละเอียดนักเรียน", "error");
@@ -114,6 +734,319 @@ function showSetting(page) {
     document.querySelector(`[onclick="showSetting('${page}')"]`).classList.add("active");
 
 }
+
+/* =====================================================
+   B56-06 — Change Password
+   ขั้นตอนตรวจฟอร์มเท่านั้น ยังไม่เปลี่ยนรหัสจริง
+   ===================================================== */
+
+async function openChangePasswordForm() {
+    const result = await Swal.fire({
+        title: "🔐 เปลี่ยนรหัสผ่าน",
+        width: 520,
+        padding: "16px 24px",
+        html: `
+            <div style="
+                text-align:left;
+                display:grid;
+                gap:12px;
+            ">
+                <div>
+                    <label for="b56-current-password">
+                        รหัสผ่านปัจจุบัน *
+                    </label>
+                    <input
+                        id="b56-current-password"
+                        type="password"
+                        class="swal2-input"
+                        autocomplete="off"
+                        style="
+                            width:100%;
+                            height:40px;
+                            margin:5px 0 0;
+                            box-sizing:border-box;
+                        "
+                    >
+                </div>
+
+                <div>
+                    <label for="b56-new-password">
+                        รหัสผ่านใหม่ *
+                    </label>
+                    <input
+                        id="b56-new-password"
+                        type="password"
+                        class="swal2-input"
+                        autocomplete="new-password"
+                        style="
+                            width:100%;
+                            height:40px;
+                            margin:5px 0 0;
+                            box-sizing:border-box;
+                        "
+                    >
+                </div>
+
+                <div>
+                    <label for="b56-confirm-password">
+                        ยืนยันรหัสผ่านใหม่ *
+                    </label>
+                    <input
+                        id="b56-confirm-password"
+                        type="password"
+                        class="swal2-input"
+                        autocomplete="new-password"
+                        style="
+                            width:100%;
+                            height:40px;
+                            margin:5px 0 0;
+                            box-sizing:border-box;
+                        "
+                    >
+                </div>
+
+                <p style="
+                    margin:0;
+                    font-size:13px;
+                    color:#64748b;
+                    line-height:1.6;
+                ">
+                    รหัสผ่านใหม่ต้องมีอย่างน้อย 12 ตัวอักษร
+                    และไม่ควรใช้รหัสผ่านเดิมซ้ำ
+                </p>
+            </div>
+        `,
+
+        showCancelButton: true,
+        confirmButtonText: "ตรวจสอบรหัสผ่าน",
+        cancelButtonText: "ยกเลิก",
+        focusConfirm: false,
+
+                // B56-06.3 — ปุ่มแสดง/ซ่อนรหัสผ่าน
+        didOpen: () => {
+            // เริ่มต้นช่องรหัสผ่านปัจจุบันเป็นค่าว่าง
+            const currentInput = document.getElementById(
+                "b56-current-password"
+            );
+
+            if (currentInput) {
+                currentInput.value = "";
+            }
+            const passwordIds = [
+                "b56-current-password",
+                "b56-new-password",
+                "b56-confirm-password"
+            ];
+
+            passwordIds.forEach(id => {
+                const input = document.getElementById(id);
+
+                if (!input) return;
+
+                const container = input.parentElement;
+                container.style.position = "relative";
+
+                input.style.paddingRight = "48px";
+
+                const eyeButton = document.createElement("button");
+
+                eyeButton.type = "button";
+                eyeButton.textContent = "👁️";
+                eyeButton.title = "แสดงรหัสผ่าน";
+                eyeButton.setAttribute(
+                    "aria-label",
+                    "แสดงรหัสผ่าน"
+                );
+
+                eyeButton.style.cssText = [
+                    "position:absolute",
+                    "right:10px",
+                    "bottom:4px",
+                    "width:36px",
+                    "height:34px",
+                    "border:none",
+                    "background:transparent",
+                    "cursor:pointer",
+                    "font-size:19px",
+                    "display:flex",
+                    "align-items:center",
+                    "justify-content:center"
+                ].join(";");
+
+                eyeButton.addEventListener("click", () => {
+                    const isHidden = input.type === "password";
+
+                    input.type = isHidden ? "text" : "password";
+
+                    eyeButton.textContent = isHidden
+                        ? "🙈"
+                        : "👁️";
+
+                    eyeButton.title = isHidden
+                        ? "ซ่อนรหัสผ่าน"
+                        : "แสดงรหัสผ่าน";
+
+                    eyeButton.setAttribute(
+                        "aria-label",
+                        eyeButton.title
+                    );
+                });
+
+                container.appendChild(eyeButton);
+            });
+        },
+
+        preConfirm: () => {
+            const currentPassword =
+                document.getElementById(
+                    "b56-current-password"
+                ).value;
+
+            const newPassword =
+                document.getElementById(
+                    "b56-new-password"
+                ).value;
+
+            const confirmPassword =
+                document.getElementById(
+                    "b56-confirm-password"
+                ).value;
+
+            if (!currentPassword) {
+                Swal.showValidationMessage(
+                    "กรุณากรอกรหัสผ่านปัจจุบัน"
+                );
+                return false;
+            }
+
+            if (newPassword.length < 12) {
+                Swal.showValidationMessage(
+                    "รหัสผ่านใหม่ต้องมีอย่างน้อย 12 ตัวอักษร"
+                );
+                return false;
+            }
+
+            if (newPassword === currentPassword) {
+                Swal.showValidationMessage(
+                    "รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านเดิม"
+                );
+                return false;
+            }
+
+            if (newPassword !== confirmPassword) {
+                Swal.showValidationMessage(
+                    "ยืนยันรหัสผ่านใหม่ไม่ตรงกัน"
+                );
+                return false;
+            }
+
+            return {
+                currentPassword,
+                newPassword
+            };
+        }
+
+    });
+
+    if (!result.isConfirmed || !result.value) return;
+
+    const { currentPassword, newPassword } = result.value;
+
+    // B56-06.4 — เปลี่ยนรหัสผ่านของบัญชีที่ Login อยู่
+    Swal.fire({
+        title: "กำลังเปลี่ยนรหัสผ่าน",
+        text: "กรุณารอให้ระบบยืนยันผลการบันทึก",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        // ตรวจสอบตัวตนของผู้ใช้งานปัจจุบัน
+        const { data: userData, error: userError } =
+            await supabaseClient.auth.getUser();
+
+        if (userError || !userData?.user?.id) {
+            throw new Error("SESSION_REQUIRED");
+        }
+
+        // Supabase Auth ตรวจรหัสผ่านเดิมที่ Server
+        const { data, error } =
+            await supabaseClient.auth.updateUser({
+                password: newPassword,
+                current_password: currentPassword
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        if (!data?.user?.id ||
+            data.user.id !== userData.user.id) {
+            throw new Error("UPDATE_NOT_CONFIRMED");
+        }
+
+        await Swal.fire({
+            icon: "success",
+            title: "เปลี่ยนรหัสผ่านสำเร็จ",
+            text:
+                "ระบบบันทึกรหัสผ่านใหม่เรียบร้อยแล้ว " +
+                "โปรดใช้รหัสผ่านใหม่ในการเข้าสู่ระบบครั้งต่อไป",
+            confirmButtonText: "ตกลง"
+        });
+
+    } catch (error) {
+    // B56 — ตรวจสาเหตุโดยไม่แสดงรหัสผ่าน
+    console.info("B56 Password Change:", {
+        code: error?.code || "ไม่มี",
+        status: error?.status || "ไม่มี",
+        name: error?.name || "ไม่มี",
+        message: error?.message || "ไม่มี"
+    });
+
+    const errorCode = error?.code || error?.message || "";
+
+        let message =
+            "ไม่สามารถยืนยันผลการเปลี่ยนรหัสผ่านได้ " +
+            "กรุณาตรวจสอบสถานะบัญชีก่อนลองใหม่";
+
+        if (
+            errorCode === "current_password_invalid" ||
+            errorCode === "current_password_mismatch" ||
+            errorCode === "current_password_required"
+        ) {
+            message =
+                "รหัสผ่านปัจจุบันไม่ถูกต้อง " +
+                "กรุณาตรวจสอบแล้วลองใหม่";
+
+        } else if (errorCode === "same_password") {
+            message =
+                "รหัสผ่านใหม่ต้องแตกต่างจากรหัสผ่านเดิม";
+        } else if (errorCode === "weak_password") {
+            message =
+                "รหัสผ่านใหม่ไม่ผ่านเงื่อนไขความปลอดภัย";
+        } else if (errorCode === "SESSION_REQUIRED") {
+            message =
+                "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่";
+        }
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถเปลี่ยนรหัสผ่านได้",
+            text: message,
+            confirmButtonText: "ตกลง"
+        });
+    }
+
+}
+
+// เชื่อมปุ่มเปลี่ยนรหัสผ่าน โดยไม่แก้ HTML เพิ่ม
+document.addEventListener("click", function (event) {
+    if (event.target.closest("#btn-change-password")) {
+        openChangePasswordForm();
+    }
+});
 
 // =========================================
 // 🌐 ศูนย์รวมระบบ
@@ -185,7 +1118,9 @@ function showNavigationPlaceholder(featureName) {
         'import',
         "student-management",
         "student-detail",
-        "admin-academic"
+        "admin-academic",
+        "admin-users",
+        "admin-activities"
     ];
 
     views.forEach(viewName => {
@@ -5151,7 +6086,6 @@ async function loadScheduleEditTeachingRooms(
         return;
     }
 
-
     try {
 
         const { data, error } =
@@ -5172,11 +6106,9 @@ async function loadScheduleEditTeachingRooms(
                     }
                 );
 
-
         if (error) {
             throw error;
         }
-
 
         selectElement.innerHTML = `
 
@@ -5195,7 +6127,6 @@ async function loadScheduleEditTeachingRooms(
 
             option.value =
                 room.id;
-
 
             option.textContent =
                 room.room_name ||
@@ -5217,7 +6148,6 @@ async function loadScheduleEditTeachingRooms(
             );
 
         });
-
 
     } catch (error) {
 
@@ -5291,8 +6221,6 @@ async function deleteScheduleClassFromGroup(
 
         return;
     }
-
-
     const result =
         await Swal.fire({
 
@@ -5306,7 +6234,6 @@ async function deleteScheduleClassFromGroup(
                     text-align:center;
                     line-height:1.8;
                 ">
-
 
                     การลบจะไม่กระทบ
                     ห้องเรียนอื่นในคาบนี้
@@ -6045,6 +6972,12 @@ const SCHEDULE_PERIODS = [
         label: "คาบที่ 8",
         start: "14:40",
         end: "15:30"
+    },
+    {
+        lessonNo: 9,
+        label: "คาบที่ 9",
+        start: "15:30",
+        end: "16:00"
     }
 ];
 
@@ -6123,8 +7056,60 @@ async function saveActivityScheduleCreate() {
         return;
     }
 
+    let semesterRangeText = "";
 
     try {
+
+        const semester =
+            await getScheduleManageActiveSemester();
+
+        if (!semester) {
+            throw new Error(
+                "ไม่มีภาคเรียนที่เปิดให้เพิ่มตารางกิจกรรม"
+            );
+        }
+
+        const formatDate = value => {
+            if (!value) return "-";
+            const [year, month, day] = value.split("-");
+            return `${day}/${month}/${year}`;
+        };
+
+        semesterRangeText =
+            `ช่วงวันที่ของภาคเรียน: ` +
+            `${formatDate(semester.start_date)} ถึง ` +
+            `${formatDate(semester.end_date)} (ค.ศ.)`;
+
+        if (
+            validFrom < semester.start_date ||
+            validFrom > semester.end_date
+        ) {
+            throw new Error(
+                `วันที่เริ่มใช้ ${formatDate(validFrom)} ` +
+                `อยู่นอกช่วงภาคเรียน\n` +
+                `${semesterRangeText}\n` +
+                "กรุณาตรวจสอบวันที่และปี ค.ศ. อีกครั้ง"
+            );
+        }
+
+        if (validUntil && validUntil < validFrom) {
+            throw new Error(
+                "วันที่สิ้นสุดต้องไม่อยู่ก่อนวันที่เริ่มใช้ " +
+                "กรุณาตรวจสอบวันที่อีกครั้ง"
+            );
+        }
+
+        if (
+            validUntil &&
+            validUntil > semester.end_date
+        ) {
+            throw new Error(
+                `วันที่สิ้นสุด ${formatDate(validUntil)} ` +
+                `อยู่นอกช่วงภาคเรียน\n` +
+                `${semesterRangeText}\n` +
+                "กรุณาตรวจสอบวันที่และปี ค.ศ. อีกครั้ง"
+            );
+        }
 
         await createActivitySchedule({
 
@@ -6171,15 +7156,51 @@ async function saveActivityScheduleCreate() {
             error
         );
 
+        const rawMessage = String(error?.message || "");
+        let message = rawMessage ||
+            "เกิดข้อผิดพลาดในการบันทึก";
+
+        if (rawMessage.includes("ACTIVITY_SCHEDULE_OVERLAP")) {
+            message =
+                "กิจกรรมนี้มีตารางในวันและช่วงเวลา " +
+                "หรือหมายเลขคาบดังกล่าวอยู่แล้ว\n" +
+                "กรุณาตรวจสอบตารางเดิมก่อนเพิ่มรายการใหม่";
+
+        } else if (
+            rawMessage.includes("ACTIVITY_START_OUTSIDE_SEMESTER")
+        ) {
+            message =
+                "วันที่เริ่มใช้อยู่นอกช่วงภาคเรียน\n" +
+                semesterRangeText + "\n" +
+                "กรุณาตรวจสอบวันที่และปี ค.ศ. อีกครั้ง";
+
+        } else if (
+            rawMessage.includes("ACTIVITY_END_OUTSIDE_SEMESTER")
+        ) {
+            message =
+                "วันที่สิ้นสุดไม่ถูกต้องหรืออยู่นอกช่วงภาคเรียน\n" +
+                semesterRangeText + "\n" +
+                "กรุณาตรวจสอบวันที่และปี ค.ศ. อีกครั้ง";
+
+        } else if (
+            rawMessage.includes(
+                "ACTIVITY_SCHEDULE_INVALID_TIME_OR_DATE"
+            )
+        ) {
+            message =
+                "ข้อมูลวันหรือเวลาไม่ถูกต้อง\n" +
+                "กรุณาตรวจสอบวัน เวลาเริ่มต้น " +
+                "และเวลาสิ้นสุดอีกครั้ง";
+        }
+
         await Swal.fire({
             icon: "error",
             title: "ไม่สามารถเพิ่มตารางกิจกรรมได้",
-            text:
-                error.message ||
-                "เกิดข้อผิดพลาดในการบันทึก",
+            text: message,
             confirmButtonText: "ตกลง"
         });
     }
+
 }
 async function openActivityScheduleCreate() {
 
@@ -6414,7 +7435,7 @@ async function openActivityScheduleCreate() {
                                     activity-schedule-valid-from
                                 "
                             >
-                                เริ่มใช้วันที่
+                                เริ่มใช้วันที่ (ค.ศ.)
                             </label>
 
                             <input
@@ -6432,7 +7453,7 @@ async function openActivityScheduleCreate() {
                                     activity-schedule-valid-until
                                 "
                             >
-                                สิ้นสุดวันที่
+                                สิ้นสุดวันที่ (ค.ศ.)
                             </label>
 
                             <input
@@ -6560,13 +7581,20 @@ async function openActivityScheduleCreate() {
 
             option.value = activity.activityId;
 
-            option.textContent =
-                activity.activityName +
-                (
-                    activity.activityTypeName
-                        ? ` — ${activity.activityTypeName}`
-                        : ""
-                );
+const activityName =
+    String(activity.activityName || "").trim();
+
+const typeName =
+    String(activity.activityTypeName || "").trim();
+
+option.textContent =
+    !activityName
+        ? (typeName || "ไม่ระบุชื่อกิจกรรม")
+        : (
+            !typeName || activityName === typeName
+                ? activityName
+                : `${activityName} — ${typeName}`
+        );
 
             select.appendChild(option);
         });
@@ -7057,7 +8085,7 @@ async function openTeacherSubjectCreateForm() {
                     >
 
                     <label for="new-subject-room">
-                        ห้องเรียนเริ่มต้น
+                        ชั้น/ห้องเริ่มต้น
                     </label>
                     <select
                         id="new-subject-room"
@@ -7096,7 +8124,7 @@ async function openTeacherSubjectCreateForm() {
 
                 placeholder.value = "";
                 placeholder.textContent =
-                    "-- เลือกห้องเรียน --";
+                    "-- เลือกชั้น/ห้อง --";
 
                 roomSelect.appendChild(placeholder);
 
@@ -7196,20 +8224,94 @@ async function openTeacherSubjectCreateForm() {
 
         const input = result.value;
 
-        // 5. ให้ผู้ใช้ยืนยันก่อนเขียนข้อมูลจริง
+        // 5. ตรวจข้อมูลปีการศึกษาจาก DB ก่อนแสดงหน้าสรุป
         const selectedRoom = rooms.find(
             room => room.id === input.roomId
         );
 
+        if (!selectedRoom) {
+            throw new Error("ไม่พบชั้น/ห้องที่เลือก");
+        }
+
+        const { data: currentYears, error: yearError } =
+            await supabaseClient
+                .from("academic_years")
+                .select("id, year")
+                .eq("is_current", true);
+
+        if (yearError) throw yearError;
+
+        if (!currentYears || currentYears.length !== 1) {
+            throw new Error(
+                "ไม่พบปีการศึกษาปัจจุบันที่ถูกต้องเพียงหนึ่งปี"
+            );
+        }
+
+        const currentYear = currentYears[0];
+
+        if (currentYear.id !== semester.academic_year_id) {
+            throw new Error(
+                "ปีการศึกษาและภาคเรียนไม่ตรงกัน กรุณาตรวจสอบข้อมูล"
+            );
+        }
+
+        const teacherName = [
+            context.firstName,
+            context.lastName
+        ].filter(Boolean).join(" ") || context.nickname;
+
+        if (!teacherName) {
+            throw new Error("ไม่พบชื่อครูผู้สอน");
+        }
+
+        // แสดงค่าด้วย textContent เพื่อป้องกัน HTML Injection
+        const summary = {
+            "subject-confirm-code": input.code,
+            "subject-confirm-name": input.name,
+            "subject-confirm-credit": `${input.credit} หน่วยกิต`,
+            "subject-confirm-room": selectedRoom.room_name,
+            "subject-confirm-teacher": teacherName,
+            "subject-confirm-year": String(currentYear.year),
+            "subject-confirm-semester": String(semester.semester_no)
+        };
+
         const confirmation = await Swal.fire({
             icon: "question",
             title: "ยืนยันเพิ่มวิชา?",
-            text:
-                `${input.code} — ${input.name} ` +
-                `ห้อง ${selectedRoom?.room_name || "-"}`,
+            width: 520,
+            html: `
+                <p style="color:#64748b;margin:0 0 16px;">
+                    กรุณาตรวจสอบข้อมูลก่อนบันทึกลงระบบ
+                </p>
+                <div style="
+                    text-align:left;
+                    background:#f8fafc;
+                    border:1px solid #e2e8f0;
+                    border-radius:12px;
+                    padding:16px;
+                    display:grid;
+                    gap:12px;
+                ">
+                    <div>รหัสวิชา: <strong id="subject-confirm-code"></strong></div>
+                    <div>ชื่อวิชา: <strong id="subject-confirm-name"></strong></div>
+                    <div>หน่วยกิต: <strong id="subject-confirm-credit"></strong></div>
+                    <div>ชั้น/ห้องเริ่มต้น: <strong id="subject-confirm-room"></strong></div>
+                    <div>ครูผู้สอน: <strong id="subject-confirm-teacher"></strong></div>
+                    <hr style="width:100%;border:0;border-top:1px solid #e2e8f0;">
+                    <div>ปีการศึกษา: <strong id="subject-confirm-year"></strong></div>
+                    <div>ภาคเรียน: <strong id="subject-confirm-semester"></strong></div>
+                </div>
+            `,
+            didOpen: () => {
+                Object.entries(summary).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.textContent = value;
+                });
+            },
             showCancelButton: true,
             confirmButtonText: "ยืนยันบันทึก",
-            cancelButtonText: "ยกเลิก"
+            cancelButtonText: "ยกเลิก",
+            reverseButtons: true
         });
 
         if (!confirmation.isConfirmed) return;

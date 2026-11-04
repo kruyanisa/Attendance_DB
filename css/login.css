@@ -95,6 +95,54 @@ h2 {
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
+/* Password visibility toggle */
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper input {
+    padding-right: 55px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    opacity: 0.75;
+}
+
+.password-toggle:hover {
+    opacity: 1;
+}
+
+.password-toggle:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+    border-radius: 50%;
+}
+
+.password-toggle svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
 .login-btn {
     width: 100%;
     padding: 15px 20px;
