@@ -276,21 +276,27 @@
             <span class="menu-text">ปีการศึกษา / ภาคเรียน</span>
         </button>
 
-        <button
-            class="menu-btn submenu-btn"
-            onclick="showNavigationPlaceholder('วิชา')"
-        >
-            <span class="menu-icon">📚</span>
-            <span class="menu-text">วิชา</span>
-        </button>
+<!-- B57-03 — Admin Subject Catalog -->
+<button
+    id="menu-admin-subjects"
+    type="button"
+    class="menu-btn submenu-btn"
+    onclick="switchView('admin-subjects')"
+>
+    <span class="menu-icon">📚</span>
+    <span class="menu-text">ทะเบียนรายวิชา</span>
+</button>
 
-        <button
-            class="menu-btn submenu-btn"
-            onclick="showNavigationPlaceholder('การมอบหมายการสอน')"
-        >
-            <span class="menu-icon">👨‍🏫</span>
-            <span class="menu-text">การมอบหมายการสอน</span>
-        </button>
+<!-- B57-03 — Admin Teaching Assignments -->
+<button
+    id="menu-admin-assignments"
+    type="button"
+    class="menu-btn submenu-btn"
+    onclick="switchView('admin-assignments')"
+>
+    <span class="menu-icon">👨‍🏫</span>
+    <span class="menu-text">การมอบหมายการสอน</span>
+</button>
 
         <button
             class="menu-btn submenu-btn"
@@ -1441,6 +1447,386 @@
         </p>
 
     </section>
+</div>
+
+<!-- ==========================================
+     B57-03 — ADMIN SUBJECT CATALOG
+     UI SHELL / READ ONLY
+     ========================================== -->
+
+<div
+    id="view-admin-subjects"
+    class="view-section"
+    style="display:none;"
+>
+    <div class="page-header">
+        <div>
+            <h1>📚 ทะเบียนรายวิชา</h1>
+            <p>
+                จัดการข้อมูลรายวิชากลางของโรงเรียน
+                และนำกลับมาใช้ได้ในทุกภาคเรียน
+            </p>
+        </div>
+    </div>
+
+    <div class="glass-card">
+
+        <div
+            style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:12px;
+                flex-wrap:wrap;
+                margin-bottom:20px;
+            "
+        >
+            <div>
+                <h2>📋 รายวิชาทั้งหมด</h2>
+                <p>
+                    รหัสวิชา ชื่อวิชา และหน่วยกิต
+                </p>
+            </div>
+
+            <button
+                id="admin-subject-add-btn"
+                type="button"
+                class="btn"
+                style="display:none;"
+            >
+                ＋ เพิ่มรายวิชา
+            </button>
+        </div>
+
+        <div
+            id="admin-subject-status"
+            role="status"
+            style="margin-bottom:16px;"
+        >
+            ยังไม่ได้โหลดข้อมูลรายวิชา
+        </div>
+
+        <div
+            style="
+                width:100%;
+                overflow-x:auto;
+            "
+        >
+            <table class="academic-table">
+                <thead>
+                    <tr>
+                        <th>รหัสวิชา</th>
+                        <th>ชื่อวิชา</th>
+                        <th>หน่วยกิต</th>
+                        <th>สถานะ</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+
+                <tbody id="admin-subject-table-body">
+                    <tr>
+                        <td colspan="5">
+                            ยังไม่ได้โหลดข้อมูล
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+
+        <!-- B57-03-42 — Subject Catalog Pagination -->
+        <div
+            id="admin-subject-pagination"
+            style="
+                display:none;
+                align-items:center;
+                justify-content:space-between;
+                flex-wrap:wrap;
+                gap:12px;
+                margin-top:18px;
+                padding:12px 0;
+                border-top:1px solid var(--border);
+            "
+        >
+            <span
+                id="admin-subject-page-info"
+                style="
+                    color:var(--text-light);
+                    font-size:14px;
+                "
+            >
+                แสดงรายการ 0–0 จาก 0 รายการ
+            </span>
+
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:10px;
+                    flex-wrap:wrap;
+                "
+            >
+                <button
+                    id="admin-subject-page-prev"
+                    type="button"
+                    disabled
+                    style="
+                        padding:8px 14px;
+                        border:1px solid var(--border);
+                        border-radius:9px;
+                        background:var(--card);
+                        color:var(--text);
+                        font-family:inherit;
+                        cursor:pointer;
+                    "
+                >
+                    ← ก่อนหน้า
+                </button>
+
+                <span
+                    id="admin-subject-page-number"
+                    style="
+                        font-size:14px;
+                        font-weight:600;
+                        white-space:nowrap;
+                    "
+                >
+                    1 / 1
+                </span>
+
+                <button
+                    id="admin-subject-page-next"
+                    type="button"
+                    disabled
+                    style="
+                        padding:8px 14px;
+                        border:1px solid var(--border);
+                        border-radius:9px;
+                        background:var(--card);
+                        color:var(--text);
+                        font-family:inherit;
+                        cursor:pointer;
+                    "
+                >
+                    ถัดไป →
+                </button>
+            </div>
+        </div>
+
+        <p style="margin-top:16px;">
+            รายวิชาในทะเบียนกลางสามารถนำไปมอบหมาย
+            ให้ครูในภาคเรียนต่าง ๆ ได้
+            โดยไม่ต้องสร้างรหัสวิชาใหม่
+        </p>
+
+    </div>
+</div>
+
+<!-- ==========================================
+     B57-03 — ADMIN TEACHING ASSIGNMENTS
+     UI SHELL / READ ONLY
+     ========================================== -->
+
+<div
+    id="view-admin-assignments"
+    class="view-section"
+    style="display:none;"
+>
+    <div class="page-header">
+        <div>
+            <h1>👨‍🏫 การมอบหมายการสอน</h1>
+            <p>
+                กำหนดรายวิชาที่ครูรับผิดชอบในแต่ละภาคเรียน
+            </p>
+        </div>
+    </div>
+
+    <div class="glass-card">
+
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                flex-wrap:wrap;
+                gap:12px;
+                margin-bottom:20px;
+            "
+        >
+            <div>
+                <h2>📋 รายการมอบหมายการสอน</h2>
+                <p>
+                    เลือกภาคเรียนเพื่อดูรายวิชาที่มอบหมายให้ครู
+                </p>
+            </div>
+
+            <button
+                id="admin-assignment-add-btn"
+                type="button"
+                class="btn"
+                style="display:none;"
+            >
+                ＋ มอบหมายรายวิชา
+            </button>
+        </div>
+
+        <div
+            style="
+                display:flex;
+                flex-wrap:wrap;
+                gap:12px;
+                margin-bottom:18px;
+            "
+        >
+            <div>
+                <label for="admin-assignment-year">
+                    ปีการศึกษา
+                </label>
+                <select id="admin-assignment-year">
+                    <option value="">-- เลือกปี --</option>
+                </select>
+            </div>
+
+                        <div>
+                <label for="admin-assignment-semester">
+                    ภาคเรียน
+                </label>
+                <select id="admin-assignment-semester">
+                    <option value="">-- เลือกภาคเรียน --</option>
+                </select>
+            </div>
+
+            <!-- B57-03-42 — Teacher Filter -->
+            <div>
+                <label for="admin-assignment-teacher">
+                    ครูผู้สอน
+                </label>
+                <select
+                    id="admin-assignment-teacher"
+                    disabled
+                    style="min-width:230px;"
+                >
+                    <option value="">ครูทุกคน</option>
+                </select>
+            </div>
+        </div>
+
+        <div
+            id="admin-assignment-status"
+            role="status"
+            style="margin-bottom:16px;"
+        >
+            ยังไม่ได้โหลดข้อมูลการมอบหมาย
+        </div>
+
+        <div style="width:100%;overflow-x:auto;">
+            <table class="academic-table">
+                <thead>
+                    <tr>
+                        <th>ครูผู้สอน</th>
+                        <th>รหัสวิชา</th>
+                        <th>ชื่อวิชา</th>
+                        <th>หน่วยกิต</th>
+                        <th>กลุ่มนักเรียน</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+
+                <tbody id="admin-assignment-table-body">
+                    <tr>
+                        <td colspan="6">
+                            ยังไม่ได้โหลดข้อมูล
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+
+        <!-- B57-03-42 — Teaching Assignment Pagination -->
+        <div
+            id="admin-assignment-pagination"
+            style="
+                display:none;
+                align-items:center;
+                justify-content:space-between;
+                flex-wrap:wrap;
+                gap:12px;
+                margin-top:18px;
+                padding:12px 0;
+                border-top:1px solid var(--border);
+            "
+        >
+            <span
+                id="admin-assignment-page-info"
+                style="
+                    color:var(--text-light);
+                    font-size:14px;
+                "
+            >
+                แสดงรายการ 0–0 จาก 0 รายการ
+            </span>
+
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:10px;
+                    flex-wrap:wrap;
+                "
+            >
+                <button
+                    id="admin-assignment-page-prev"
+                    type="button"
+                    disabled
+                    style="
+                        padding:8px 14px;
+                        border:1px solid var(--border);
+                        border-radius:9px;
+                        background:var(--card);
+                        color:var(--text);
+                        font-family:inherit;
+                        cursor:pointer;
+                    "
+                >
+                    ← ก่อนหน้า
+                </button>
+
+                <span
+                    id="admin-assignment-page-number"
+                    style="
+                        font-size:14px;
+                        font-weight:600;
+                        white-space:nowrap;
+                    "
+                >
+                    1 / 1
+                </span>
+
+                <button
+                    id="admin-assignment-page-next"
+                    type="button"
+                    disabled
+                    style="
+                        padding:8px 14px;
+                        border:1px solid var(--border);
+                        border-radius:9px;
+                        background:var(--card);
+                        color:var(--text);
+                        font-family:inherit;
+                        cursor:pointer;
+                    "
+                >
+                    ถัดไป →
+                </button>
+            </div>
+        </div>
+
+        <p style="margin-top:16px;">
+            เมื่อ Admin มอบหมายรายวิชาแล้ว
+            ครูสามารถเพิ่มกลุ่มนักเรียนและจัดคาบสอน
+            จากรายวิชาที่ได้รับมอบหมายได้
+        </p>
+
+    </div>
 </div>
 
 <!-- ==========================================

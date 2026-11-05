@@ -4527,3 +4527,526 @@ body.dark-mode .schedule-status-badge {
         flex: 1 1 auto;
     }
 }
+/* ============================================================
+   B57-03-42 — ADMIN SUBJECTS & TEACHING ASSIGNMENTS
+   Scoped visual styling
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   1. Shared page layout
+   ------------------------------------------------------------ */
+
+#view-admin-subjects,
+#view-admin-assignments {
+    width: 100%;
+    min-width: 0;
+}
+
+#view-admin-subjects .page-header,
+#view-admin-assignments .page-header {
+    margin-bottom: 22px;
+}
+
+#view-admin-subjects .page-header h1,
+#view-admin-assignments .page-header h1 {
+    font-size: clamp(23px, 2.5vw, 30px);
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.3px;
+}
+
+#view-admin-subjects .page-header p,
+#view-admin-assignments .page-header p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-light);
+}
+
+/* ------------------------------------------------------------
+   2. Main cards
+   ------------------------------------------------------------ */
+
+#view-admin-subjects .glass-card,
+#view-admin-assignments .glass-card {
+    padding: 26px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--card);
+    box-shadow: 0 6px 28px rgba(15, 23, 42, 0.055);
+}
+
+#view-admin-subjects .glass-card h2,
+#view-admin-assignments .glass-card h2 {
+    margin: 0 0 5px;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: var(--text);
+}
+
+#view-admin-subjects .glass-card h2 + p,
+#view-admin-assignments .glass-card h2 + p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-light);
+}
+
+/* ------------------------------------------------------------
+   3. Primary action buttons
+   ------------------------------------------------------------ */
+
+#admin-subject-add-btn,
+#admin-assignment-add-btn {
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    min-height: 43px;
+    padding: 10px 20px;
+
+    border-radius: 10px;
+    background: #2563eb;
+    color: #ffffff;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.14);
+    transition:
+        background 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+#admin-subject-add-btn:hover,
+#admin-assignment-add-btn:hover {
+    background: #1d4ed8;
+    box-shadow: 0 7px 16px rgba(37, 99, 235, 0.22);
+    transform: translateY(-1px);
+}
+
+/* ------------------------------------------------------------
+   4. Subject search
+   The original inline styles are preserved.
+   ------------------------------------------------------------ */
+
+#view-admin-subjects #admin-subject-search {
+    width: 100%;
+    max-width: 460px;
+
+    min-height: 46px;
+    padding: 10px 16px;
+
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+
+    background: var(--card);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+#view-admin-subjects #admin-subject-search:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* ------------------------------------------------------------
+   5. Assignment filters
+   ------------------------------------------------------------ */
+
+#view-admin-assignments label[
+    for="admin-assignment-year"
+],
+#view-admin-assignments label[
+    for="admin-assignment-semester"
+],
+#view-admin-assignments label[
+    for="admin-assignment-teacher"
+] {
+    display: block;
+    margin-bottom: 7px;
+
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+#view-admin-assignments #admin-assignment-year,
+#view-admin-assignments #admin-assignment-semester,
+#view-admin-assignments #admin-assignment-teacher {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 9px 14px;
+
+    border: 1px solid #cbd5e1;
+    border-radius: 11px;
+
+    background: var(--card);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+
+    cursor: pointer;
+}
+
+#view-admin-assignments #admin-assignment-year:focus,
+#view-admin-assignments #admin-assignment-semester:focus,
+#view-admin-assignments #admin-assignment-teacher:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* ------------------------------------------------------------
+   6. Status / record count
+   ------------------------------------------------------------ */
+
+#view-admin-subjects #admin-subject-status,
+#view-admin-assignments #admin-assignment-status {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+
+    padding: 8px 13px;
+    border: 1px solid #dbeafe;
+    border-radius: 9px;
+
+    background: #eff6ff;
+    color: #1d4ed8;
+
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+/* ------------------------------------------------------------
+   7. Both tables
+   ------------------------------------------------------------ */
+
+#view-admin-subjects .academic-table,
+#view-admin-assignments .academic-table {
+    width: 100%;
+    min-width: 680px;
+
+    border-collapse: separate;
+    border-spacing: 0;
+
+    background: var(--card);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#view-admin-subjects .academic-table thead,
+#view-admin-assignments .academic-table thead {
+    background: #f1f5f9;
+}
+
+#view-admin-subjects .academic-table th,
+#view-admin-assignments .academic-table th {
+    padding: 14px 13px;
+
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+
+    color: #334155;
+    font-weight: 700;
+    text-align: left;
+    white-space: nowrap;
+}
+
+#view-admin-subjects .academic-table td,
+#view-admin-assignments .academic-table td {
+    padding: 12px 13px;
+
+    border-bottom: 1px solid var(--border);
+
+    color: var(--text);
+    text-align: left;
+    vertical-align: middle;
+}
+
+#view-admin-subjects .academic-table tbody tr,
+#view-admin-assignments .academic-table tbody tr {
+    transition: background 0.16s ease;
+}
+
+#view-admin-subjects .academic-table tbody tr:hover,
+#view-admin-assignments .academic-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.045);
+}
+
+/* ------------------------------------------------------------
+   8. Subject catalog — column alignment
+   ------------------------------------------------------------ */
+
+#view-admin-subjects .academic-table {
+    min-width: 700px;
+}
+
+#view-admin-subjects .academic-table th:nth-child(1),
+#view-admin-subjects .academic-table td:nth-child(1) {
+    width: 19%;
+    font-weight: 600;
+}
+
+#view-admin-subjects .academic-table th:nth-child(2),
+#view-admin-subjects .academic-table td:nth-child(2) {
+    width: 39%;
+}
+
+#view-admin-subjects .academic-table th:nth-child(3),
+#view-admin-subjects .academic-table td:nth-child(3) {
+    width: 13%;
+    text-align: center;
+}
+
+#view-admin-subjects .academic-table th:nth-child(4),
+#view-admin-subjects .academic-table td:nth-child(4) {
+    width: 12%;
+    text-align: center;
+}
+
+#view-admin-subjects .academic-table th:nth-child(5),
+#view-admin-subjects .academic-table td:nth-child(5) {
+    width: 17%;
+    text-align: center;
+}
+
+#view-admin-subjects .academic-table tbody button {
+    min-width: 90px;
+    height: 35px;
+    padding: 6px 14px;
+
+    border: none;
+    border-radius: 9px;
+
+    background: #2563eb;
+    color: #ffffff;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#view-admin-subjects .academic-table tbody button:hover {
+    background: #1d4ed8;
+}
+
+/* ------------------------------------------------------------
+   9. Teaching assignments — six-column layout
+   ------------------------------------------------------------ */
+
+#view-admin-assignments .academic-table {
+    min-width: 930px;
+}
+
+#view-admin-assignments .academic-table th:nth-child(1),
+#view-admin-assignments .academic-table td:nth-child(1) {
+    width: 23%;
+}
+
+#view-admin-assignments .academic-table th:nth-child(2),
+#view-admin-assignments .academic-table td:nth-child(2) {
+    width: 13%;
+    font-weight: 600;
+}
+
+#view-admin-assignments .academic-table th:nth-child(3),
+#view-admin-assignments .academic-table td:nth-child(3) {
+    width: 27%;
+}
+
+#view-admin-assignments .academic-table th:nth-child(4),
+#view-admin-assignments .academic-table td:nth-child(4) {
+    width: 10%;
+    text-align: center;
+}
+
+#view-admin-assignments .academic-table th:nth-child(5),
+#view-admin-assignments .academic-table td:nth-child(5) {
+    width: 19%;
+}
+
+#view-admin-assignments .academic-table th:nth-child(6),
+#view-admin-assignments .academic-table td:nth-child(6) {
+    width: 8%;
+    text-align: center;
+}
+
+/* ------------------------------------------------------------
+   10. Dark mode
+   ------------------------------------------------------------ */
+
+body.dark-mode #view-admin-subjects .academic-table thead,
+body.dark-mode #view-admin-assignments .academic-table thead {
+    background: #334155;
+}
+
+body.dark-mode #view-admin-subjects .academic-table th,
+body.dark-mode #view-admin-assignments .academic-table th {
+    color: #f1f5f9;
+}
+
+body.dark-mode #view-admin-subjects .academic-table tbody tr:hover,
+body.dark-mode #view-admin-assignments .academic-table tbody tr:hover {
+    background: rgba(96, 165, 250, 0.09);
+}
+
+body.dark-mode #admin-subject-status,
+body.dark-mode #admin-assignment-status {
+    background: #1e3a5f;
+    border-color: #334155;
+    color: #bfdbfe;
+}
+
+body.dark-mode #view-admin-subjects #admin-subject-search,
+body.dark-mode #view-admin-assignments select {
+    border-color: #475569;
+}
+
+/* ------------------------------------------------------------
+   11. Responsive layout
+   ------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+    #view-admin-subjects .glass-card,
+    #view-admin-assignments .glass-card {
+        padding: 18px 15px;
+    }
+}
+
+@media (max-width: 600px) {
+    #view-admin-subjects .page-header h1,
+    #view-admin-assignments .page-header h1 {
+        font-size: 23px;
+    }
+
+    #view-admin-subjects .glass-card,
+    #view-admin-assignments .glass-card {
+        padding: 16px 12px;
+        border-radius: 14px;
+    }
+
+    #admin-subject-add-btn,
+    #admin-assignment-add-btn {
+        width: 100%;
+    }
+
+    #view-admin-assignments #admin-assignment-year,
+    #view-admin-assignments #admin-assignment-semester,
+    #view-admin-assignments #admin-assignment-teacher {
+        width: 100%;
+    }
+
+    #view-admin-subjects .academic-table,
+    #view-admin-assignments .academic-table {
+        font-size: 12px;
+    }
+}
+/* ============================================================
+   B57-03-42 — Improve Typography
+   เพิ่มขนาดตัวอักษรเฉพาะ 2 หน้า Admin
+   ============================================================ */
+
+/* หัวข้อในการ์ด */
+#view-admin-subjects .glass-card h2,
+#view-admin-assignments .glass-card h2 {
+    font-size: 22px;
+}
+
+/* ข้อความอธิบาย */
+#view-admin-subjects .glass-card h2 + p,
+#view-admin-assignments .glass-card h2 + p {
+    font-size: 15px;
+}
+
+/* หัวตาราง */
+#view-admin-subjects .academic-table th,
+#view-admin-assignments .academic-table th {
+    font-size: 16px;
+    padding: 12px 14px;
+}
+
+/* ข้อมูลแต่ละแถว */
+#view-admin-subjects .academic-table td,
+#view-admin-assignments .academic-table td {
+    font-size: 15px;
+    padding: 9px 14px;
+    line-height: 1.5;
+}
+
+/* ช่องค้นหาและตัวกรอง */
+#view-admin-subjects #admin-subject-search,
+#view-admin-assignments #admin-assignment-year,
+#view-admin-assignments #admin-assignment-semester,
+#view-admin-assignments #admin-assignment-teacher {
+    font-size: 15px;
+}
+
+/* ชื่อตัวกรอง */
+#view-admin-assignments label[
+    for="admin-assignment-year"
+],
+#view-admin-assignments label[
+    for="admin-assignment-semester"
+],
+#view-admin-assignments label[
+    for="admin-assignment-teacher"
+] {
+    font-size: 15px;
+}
+
+/* ข้อความแสดงจำนวนรายการ */
+#view-admin-subjects #admin-subject-status,
+#view-admin-assignments #admin-assignment-status {
+    font-size: 15px;
+}
+
+/* ปุ่มในตารางทะเบียนรายวิชา */
+#view-admin-subjects .academic-table tbody button {
+    font-size: 14px;
+    min-height: 38px;
+}
+
+/* ปุ่มเพิ่มรายวิชา / มอบหมายรายวิชา */
+#admin-subject-add-btn,
+#admin-assignment-add-btn {
+    font-size: 15px;
+}
+/* ============================================================
+   B57-03-42 — Compact Subject Catalog
+   ปรับความสูงตารางทะเบียนรายวิชาให้กระชับ
+   ============================================================ */
+
+#view-admin-subjects .academic-table td {
+    font-size: 15px;
+    padding: 6px 14px;
+    line-height: 1.5;
+}
+
+/* ปรับปุ่มแก้ไขไม่ให้ดันความสูงของแถว */
+#view-admin-subjects .academic-table tbody button {
+    min-height: 30px;
+    padding: 4px 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    border-radius: 8px;
+}
+
+/* หัวตาราง */
+#view-admin-subjects .academic-table th {
+    font-size: 16px;
+    padding: 12px 14px;
+}

@@ -3738,7 +3738,48 @@ async function createActivitySchedule(scheduleData) {
 
     return data;
 }
+// ============================================================
+// B57-02 — UPDATE Activity Schedule
+// Preserve existing RLS, triggers and attendance history
+// ============================================================
 
+async function updateActivitySchedule(scheduleId, scheduleData) {
+
+    if (!scheduleId) {
+        throw new Error("ไม่พบรหัสตารางกิจกรรม");
+    }
+
+    if (!scheduleData) {
+        throw new Error("ไม่พบข้อมูลที่ต้องการแก้ไข");
+    }
+
+    const { data, error } =
+        await supabaseClient
+            .from("activity_schedules")
+            .update({
+                weekday: scheduleData.weekday,
+                lesson_no: scheduleData.lessonNo ?? null,
+                start_time: scheduleData.startTime,
+                end_time: scheduleData.endTime,
+                valid_from: scheduleData.validFrom,
+                valid_until: scheduleData.validUntil || null
+            })
+            .eq("id", scheduleId)
+            .select()
+            .single();
+
+    if (error) {
+        throw error;
+    }
+
+    if (!data || data.id !== scheduleId) {
+        throw new Error(
+            "ไม่สามารถยืนยันผลการแก้ไขตารางกิจกรรมได้"
+        );
+    }
+
+    return data;
+}
 // ============================================================
 // Activity Schedule
 // DELETE Activity Schedule

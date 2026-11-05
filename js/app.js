@@ -1,83 +1,3065 @@
 // ฟังก์ชันสลับหน้าจอ และไฮไลต์เมนูที่เลือก
 function switchView(view) {
-    // ซ่อน Navigation Placeholder เมื่อกลับเข้าสู่ View จริง
-const navigationPlaceholder =
-    document.getElementById("view-navigation-placeholder");
+    // Hide the navigation placeholder
+    const navigationPlaceholder =
+        document.getElementById("view-navigation-placeholder");
 
-if (navigationPlaceholder) {
-    navigationPlaceholder.style.display = "none";
-}
-  const views = ['attendance', 'homework', 'qrcode', 'guidance', 'study', 'scholarship', 'pdf', 'settings', 'portal', 'dashboard', 'schedule', 'import', 'student-management', 'student-detail', 'admin-academic', 'admin-users', 'admin-activities'];
-  
-  views.forEach(v => {
-    // ซ่อน/แสดง เนื้อหา
-    const viewElement = document.getElementById(`view-${v}`);
-    if(viewElement) {
-      viewElement.style.display = (v === view) ? 'block' : 'none';
+    if (navigationPlaceholder) {
+        navigationPlaceholder.style.display = "none";
     }
-    
-    // เติม/ลบ แถบ Active ที่เมนู
-    const menuBtn = document.getElementById(`menu-${v}`);
-    if (menuBtn) {
-      if (v === view) menuBtn.classList.add('active');
-      else menuBtn.classList.remove('active');
+
+    const views = [
+        "attendance",
+        "homework",
+        "qrcode",
+        "guidance",
+        "study",
+        "scholarship",
+        "pdf",
+        "settings",
+        "portal",
+        "dashboard",
+        "schedule",
+        "import",
+        "student-management",
+        "student-detail",
+        "admin-academic",
+        "admin-users",
+        "admin-activities",
+        "admin-subjects",
+        "admin-assignments"
+    ];
+
+    views.forEach(v => {
+        const viewElement =
+            document.getElementById(`view-${v}`);
+
+        if (viewElement) {
+            viewElement.style.display =
+                (v === view) ? "block" : "none";
+        }
+
+        const menuBtn =
+            document.getElementById(`menu-${v}`);
+
+        if (menuBtn) {
+            if (v === view) {
+                menuBtn.classList.add("active");
+            } else {
+                menuBtn.classList.remove("active");
+            }
+        }
+    });
+
+    if (view === "settings") {
+        showSetting("profile");
+        loadProfile();
     }
-  });
-     if(view === "settings"){
-    showSetting("profile");
-    loadProfile();
-}
-if(view === "dashboard"){
-    loadDashboard();
-}
 
-if (view === "student-management") {
-    if (typeof StudentManagement !== "undefined") {
-        StudentManagement.init();
+    if (view === "dashboard") {
+        loadDashboard();
+    }
+
+    if (view === "student-management") {
+        if (typeof StudentManagement !== "undefined") {
+            StudentManagement.init();
+        }
+    }
+
+    if (view === "student-detail") {
+        if (typeof StudentDetail !== "undefined") {
+            // Opened from Student Management
+        }
+    }
+
+    if (view === "schedule") {
+        switchScheduleTab("timetable");
+    }
+
+    if (view === "admin-academic") {
+        loadAdminAcademicOverview();
+    }
+
+    if (view === "admin-users") {
+        if (typeof AdminUsers !== "undefined") {
+            AdminUsers.init();
+        } else {
+            console.error("B56: AdminUsers module not loaded.");
+        }
+    }
+
+    if (view === "admin-activities") {
+        loadAdminActivityAssignment();
+    }
+
+    // B57-03: Load Admin Subject Catalog
+    if (view === "admin-subjects") {
+        loadAdminSubjectCatalog();
+    }
+
+    // B57-03: Admin Teaching Assignments
+    if (view === "admin-assignments") {
+        loadAdminTeachingAssignments();
+    }
+
+    const activeMenu =
+        document.getElementById(`menu-${view}`);
+
+    if (activeMenu) {
+        const parentGroup =
+            activeMenu.closest(".nav-group");
+
+        if (parentGroup) {
+            parentGroup.classList.add("open");
+        }
     }
 }
 
-if (view === "student-detail") {
-    if (typeof StudentDetail !== "undefined") {
-        // Student Detail ถูกเปิดจาก Student Management
-        // จึงไม่ต้อง initialize ข้อมูลใด ๆ เพิ่มตรงนี้
+async function openAdminSubjectCreateForm() {
+    // B57-03: Admin subject creation with duplicate checks
+
+    const result = await Swal.fire({
+        title: "📚 เพิ่มรายวิชาใหม่",
+        html: `
+            <div style="text-align:left;">
+                <label for="new-subject-code"
+                    style="display:block;margin-bottom:6px;font-weight:600;">
+                    รหัสวิชา *
+                </label>
+                <input
+                    id="new-subject-code"
+                    class="swal2-input"
+                    style="width:100%;margin:0 0 16px;box-sizing:border-box;"
+                    maxlength="30"
+                    placeholder="เช่น อ32101"
+                >
+
+                <label for="new-subject-name"
+                    style="display:block;margin-bottom:6px;font-weight:600;">
+                    ชื่อวิชา *
+                </label>
+                <input
+                    id="new-subject-name"
+                    class="swal2-input"
+                    style="width:100%;margin:0 0 16px;box-sizing:border-box;"
+                    maxlength="200"
+                    placeholder="เช่น ภาษาอังกฤษพื้นฐาน"
+                >
+
+                <label for="new-subject-credit"
+                    style="display:block;margin-bottom:6px;font-weight:600;">
+                    หน่วยกิต (ไม่บังคับ)
+                </label>
+                <input
+                    id="new-subject-credit"
+                    class="swal2-input"
+                    type="number"
+                    min="0"
+                    step="any"
+                    style="width:100%;margin:0;box-sizing:border-box;"
+                    placeholder="เช่น 1.5"
+                >
+            </div>
+        `,
+        width: 520,
+        showCancelButton: true,
+        confirmButtonText: "ตรวจสอบข้อมูล",
+        cancelButtonText: "ยกเลิก",
+        confirmButtonColor: "#2563eb",
+        focusConfirm: false,
+
+        preConfirm: () => {
+            const code = document
+                .getElementById("new-subject-code")
+                .value.trim();
+
+            const name = document
+                .getElementById("new-subject-name")
+                .value.trim();
+
+            const creditText = document
+                .getElementById("new-subject-credit")
+                .value.trim();
+
+            if (!code || !name) {
+                Swal.showValidationMessage(
+                    "กรุณากรอกรหัสวิชาและชื่อวิชา"
+                );
+                return false;
+            }
+
+            const credit = creditText === ""
+                ? null
+                : Number(creditText);
+
+            if (
+                credit !== null &&
+                (!Number.isFinite(credit) || credit < 0)
+            ) {
+                Swal.showValidationMessage(
+                    "หน่วยกิตต้องเป็นตัวเลขที่ไม่ติดลบ"
+                );
+                return false;
+            }
+
+            return { code, name, credit };
+        }
+    });
+
+    if (!result.isConfirmed) {
+        return;
+    }
+
+    const subject = result.value;
+
+    try {
+        // Check existing and archived subject codes.
+        const existingSubjects = await getSubjects();
+
+        const duplicate = (existingSubjects || []).find(
+            item => item.subject_code === subject.code
+        );
+
+        if (duplicate) {
+            const message = duplicate.deleted_at
+                ? "รหัสวิชานี้เคยมีในระบบและถูกยกเลิกใช้งานแล้ว กรุณาตรวจสอบก่อนนำกลับมาใช้"
+                : "รหัสวิชานี้มีอยู่ในทะเบียนรายวิชาแล้ว ไม่จำเป็นต้องสร้างซ้ำ";
+
+            await Swal.fire({
+                icon: "warning",
+                title: "พบรหัสวิชาซ้ำ",
+                text: message,
+                confirmButtonText: "รับทราบ"
+            });
+
+            return;
+        }
+
+        // Confirm before writing to the database.
+        const confirmation = await Swal.fire({
+            icon: "question",
+            title: "ยืนยันเพิ่มรายวิชา?",
+            text:
+                `รหัสวิชา: ${subject.code}\n` +
+                `ชื่อวิชา: ${subject.name}\n` +
+                `หน่วยกิต: ${subject.credit ?? "ไม่ระบุ"}`,
+            showCancelButton: true,
+            confirmButtonText: "ยืนยันบันทึก",
+            cancelButtonText: "ยกเลิก",
+            confirmButtonColor: "#2563eb",
+            reverseButtons: true,
+            didOpen: () => {
+                const content = Swal.getHtmlContainer();
+
+                if (content) {
+                    content.style.whiteSpace = "pre-line";
+                }
+            }
+        });
+
+        if (!confirmation.isConfirmed) {
+            return;
+        }
+
+        // Write through the Admin-only RPC.
+        const { data: subjectId, error } =
+            await supabaseClient.rpc(
+                "admin_create_subject",
+                {
+                    p_subject_code: subject.code,
+                    p_subject_name: subject.name,
+                    p_credit: subject.credit
+                }
+            );
+
+        if (error) {
+            throw error;
+        }
+
+        if (typeof subjectId !== "string" || !subjectId) {
+            throw new Error("SUBJECT_CREATION_RESULT_INVALID");
+        }
+
+        await Swal.fire({
+            icon: "success",
+            title: "เพิ่มรายวิชาสำเร็จ",
+            text:
+                `บันทึก ${subject.code} — ${subject.name} ` +
+                "ลงทะเบียนรายวิชากลางแล้ว",
+            confirmButtonText: "ตกลง"
+        });
+
+        // Refresh the active catalog.
+        await loadAdminSubjectCatalog();
+
+    } catch (error) {
+        console.error(
+            "B57-03: Admin subject creation failed:",
+            error
+        );
+
+        let message = "ไม่สามารถเพิ่มรายวิชาได้ กรุณาตรวจสอบข้อมูล";
+
+        const errorText = String(error.message || "");
+
+        if (
+            errorText.includes("SUBJECT_CODE_ALREADY_EXISTS") ||
+            error.code === "23505"
+        ) {
+            message = "รหัสวิชานี้มีอยู่ในระบบแล้ว กรุณาตรวจสอบทะเบียนรายวิชา";
+        } else if (
+            errorText.includes("SUBJECT_ADMIN_REQUIRED")
+        ) {
+            message = "เฉพาะ Admin เท่านั้นที่สามารถเพิ่มรายวิชาได้";
+        } else if (
+            errorText.includes("SUBJECT_REQUIRED_FIELDS")
+        ) {
+            message = "กรุณากรอกรหัสวิชาและชื่อวิชาให้ครบ";
+        } else if (
+            errorText.includes("SUBJECT_INVALID_CREDIT")
+        ) {
+            message = "หน่วยกิตต้องไม่ติดลบ";
+        } else if (
+            errorText.includes("SUBJECT_CREATION_RESULT_INVALID")
+        ) {
+            message =
+                "ไม่สามารถยืนยันผลการบันทึกได้ กรุณารีเฟรชทะเบียนรายวิชา" +
+                "ก่อนลองอีกครั้ง";
+        }
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถเพิ่มรายวิชาได้",
+            text: message,
+            confirmButtonText: "รับทราบ"
+        });
     }
 }
 
-if(view === "schedule"){
-    switchScheduleTab("timetable");
-}
+async function openAdminSubjectEditForm(subject) {
+    // B57-03: Admin subject edit with confirmation and RPC
 
-if (view === "admin-academic") {
-    loadAdminAcademicOverview();
-}
+    const result = await Swal.fire({
+        title: "แก้ไขรายวิชา",
+        html: `
+            <div style="text-align:left;">
+                <label for="edit-subject-code"
+                    style="display:block;margin-bottom:6px;font-weight:600;">
+                    รหัสวิชา *
+                </label>
+                <input
+                    id="edit-subject-code"
+                    class="swal2-input"
+                    style="width:100%;margin:0 0 16px;box-sizing:border-box;"
+                    maxlength="30"
+                >
 
-if (view === "admin-users") {
-    if (typeof AdminUsers !== "undefined") {
-        AdminUsers.init();
-    } else {
-        console.error("B56: AdminUsers module not loaded.");
+                <label for="edit-subject-name"
+                    style="display:block;margin-bottom:6px;font-weight:600;">
+                    ชื่อวิชา *
+                </label>
+                <input
+                    id="edit-subject-name"
+                    class="swal2-input"
+                    style="width:100%;margin:0 0 16px;box-sizing:border-box;"
+                    maxlength="200"
+                >
+
+                <label for="edit-subject-credit"
+                    style="display:block;margin-bottom:6px;font-weight:600;">
+                    หน่วยกิต (ไม่บังคับ)
+                </label>
+                <input
+                    id="edit-subject-credit"
+                    class="swal2-input"
+                    type="number"
+                    min="0"
+                    step="any"
+                    style="width:100%;margin:0;box-sizing:border-box;"
+                >
+            </div>
+        `,
+        width: 520,
+        showCancelButton: true,
+        confirmButtonText: "ตรวจสอบการแก้ไข",
+        cancelButtonText: "ยกเลิก",
+        confirmButtonColor: "#2563eb",
+        focusConfirm: false,
+
+        didOpen: () => {
+            document.getElementById("edit-subject-code").value =
+                subject.subject_code || "";
+
+            document.getElementById("edit-subject-name").value =
+                subject.subject_name || "";
+
+            document.getElementById("edit-subject-credit").value =
+                subject.credit == null ? "" : subject.credit;
+        },
+
+        preConfirm: () => {
+            const code = document
+                .getElementById("edit-subject-code")
+                .value.trim();
+
+            const name = document
+                .getElementById("edit-subject-name")
+                .value.trim();
+
+            const creditInput =
+                document.getElementById("edit-subject-credit");
+
+            const creditText = creditInput.value.trim();
+
+            if (!code || !name) {
+                Swal.showValidationMessage(
+                    "กรุณากรอกรหัสวิชาและชื่อวิชา"
+                );
+                return false;
+            }
+
+            if (creditText !== "" && !creditInput.validity.valid) {
+                Swal.showValidationMessage(
+                    "กรุณากรอกหน่วยกิตเป็นตัวเลขที่ถูกต้อง"
+                );
+                return false;
+            }
+
+            const credit = creditText === ""
+                ? null
+                : Number(creditText);
+
+            if (
+                credit !== null &&
+                (!Number.isFinite(credit) || credit < 0)
+            ) {
+                Swal.showValidationMessage(
+                    "หน่วยกิตต้องเป็นตัวเลขที่ไม่ติดลบ"
+                );
+                return false;
+            }
+
+            return { code, name, credit };
+        }
+    });
+
+    if (!result.isConfirmed) {
+        return;
+    }
+
+    const updated = result.value;
+
+    const originalCredit = subject.credit == null
+        ? null
+        : Number(subject.credit);
+
+    const unchanged =
+        updated.code === subject.subject_code &&
+        updated.name === subject.subject_name &&
+        updated.credit === originalCredit;
+
+    if (unchanged) {
+        await Swal.fire({
+            title: "ไม่มีข้อมูลเปลี่ยนแปลง",
+            text: "ข้อมูลรายวิชายังเหมือนเดิม",
+            confirmButtonText: "ตกลง"
+        });
+
+        return;
+    }
+
+    try {
+        // Check duplicate codes before confirmation.
+        const subjects = await getSubjects();
+
+        const duplicate = (subjects || []).find(item =>
+            item.subject_code === updated.code &&
+            item.id !== subject.id
+        );
+
+        if (duplicate) {
+            await Swal.fire({
+                title: "พบรหัสวิชาซ้ำ",
+                text: "รหัสวิชานี้มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น",
+                confirmButtonText: "รับทราบ"
+            });
+
+            return;
+        }
+
+        // Display the original and updated values.
+        const confirmation = await Swal.fire({
+            title: "ยืนยันการแก้ไขรายวิชา",
+            text:
+                `ข้อมูลเดิม\n` +
+                `รหัสวิชา: ${subject.subject_code}\n` +
+                `ชื่อวิชา: ${subject.subject_name}\n` +
+                `หน่วยกิต: ${originalCredit ?? "ไม่ระบุ"}\n\n` +
+                `ข้อมูลใหม่\n` +
+                `รหัสวิชา: ${updated.code}\n` +
+                `ชื่อวิชา: ${updated.name}\n` +
+                `หน่วยกิต: ${updated.credit ?? "ไม่ระบุ"}`,
+            showCancelButton: true,
+            confirmButtonText: "ยืนยันบันทึก",
+            cancelButtonText: "ยกเลิก",
+            confirmButtonColor: "#2563eb",
+            reverseButtons: true,
+            didOpen: () => {
+                const content = Swal.getHtmlContainer();
+
+                if (content) {
+                    content.style.whiteSpace = "pre-line";
+                }
+            }
+        });
+
+        if (!confirmation.isConfirmed) {
+            return;
+        }
+
+        // Save changes through the Admin-only RPC.
+        const { data: updatedId, error } =
+            await supabaseClient.rpc(
+                "admin_update_subject",
+                {
+                    p_subject_id: subject.id,
+                    p_subject_code: updated.code,
+                    p_subject_name: updated.name,
+                    p_credit: updated.credit
+                }
+            );
+
+        if (error) {
+            throw error;
+        }
+
+        if (updatedId !== subject.id) {
+            throw new Error("SUBJECT_UPDATE_RESULT_UNCONFIRMED");
+        }
+
+        await Swal.fire({
+            title: "แก้ไขรายวิชาสำเร็จ",
+            text: "บันทึกข้อมูลรายวิชาเรียบร้อยแล้ว",
+            confirmButtonText: "ตกลง"
+        });
+
+        // Reload the catalog after a successful update.
+        await loadAdminSubjectCatalog();
+
+    } catch (error) {
+        console.error(
+            "B57-03: Admin subject update failed:",
+            error
+        );
+
+        const errorText = String(error?.message || "");
+        let message =
+            "ไม่สามารถแก้ไขรายวิชาได้ กรุณาตรวจสอบข้อมูลอีกครั้ง";
+
+        if (errorText.includes("SUBJECT_ALREADY_ASSIGNED")) {
+            message =
+                "รายวิชานี้มีข้อมูลการสอนแล้ว " +
+                "จึงไม่อนุญาตให้แก้ไขข้อมูลหลัก";
+        } else if (
+            errorText.includes("SUBJECT_CODE_ALREADY_EXISTS") ||
+            error.code === "23505"
+        ) {
+            message =
+                "รหัสวิชานี้มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น";
+        } else if (errorText.includes("SUBJECT_ADMIN_REQUIRED")) {
+            message =
+                "เฉพาะ Admin เท่านั้นที่สามารถแก้ไขรายวิชาได้";
+        } else if (errorText.includes("SUBJECT_ARCHIVED")) {
+            message =
+                "รายวิชานี้ถูกยกเลิกใช้งานแล้ว";
+        } else if (errorText.includes("SUBJECT_NOT_FOUND")) {
+            message =
+                "ไม่พบรายวิชาที่ต้องการแก้ไข";
+        } else if (errorText.includes("SUBJECT_REQUIRED_FIELDS")) {
+            message =
+                "กรุณากรอกรหัสวิชาและชื่อวิชาให้ครบ";
+        } else if (errorText.includes("SUBJECT_INVALID_CREDIT")) {
+            message =
+                "หน่วยกิตต้องไม่ติดลบ";
+        } else if (
+            errorText.includes("SUBJECT_UPDATE_RESULT_UNCONFIRMED")
+        ) {
+            message =
+                "ไม่สามารถยืนยันผลการบันทึกได้ " +
+                "กรุณารีเฟรชทะเบียนรายวิชาก่อนลองอีกครั้ง";
+        }
+
+        await Swal.fire({
+            title: "ไม่สามารถแก้ไขรายวิชาได้",
+            text: message,
+            confirmButtonText: "รับทราบ"
+        });
     }
 }
-// B56-ACTIVITY-10 — โหลดหน้ามอบหมายกิจกรรม
-if (view === "admin-activities") {
-    loadAdminActivityAssignment();
+// ============================================================
+// B57-03-42 — Admin Subject Catalog Pagination
+// แบ่งหน้า 25 รายวิชา โดยรักษาการค้นหาและปุ่มแก้ไขเดิม
+// ============================================================
+
+function setupAdminSubjectPagination() {
+    const tbody = document.getElementById(
+        "admin-subject-table-body"
+    );
+
+    const pagination = document.getElementById(
+        "admin-subject-pagination"
+    );
+
+    const pageInfo = document.getElementById(
+        "admin-subject-page-info"
+    );
+
+    const pageNumber = document.getElementById(
+        "admin-subject-page-number"
+    );
+
+    const prevButton = document.getElementById(
+        "admin-subject-page-prev"
+    );
+
+    const nextButton = document.getElementById(
+        "admin-subject-page-next"
+    );
+
+    if (
+        !tbody ||
+        !pagination ||
+        !pageInfo ||
+        !pageNumber ||
+        !prevButton ||
+        !nextButton
+    ) {
+        return;
+    }
+
+    // ป้องกัน Observer ซ้ำเมื่อเปิดเมนูอีกครั้ง
+    if (typeof pagination._cleanupPagination === "function") {
+        pagination._cleanupPagination();
+    }
+
+    const pageSize = 25;
+    let currentPage = 1;
+
+    function getDataRows() {
+        const rows = Array.from(tbody.rows);
+
+        if (
+            rows.length === 1 &&
+            rows[0].cells.length === 1 &&
+            Number(rows[0].cells[0].colSpan) > 1
+        ) {
+            return [];
+        }
+
+        return rows;
+    }
+
+    function renderPage() {
+        const rows = getDataRows();
+        const total = rows.length;
+
+        if (total === 0) {
+            pagination.style.display = "none";
+            return;
+        }
+
+        const totalPages = Math.max(
+            1,
+            Math.ceil(total / pageSize)
+        );
+
+        currentPage = Math.min(
+            Math.max(1, currentPage),
+            totalPages
+        );
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(
+            startIndex + pageSize,
+            total
+        );
+
+        rows.forEach((row, index) => {
+            row.style.display =
+                index >= startIndex && index < endIndex
+                    ? ""
+                    : "none";
+        });
+
+        pageInfo.textContent =
+            `แสดง ${startIndex + 1}–${endIndex} จาก ${total} รายการ`;
+
+        pageNumber.textContent =
+            `${currentPage} / ${totalPages}`;
+
+        prevButton.disabled = currentPage <= 1;
+        nextButton.disabled = currentPage >= totalPages;
+
+        prevButton.style.opacity =
+            prevButton.disabled ? "0.45" : "1";
+
+        nextButton.style.opacity =
+            nextButton.disabled ? "0.45" : "1";
+
+        prevButton.style.cursor =
+            prevButton.disabled ? "not-allowed" : "pointer";
+
+        nextButton.style.cursor =
+            nextButton.disabled ? "not-allowed" : "pointer";
+
+        pagination.style.display = "flex";
+    }
+
+    prevButton.onclick = function () {
+        if (currentPage <= 1) {
+            return;
+        }
+
+        currentPage--;
+        renderPage();
+    };
+
+    nextButton.onclick = function () {
+        const totalPages = Math.max(
+            1,
+            Math.ceil(getDataRows().length / pageSize)
+        );
+
+        if (currentPage >= totalPages) {
+            return;
+        }
+
+        currentPage++;
+        renderPage();
+    };
+
+    // เมื่อค้นหารายวิชา ระบบสร้างแถวตารางใหม่
+    // จึงเริ่ม Pagination ที่หน้า 1 ทุกครั้ง
+    const observer = new MutationObserver(() => {
+        currentPage = 1;
+        renderPage();
+    });
+
+    observer.observe(tbody, {
+        childList: true
+    });
+
+    pagination._cleanupPagination = function () {
+        observer.disconnect();
+        prevButton.onclick = null;
+        nextButton.onclick = null;
+    };
+
+    renderPage();
 }
-/* =========================================================
-   Navigation — Auto Open Active Group
-   ========================================================= */
+async function loadAdminSubjectCatalog() {
+    // B57-03: Subject catalog with search and safe edit controls
 
-const activeMenu = document.getElementById(`menu-${view}`);
+    const status = document.getElementById("admin-subject-status");
+    const tbody = document.getElementById("admin-subject-table-body");
 
-if (activeMenu) {
+    if (!status || !tbody) {
+        return;
+    }
 
-    const parentGroup = activeMenu.closest('.nav-group');
+    // B57-03-42 — Initialize Subject Pagination
+    setupAdminSubjectPagination();
 
-    if (parentGroup) {
-        parentGroup.classList.add('open');
+    const addButton = document.getElementById("admin-subject-add-btn");
+
+    if (addButton) {
+        addButton.style.display = "inline-flex";
+        addButton.onclick = openAdminSubjectCreateForm;
+    }
+
+    let searchInput = document.getElementById("admin-subject-search");
+
+    if (!searchInput) {
+        searchInput = document.createElement("input");
+        searchInput.id = "admin-subject-search";
+        searchInput.type = "search";
+        searchInput.placeholder = "🔍 ค้นหารหัสวิชา หรือชื่อวิชา...";
+        searchInput.setAttribute("aria-label", "ค้นหารายวิชา");
+
+        searchInput.style.cssText = `
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            min-height: 44px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 14px;
+            box-sizing: border-box;
+        `;
+
+        status.parentNode.insertBefore(searchInput, status);
+    }
+
+    searchInput.value = "";
+    searchInput.disabled = true;
+    searchInput.oninput = null;
+
+    status.textContent = "กำลังโหลดทะเบียนรายวิชา...";
+    tbody.replaceChildren();
+
+    try {
+        // Read the existing subject catalog.
+        const subjects = await getSubjects();
+
+        // Read assignment references without modifying data.
+        const { data: assignments, error: assignmentError } =
+            await supabaseClient
+                .from("subject_assignments")
+                .select("subject_id");
+
+        if (assignmentError) {
+            throw assignmentError;
+        }
+
+        const assignedSubjectIds = new Set(
+            (assignments || []).map(item => item.subject_id)
+        );
+
+        const activeSubjects = (subjects || []).filter(
+            subject => subject.deleted_at == null
+        );
+
+        function renderSubjects(keyword = "") {
+            const query = keyword.trim().toLocaleLowerCase();
+
+            const filteredSubjects = activeSubjects.filter(subject => {
+                const code = String(
+                    subject.subject_code || ""
+                ).toLocaleLowerCase();
+
+                const name = String(
+                    subject.subject_name || ""
+                ).toLocaleLowerCase();
+
+                return code.includes(query) || name.includes(query);
+            });
+
+            tbody.replaceChildren();
+
+            if (filteredSubjects.length === 0) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell();
+
+                cell.colSpan = 5;
+                cell.textContent = query
+                    ? "ไม่พบรายวิชาที่ตรงกับคำค้นหา"
+                    : "ยังไม่มีรายวิชาในทะเบียนกลาง";
+            } else {
+                const fragment = document.createDocumentFragment();
+
+                filteredSubjects.forEach(subject => {
+                    const row = document.createElement("tr");
+
+                    const codeCell = row.insertCell();
+                    const nameCell = row.insertCell();
+                    const creditCell = row.insertCell();
+                    const statusCell = row.insertCell();
+                    const actionCell = row.insertCell();
+
+                    codeCell.textContent =
+                        subject.subject_code || "-";
+
+                    nameCell.textContent =
+                        subject.subject_name || "-";
+
+                    creditCell.textContent =
+                        subject.credit == null ? "-" : subject.credit;
+
+                    statusCell.textContent = "ใช้งาน";
+
+                    if (assignedSubjectIds.has(subject.id)) {
+                        // Preserve subjects with teaching history.
+                        const locked = document.createElement("span");
+
+                        locked.textContent = "🔒 มีข้อมูลการสอนแล้ว";
+                        locked.title =
+                            "รายวิชานี้มีข้อมูลการสอนผูกอยู่ จึงไม่อนุญาตให้แก้ไขรหัสวิชา ชื่อวิชา หรือหน่วยกิต";
+
+                        actionCell.appendChild(locked);
+                    } else {
+                        const editButton = document.createElement("button");
+
+                        editButton.type = "button";
+                        editButton.className = "btn";
+                        editButton.textContent = "✏️ แก้ไข";
+
+                        editButton.style.cssText = `
+                            padding: 7px 12px;
+                            height: auto;
+                            font-size: 13px;
+                            white-space: nowrap;
+                        `;
+
+                        editButton.onclick = () => {
+                            openAdminSubjectEditForm(subject);
+                        };
+
+                        actionCell.appendChild(editButton);
+                    }
+
+                    fragment.appendChild(row);
+                });
+
+                tbody.appendChild(fragment);
+            }
+
+            status.textContent = query
+                ? `พบ ${filteredSubjects.length} จาก ${activeSubjects.length} รายวิชา`
+                : `แสดงรายวิชาที่เปิดใช้งาน ${activeSubjects.length} รายวิชา`;
+        }
+
+        searchInput.disabled = false;
+
+        searchInput.oninput = () => {
+            renderSubjects(searchInput.value);
+        };
+
+        renderSubjects();
+
+    } catch (error) {
+        console.error(
+            "B57-03: Subject catalog load failed:",
+            error
+        );
+
+        searchInput.disabled = true;
+        status.textContent = "ไม่สามารถโหลดทะเบียนรายวิชาได้";
+
+        const row = tbody.insertRow();
+        const cell = row.insertCell();
+
+        cell.colSpan = 5;
+        cell.textContent = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
     }
 }
-  
+// ============================================================
+// B57-03-42 — Admin Batch Subject Assignment Preview
+// ค้นหาและเลือกสูงสุด 20 วิชา
+// READ ONLY — ยังไม่มีการบันทึกฐานข้อมูล
+// ============================================================
+
+async function openAdminTeacherSubjectBatchPreview() {
+    try {
+        const role = await getCurrentUserRole();
+
+        if (role !== "Admin") {
+            throw new Error("เฉพาะ Admin เท่านั้นที่ใช้งานได้");
+        }
+
+        const yearSelect = document.getElementById(
+            "admin-assignment-year"
+        );
+
+        const semesterSelect = document.getElementById(
+            "admin-assignment-semester"
+        );
+
+        if (!yearSelect?.value || !semesterSelect?.value) {
+            throw new Error(
+                "กรุณาเลือกปีการศึกษาและภาคเรียนก่อน"
+            );
+        }
+
+        const semesterId = semesterSelect.value;
+
+        // โหลดข้อมูลสำหรับแสดงฟอร์มเท่านั้น
+        const [
+            teacherResult,
+            profileResult,
+            roleResult,
+            subjectResult
+        ] = await Promise.all([
+            supabaseClient
+                .from("teachers")
+                .select(
+                    "id, profile_id, teacher_code, instructor_number, first_name, last_name"
+                )
+                .is("deleted_at", null),
+
+            supabaseClient
+                .from("profiles")
+                .select("id, role_id, is_active, deleted_at"),
+
+            supabaseClient
+                .from("roles")
+                .select("id, name, deleted_at"),
+
+            supabaseClient
+                .from("subjects")
+                .select(
+                    "id, subject_code, subject_name, credit"
+                )
+                .is("deleted_at", null)
+        ]);
+
+        for (const result of [
+            teacherResult,
+            profileResult,
+            roleResult,
+            subjectResult
+        ]) {
+            if (result.error) {
+                throw result.error;
+            }
+        }
+
+        const profiles = new Map(
+            (profileResult.data || []).map(
+                item => [item.id, item]
+            )
+        );
+
+        const teacherRoleIds = new Set(
+            (roleResult.data || [])
+                .filter(item =>
+                    item.name === "Teacher" &&
+                    item.deleted_at === null
+                )
+                .map(item => item.id)
+        );
+
+        const teachers = (teacherResult.data || [])
+            .filter(teacher => {
+                const profile = profiles.get(
+                    teacher.profile_id
+                );
+
+                return (
+                    profile &&
+                    profile.is_active === true &&
+                    profile.deleted_at === null &&
+                    teacherRoleIds.has(profile.role_id)
+                );
+            })
+            .sort((a, b) =>
+                String(a.teacher_code || "").localeCompare(
+                    String(b.teacher_code || ""),
+                    "th"
+                )
+            );
+
+        const subjects = (subjectResult.data || [])
+            .sort((a, b) =>
+                String(a.subject_code || "").localeCompare(
+                    String(b.subject_code || ""),
+                    "th"
+                )
+            );
+
+        if (!teachers.length || !subjects.length) {
+            throw new Error(
+                "ไม่พบครูหรือรายวิชาที่พร้อมใช้งาน"
+            );
+        }
+
+        // B57-03-42 — อ่านสิทธิ์ที่มอบหมายแล้ว
+        // READ ONLY — ไม่สร้างหรือแก้ไขข้อมูล
+
+        const existingPermissions = [];
+        const permissionPageSize = 500;
+        let permissionOffset = 0;
+
+        while (true) {
+            const { data, error } = await supabaseClient
+                .from("teacher_subject_permissions")
+                .select("teacher_id, subject_id")
+                .eq("semester_id", semesterId)
+                .order("id", { ascending: true })
+                .range(
+                    permissionOffset,
+                    permissionOffset + permissionPageSize - 1
+                );
+
+            if (error) {
+                throw error;
+            }
+
+            const page = data || [];
+            existingPermissions.push(...page);
+
+            if (page.length < permissionPageSize) {
+                break;
+            }
+
+            permissionOffset += permissionPageSize;
+        }
+
+        const assignedSubjectKeys = new Set(
+            existingPermissions.map(permission =>
+                `${permission.teacher_id}|${permission.subject_id}`
+            )
+        );
+        // เก็บรายการที่เลือกไว้ แม้เปลี่ยนคำค้นหา
+        const selectedSubjectIds = new Set();
+
+        const result = await Swal.fire({
+            title: "มอบหมายหลายรายวิชา",
+            width: 650,
+            html: `
+                <div style="text-align:left;">
+
+                    <p style="margin:0 0 14px;">
+                        เลือกรายวิชาสูงสุด 20 วิชา
+                        สำหรับครูหนึ่งคน
+                    </p>
+
+                    <label for="batch-teacher">
+                        ครูผู้สอน *
+                    </label>
+
+                    <select
+                        id="batch-teacher"
+                        class="swal2-select"
+                        style="
+                            display:block;
+                            width:100%;
+                            margin:6px 0 16px;
+                        "
+                    ></select>
+
+                    <label for="batch-subject-search">
+                        ค้นหารหัสวิชาหรือชื่อวิชา
+                    </label>
+
+                    <input
+                        id="batch-subject-search"
+                        class="swal2-input"
+                        type="text"
+                        placeholder="เช่น อ321 หรือ ภาษาอังกฤษ"
+                        autocomplete="off"
+                        style="
+                            width:100%;
+                            margin:6px 0 12px;
+                            box-sizing:border-box;
+                        "
+                    >
+
+                    <div
+                        id="batch-subject-list"
+                        style="
+                            max-height:180px;
+                            overflow-y:auto;
+                            border:1px solid #e2e8f0;
+                            border-radius:10px;
+                            padding:8px;
+                        "
+                    ></div>
+
+                    <p
+                        id="batch-subject-count"
+                        style="
+                            margin:12px 0 0;
+                            font-weight:600;
+                        "
+                    ></p>
+
+                    <p style="
+                        font-size:13px;
+                        color:#64748b;
+                        margin-top:8px;
+                    ">
+                        ขั้นตอนนี้เป็นการทดลองเลือกเท่านั้น
+                        ยังไม่มีการบันทึกข้อมูล
+                    </p>
+
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: "ตรวจสอบรายการที่เลือก",
+            cancelButtonText: "ยกเลิก",
+            focusConfirm: false,
+            heightAuto: false,
+
+            didOpen: () => {
+                const popup = Swal.getPopup();
+
+                if (popup) {
+                    popup.style.maxHeight =
+                        "calc(100dvh - 24px)";
+
+                    popup.style.overflowY = "auto";
+                    popup.style.boxSizing = "border-box";
+                }
+
+                const subjectList = document.getElementById(
+                    "batch-subject-list"
+                );
+
+                if (subjectList) {
+                    const availableHeight = Math.max(
+                        220,
+                        Math.min(260, window.innerHeight - 380)
+                    );
+
+                    subjectList.style.maxHeight =
+                        `${availableHeight}px`;
+                }
+                const teacherSelect =
+                    document.getElementById("batch-teacher");
+
+                const searchInput =
+                    document.getElementById(
+                        "batch-subject-search"
+                    );
+
+                const list =
+                    document.getElementById(
+                        "batch-subject-list"
+                    );
+
+                const countLabel =
+                    document.getElementById(
+                        "batch-subject-count"
+                    );
+
+                teacherSelect.add(
+                    new Option("-- เลือกครู --", "")
+                );
+
+                teachers.forEach(teacher => {
+                    const name = [
+                        teacher.first_name,
+                        teacher.last_name
+                    ].filter(Boolean).join(" ");
+
+                    const number =
+                        teacher.instructor_number ||
+                        teacher.teacher_code ||
+                        "";
+
+                    teacherSelect.add(
+                        new Option(
+                            `${number} — ${name}`,
+                            teacher.id
+                        )
+                    );
+                });
+
+                function updateCount() {
+                    countLabel.textContent =
+                        `เลือกแล้ว ${selectedSubjectIds.size} / 20 วิชา`;
+                }
+
+                function renderSubjects() {
+                    const keyword = searchInput.value
+                        .trim()
+                        .toLocaleLowerCase();
+
+                    const filtered = subjects.filter(subject => {
+                        const code = String(
+                            subject.subject_code || ""
+                        ).toLocaleLowerCase();
+
+                        const name = String(
+                            subject.subject_name || ""
+                        ).toLocaleLowerCase();
+
+                        return (
+                            code.includes(keyword) ||
+                            name.includes(keyword)
+                        );
+                    });
+
+                    list.replaceChildren();
+
+                    if (!filtered.length) {
+                        list.textContent =
+                            "ไม่พบรายวิชาที่ตรงกับคำค้นหา";
+
+                        updateCount();
+                        return;
+                    }
+
+                    filtered.forEach(subject => {
+                        const row =
+                            document.createElement("label");
+
+                        row.style.cssText = [
+                            "display:flex",
+                            "align-items:center",
+                            "gap:10px",
+                            "padding:10px",
+                            "border-bottom:1px solid #e2e8f0",
+                            "cursor:pointer"
+                        ].join(";");
+
+                        const checkbox =
+                            document.createElement("input");
+
+                        const selectedTeacherId =
+                            teacherSelect.value;
+
+                        const alreadyAssigned =
+                            assignedSubjectKeys.has(
+                                `${selectedTeacherId}|${subject.id}`
+                            );
+
+                        checkbox.type = "checkbox";
+                        checkbox.value = subject.id;
+
+                        checkbox.checked =
+                            selectedSubjectIds.has(subject.id);
+
+                        checkbox.disabled =
+                            !selectedTeacherId || alreadyAssigned;
+
+                        const text =
+                            document.createElement("span");
+
+                        const credit =
+                            subject.credit == null
+                                ? "-"
+                                : subject.credit;
+
+                            text.textContent =
+                            `${subject.subject_code} — ` +
+                            `${subject.subject_name} ` +
+                            `(หน่วยกิต ${credit})` +
+                            (alreadyAssigned
+                                ? "  ✅ มีแล้ว"
+                                : "");
+
+                        checkbox.addEventListener(
+                            "change",
+                            () => {
+                                if (checkbox.checked) {
+                                    if (
+                                        selectedSubjectIds.size >= 20
+                                    ) {
+                                        checkbox.checked = false;
+
+                                        Swal.showValidationMessage(
+                                            "เลือกได้สูงสุด 20 วิชา"
+                                        );
+
+                                        return;
+                                    }
+
+                                    selectedSubjectIds.add(
+                                        subject.id
+                                    );
+                                } else {
+                                    selectedSubjectIds.delete(
+                                        subject.id
+                                    );
+                                }
+
+                                Swal.resetValidationMessage();
+                                updateCount();
+                            }
+                        );
+
+                        row.append(checkbox, text);
+                        list.appendChild(row);
+                    });
+
+                    updateCount();
+                }
+
+                searchInput.addEventListener(
+                    "input",
+                    renderSubjects
+                );
+
+                teacherSelect.addEventListener(
+                    "change",
+                    () => {
+                        // ล้างรายการที่เลือกจากครูคนก่อน
+                        selectedSubjectIds.clear();
+
+                        Swal.resetValidationMessage();
+
+                        // โหลดสถานะการมอบหมายของครูที่เลือก
+                        renderSubjects();
+                    }
+                );
+
+                renderSubjects();
+            },
+
+            preConfirm: () => {
+                const teacherId = document.getElementById(
+                    "batch-teacher"
+                ).value;
+
+                if (!teacherId) {
+                    Swal.showValidationMessage(
+                        "กรุณาเลือกครูผู้สอน"
+                    );
+                    return false;
+                }
+
+                if (
+                    selectedSubjectIds.size === 0 ||
+                    selectedSubjectIds.size > 20
+                ) {
+                    Swal.showValidationMessage(
+                        "กรุณาเลือกตั้งแต่ 1 ถึง 20 วิชา"
+                    );
+                    return false;
+                }
+
+                return {
+                    teacherId,
+                    subjectIds: Array.from(
+                        selectedSubjectIds
+                    )
+                };
+            }
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        // แสดงตัวอย่างเท่านั้น ไม่เรียก RPC
+        const teacher = teachers.find(
+            item => item.id === result.value.teacherId
+        );
+
+        const selectedSubjects = subjects.filter(
+            subject =>
+                result.value.subjectIds.includes(subject.id)
+        );
+
+        // ====================================================
+        // B57-03-42 — Batch Assignment Summary
+        // UI PREVIEW ONLY — ยังไม่บันทึกข้อมูลจริง
+        // ====================================================
+
+        const summary = document.createElement("div");
+
+        summary.style.cssText = [
+            "text-align:left",
+            "font-size:14px",
+            "display:flex",
+            "flex-direction:column",
+            "gap:12px",
+            "min-height:0"
+        ].join(";");
+
+        // ----------------------------------------------------
+        // 1. ข้อมูลครูและภาคเรียน
+        // ----------------------------------------------------
+
+        const teacherInfo = document.createElement("div");
+
+        teacherInfo.style.cssText = [
+            "padding:12px",
+            "background:#f1f5f9",
+            "border-radius:10px",
+            "line-height:1.7"
+        ].join(";");
+
+        const teacherName = [
+            teacher.first_name,
+            teacher.last_name
+        ].filter(Boolean).join(" ");
+
+        const teacherNumber =
+            teacher.instructor_number ||
+            teacher.teacher_code ||
+            "";
+
+        const yearName =
+            yearSelect.selectedOptions[0]?.textContent || "-";
+
+        const semesterName =
+            semesterSelect.selectedOptions[0]?.textContent || "-";
+
+        const teacherLine = document.createElement("div");
+        const semesterLine = document.createElement("div");
+
+        teacherLine.textContent =
+            `ครูผู้สอน: ${teacherNumber} — ${teacherName}`;
+
+        semesterLine.textContent =
+            `${yearName} / ${semesterName}`;
+
+        teacherInfo.append(
+            teacherLine,
+            semesterLine
+        );
+
+        // ----------------------------------------------------
+        // 2. หัวข้อรายการวิชา
+        // ----------------------------------------------------
+
+        const listHeading = document.createElement("div");
+
+        listHeading.textContent =
+            `รายวิชาที่เลือก (${selectedSubjects.length} วิชา)`;
+
+        listHeading.style.fontWeight = "600";
+
+        // ----------------------------------------------------
+        // 3. กรอบรายวิชาที่ Scroll ได้
+        // ----------------------------------------------------
+
+        const subjectList = document.createElement("div");
+
+        subjectList.style.cssText = [
+            "height:220px",
+            "max-height:35dvh",
+            "min-height:100px",
+            "overflow-y:auto",
+            "overscroll-behavior:contain",
+            "border:1px solid #e2e8f0",
+            "border-radius:10px"
+        ].join(";");
+
+        selectedSubjects.forEach((subject, index) => {
+            const row = document.createElement("div");
+
+            row.style.cssText = [
+                "display:flex",
+                "gap:10px",
+                "align-items:flex-start",
+                "padding:10px 12px",
+                "border-bottom:1px solid #e2e8f0"
+            ].join(";");
+
+            const number = document.createElement("span");
+
+            number.textContent = `${index + 1}.`;
+
+            number.style.cssText = [
+                "flex-shrink:0",
+                "color:#64748b",
+                "min-width:22px"
+            ].join(";");
+
+            const details = document.createElement("div");
+
+            details.style.cssText = [
+                "flex:1",
+                "min-width:0",
+                "overflow-wrap:anywhere"
+            ].join(";");
+
+            const subjectTitle = document.createElement("div");
+
+            subjectTitle.textContent =
+                `${subject.subject_code} — ${subject.subject_name}`;
+
+            subjectTitle.style.fontWeight = "500";
+
+            const credit = document.createElement("div");
+
+            credit.textContent =
+                "หน่วยกิต: " +
+                (subject.credit == null ? "-" : subject.credit);
+
+            credit.style.cssText = [
+                "font-size:12px",
+                "color:#64748b",
+                "margin-top:3px"
+            ].join(";");
+
+            details.append(
+                subjectTitle,
+                credit
+            );
+
+            row.append(
+                number,
+                details
+            );
+
+            subjectList.appendChild(row);
+        });
+
+        // ----------------------------------------------------
+        // 4. สรุปจำนวน
+        // ----------------------------------------------------
+
+        const total = document.createElement("div");
+
+        total.textContent =
+            `รวมรายการที่เลือก ${selectedSubjects.length} วิชา`;
+
+        total.style.cssText = [
+            "font-weight:600",
+            "text-align:right"
+        ].join(";");
+
+        // ----------------------------------------------------
+        // 5. ข้อความ Preview
+        // ----------------------------------------------------
+
+        const notice = document.createElement("p");
+
+        notice.textContent =
+            "ขั้นตอนนี้เป็นการตรวจสอบรายการเท่านั้น " +
+            "ยังไม่ได้บันทึกข้อมูลลงฐานข้อมูล";
+
+        notice.style.cssText = [
+            "font-size:12px",
+            "color:#64748b",
+            "margin:0"
+        ].join(";");
+
+        summary.append(
+            teacherInfo,
+            listHeading,
+            subjectList,
+            total,
+            notice
+        );
+
+        // ----------------------------------------------------
+        // 6. แสดงหน้าต่างสรุป
+        // ----------------------------------------------------
+
+        // ====================================================
+        // B57-03-42 — Confirm and Save Batch Assignment
+        // ตรวจสอบอีกครั้งก่อนบันทึกจริง
+        // ====================================================
+
+        const confirmation = await Swal.fire({
+            title: "ตรวจสอบการมอบหมายรายวิชา",
+            html: summary,
+            width: 600,
+            heightAuto: false,
+            padding: "16px",
+            showCancelButton: true,
+            confirmButtonText: "ยืนยันมอบหมาย",
+            cancelButtonText: "ยกเลิก",
+            confirmButtonColor: "#2563eb",
+            reverseButtons: true,
+            focusConfirm: false,
+
+            didOpen: popup => {
+                popup.style.maxHeight =
+                    "calc(100dvh - 24px)";
+
+                popup.style.boxSizing = "border-box";
+                popup.style.display = "flex";
+                popup.style.flexDirection = "column";
+
+                const content = Swal.getHtmlContainer();
+                const actions = Swal.getActions();
+
+                if (content) {
+                    content.style.minHeight = "0";
+                    content.style.overflowY = "hidden";
+                    content.style.flex = "0 1 auto";
+                    content.style.margin = "8px 0";
+                }
+
+                if (actions) {
+                    actions.style.flexShrink = "0";
+                }
+
+                subjectList.style.maxHeight =
+                    `${Math.max(
+                        80,
+                        Math.min(
+                            220,
+                            window.innerHeight - 430
+                        )
+                    )}px`;
+            }
+        });
+
+        if (!confirmation.isConfirmed) {
+            return;
+        }
+
+        // 1. ตรวจจำนวนรายการก่อนส่ง RPC
+        const subjectIds = result.value.subjectIds;
+
+        if (
+            !Array.isArray(subjectIds) ||
+            subjectIds.length < 1 ||
+            subjectIds.length > 20 ||
+            new Set(subjectIds).size !== subjectIds.length
+        ) {
+            throw new Error(
+                "รายการรายวิชาไม่ถูกต้อง กรุณาเลือกใหม่"
+            );
+        }
+
+        // 2. แสดงสถานะระหว่างตรวจสอบและบันทึก
+        Swal.fire({
+            title: "กำลังตรวจสอบการมอบหมาย",
+            text: "กรุณาอย่ากดบันทึกซ้ำ",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        let rpcAttempted = false;
+
+        try {
+            // 3. ตรวจรายการซ้ำจากฐานข้อมูลล่าสุด
+            const { data: existing, error: checkError } =
+                await supabaseClient
+                    .from("teacher_subject_permissions")
+                    .select("subject_id")
+                    .eq("teacher_id", result.value.teacherId)
+                    .eq("semester_id", semesterId)
+                    .in("subject_id", subjectIds);
+
+            if (checkError) {
+                throw checkError;
+            }
+
+            if (existing && existing.length > 0) {
+                const existingIds = new Set(
+                    existing.map(item => item.subject_id)
+                );
+
+                const duplicateSubjects = selectedSubjects
+                    .filter(subject =>
+                        existingIds.has(subject.id)
+                    )
+                    .map(subject => subject.subject_code);
+
+                await Swal.fire({
+                    icon: "warning",
+                    title: "พบรายวิชาที่มอบหมายแล้ว",
+                    text:
+                        "ยังไม่มีการบันทึกข้อมูลใหม่\n" +
+                        "รายวิชาที่ซ้ำ: " +
+                        duplicateSubjects.join(", ") +
+                        "\nกรุณาเปิดฟอร์มใหม่เพื่อตรวจสอบรายการ",
+                    confirmButtonText: "รับทราบ"
+                });
+
+                return;
+            }
+
+            // 4. บันทึกผ่าน Batch RPC
+            rpcAttempted = true;
+
+            const { data: permissionIds, error: saveError } =
+                await supabaseClient.rpc(
+                    "admin_assign_teacher_subjects_batch",
+                    {
+                        p_teacher_id: result.value.teacherId,
+                        p_subject_ids: subjectIds,
+                        p_semester_id: semesterId
+                    }
+                );
+
+            if (saveError) {
+                throw saveError;
+            }
+
+            if (
+                !Array.isArray(permissionIds) ||
+                permissionIds.length !== subjectIds.length
+            ) {
+                throw new Error(
+                    "RPC ตอบกลับจำนวนรายการไม่ตรงกับที่เลือก"
+                );
+            }
+
+            // 5. ตรวจข้อมูลที่บันทึกจากฐานข้อมูลจริง
+            const { data: verified, error: verifyError } =
+                await supabaseClient
+                    .from("teacher_subject_permissions")
+                    .select("id, subject_id")
+                    .eq("teacher_id", result.value.teacherId)
+                    .eq("semester_id", semesterId)
+                    .in("subject_id", subjectIds);
+
+            if (verifyError) {
+                await Swal.fire({
+                    icon: "warning",
+                    title: "บันทึกแล้ว แต่ตรวจสอบผลไม่สำเร็จ",
+                    text:
+                        "RPC ส่งผลสำเร็จแล้ว แต่ไม่สามารถอ่านข้อมูลยืนยันได้ " +
+                        "กรุณาตรวจสอบรายการในหน้า Admin ก่อนลองบันทึกอีกครั้ง",
+                    confirmButtonText: "รับทราบ"
+                });
+
+                await loadAdminTeachingAssignments();
+                return;
+            }
+
+            const returnedIds = new Set(permissionIds);
+            const verifiedSubjectIds = new Set(
+                (verified || []).map(item => item.subject_id)
+            );
+
+            const allMatched =
+                verified.length === subjectIds.length &&
+                new Set(verified.map(item => item.id)).size ===
+                    subjectIds.length &&
+                verified.every(item =>
+                    returnedIds.has(item.id)
+                ) &&
+                subjectIds.every(id =>
+                    verifiedSubjectIds.has(id)
+                );
+
+            if (!allMatched) {
+                await Swal.fire({
+                    icon: "warning",
+                    title: "ต้องตรวจสอบผลการบันทึก",
+                    text:
+                        "RPC ส่งผลสำเร็จแล้ว แต่ผลตรวจสอบไม่ตรงครบทุกวิชา " +
+                        "กรุณาตรวจสอบฐานข้อมูลก่อนลองอีกครั้ง",
+                    confirmButtonText: "รับทราบ"
+                });
+
+                await loadAdminTeachingAssignments();
+                return;
+            }
+
+            // 6. แจ้งสำเร็จเมื่อยืนยันผลได้ครบ
+            await Swal.fire({
+                icon: "success",
+                title: "มอบหมายรายวิชาสำเร็จ",
+                text:
+                    `บันทึกและตรวจสอบแล้วครบ ` +
+                    `${verified.length} วิชา`,
+                confirmButtonText: "ตกลง"
+            });
+
+            // 7. โหลดหน้ารายการใหม่
+            await loadAdminTeachingAssignments();
+
+        } catch (saveError) {
+            console.error(
+                "Admin Batch Assignment Save Error:",
+                saveError
+            );
+
+            const errorText = String(
+                saveError?.message || ""
+            );
+
+            let message = errorText ||
+                "ไม่สามารถดำเนินการได้";
+
+            if (
+                errorText.includes("ALREADY_EXISTS") ||
+                saveError?.code === "23505"
+            ) {
+                message =
+                    "พบรายวิชาที่ได้รับมอบหมายแล้ว " +
+                    "ระบบยกเลิกการบันทึกทั้งชุด";
+            } else if (
+                errorText.includes("SEMESTER_NOT_ACTIVE")
+            ) {
+                message =
+                    "ภาคเรียนนี้ไม่เปิดให้มอบหมายรายวิชา";
+            } else if (
+                errorText.includes("ADMIN_REQUIRED")
+            ) {
+                message =
+                    "บัญชีนี้ไม่มีสิทธิ์มอบหมายรายวิชา";
+            } else if (rpcAttempted) {
+                message +=
+                    "\nกรุณาตรวจสอบสถานะในฐานข้อมูลก่อนลองซ้ำ " +
+                    "เพราะยังยืนยันผลการเรียก RPC ไม่ได้";
+            }
+
+            await Swal.fire({
+                icon: "error",
+                title: "ไม่สามารถยืนยันผลการมอบหมาย",
+                text: message,
+                confirmButtonText: "รับทราบ"
+            });
+        }
+
+    } catch (error) {
+        console.error(
+            "Admin Batch Preview Error:",
+            error
+        );
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถเปิดฟอร์มได้",
+            text:
+                error?.message ||
+                "เกิดข้อผิดพลาดในการโหลดข้อมูล"
+        });
+    }
+}
+// ============================================================
+// B57-03-42 — Admin Assign Teacher Subject
+// ใช้ทะเบียนรายวิชากลาง ไม่สร้าง Subject ใหม่
+// ============================================================
+
+async function openAdminTeacherSubjectAssignForm() {
+    try {
+        // 1. ตรวจสิทธิ์ Admin
+        const role = await getCurrentUserRole();
+
+        if (role !== "Admin") {
+            throw new Error("เฉพาะ Admin เท่านั้นที่มอบหมายรายวิชาได้");
+        }
+
+        // 2. อ่านภาคเรียนที่เลือกจากหน้า Admin
+        const yearSelect = document.getElementById(
+            "admin-assignment-year"
+        );
+
+        const semesterSelect = document.getElementById(
+            "admin-assignment-semester"
+        );
+
+        if (!yearSelect?.value || !semesterSelect?.value) {
+            throw new Error("กรุณาเลือกปีการศึกษาและภาคเรียนก่อน");
+        }
+
+        const yearId = yearSelect.value;
+        const semesterId = semesterSelect.value;
+
+        // 3. โหลดข้อมูลสำหรับฟอร์ม
+        const [
+            yearResult,
+            semesterResult,
+            teacherResult,
+            profileResult,
+            roleResult,
+            subjectResult
+        ] = await Promise.all([
+            supabaseClient
+                .from("academic_years")
+                .select("id, year, is_current")
+                .eq("id", yearId)
+                .single(),
+
+            supabaseClient
+                .from("semesters")
+                .select(
+                    "id, academic_year_id, semester_no, start_date, end_date, schedule_locked_at"
+                )
+                .eq("id", semesterId)
+                .single(),
+
+            supabaseClient
+                .from("teachers")
+                .select(
+                    "id, profile_id, teacher_code, instructor_number, first_name, last_name, deleted_at"
+                )
+                .is("deleted_at", null),
+
+            supabaseClient
+                .from("profiles")
+                .select("id, role_id, is_active, deleted_at"),
+
+            supabaseClient
+                .from("roles")
+                .select("id, name, deleted_at"),
+
+            supabaseClient
+                .from("subjects")
+                .select(
+                    "id, subject_code, subject_name, deleted_at"
+                )
+                .is("deleted_at", null)
+        ]);
+
+        const results = [
+            yearResult,
+            semesterResult,
+            teacherResult,
+            profileResult,
+            roleResult,
+            subjectResult
+        ];
+
+        for (const result of results) {
+            if (result.error) {
+                throw result.error;
+            }
+        }
+
+        const year = yearResult.data;
+        const semester = semesterResult.data;
+
+        // 4. ตรวจปีและภาคเรียนที่เปิดใช้งาน
+        const today = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Bangkok",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        }).format(new Date());
+
+        if (
+            !year.is_current ||
+            semester.academic_year_id !== year.id ||
+            semester.schedule_locked_at !== null ||
+            !semester.start_date ||
+            !semester.end_date ||
+            today < semester.start_date ||
+            today > semester.end_date
+        ) {
+            throw new Error(
+                "ภาคเรียนที่เลือกไม่เปิดให้มอบหมายรายวิชาใหม่"
+            );
+        }
+
+        // 5. เลือกเฉพาะครูที่มีบัญชี Teacher และ Active
+        const profiles = new Map(
+            (profileResult.data || []).map(
+                item => [item.id, item]
+            )
+        );
+
+        const teacherRoleIds = new Set(
+            (roleResult.data || [])
+                .filter(item =>
+                    item.name === "Teacher" &&
+                    item.deleted_at === null
+                )
+                .map(item => item.id)
+        );
+
+        const teachers = (teacherResult.data || [])
+            .filter(teacher => {
+                const profile = profiles.get(teacher.profile_id);
+
+                return (
+                    profile &&
+                    profile.is_active === true &&
+                    profile.deleted_at === null &&
+                    teacherRoleIds.has(profile.role_id)
+                );
+            })
+            .sort((a, b) =>
+                a.teacher_code.localeCompare(b.teacher_code)
+            );
+
+        const subjects = (subjectResult.data || [])
+            .sort((a, b) =>
+                a.subject_code.localeCompare(
+                    b.subject_code,
+                    "th"
+                )
+            );
+
+        if (!teachers.length || !subjects.length) {
+            throw new Error(
+                "ไม่พบครูหรือรายวิชาที่พร้อมมอบหมาย"
+            );
+        }
+
+        // 6. แสดงฟอร์ม
+        const result = await Swal.fire({
+            title: "มอบหมายรายวิชาให้ครู",
+            width: 540,
+            html: `
+                <div style="text-align:left;display:grid;gap:14px;">
+
+                    <p id="assign-semester-info"
+                       style="margin:0;font-weight:600;">
+                    </p>
+
+                    <div>
+                        <label for="assign-teacher">
+                            ครูผู้สอน *
+                        </label>
+                        <select id="assign-teacher"
+                            class="swal2-select"
+                            style="width:100%;margin:6px 0 0;">
+                        </select>
+                    </div>
+
+                    <div>
+                            <div style="margin-bottom:12px;">
+                            <label for="assign-subject-search">
+                                ค้นหารายวิชา
+                            </label>
+                            <input
+                                id="assign-subject-search"
+                                class="swal2-input"
+                                type="text"
+                                placeholder="พิมพ์รหัสวิชาหรือชื่อวิชา"
+                                autocomplete="off"
+                                style="
+                                    width:100%;
+                                    margin:6px 0 0;
+                                    box-sizing:border-box;
+                                "
+                            >
+                        </div>
+                        <label for="assign-subject">
+                            รายวิชา *
+                        </label>
+                        <select id="assign-subject"
+                            class="swal2-select"
+                            style="width:100%;margin:6px 0 0;">
+                        </select>
+                    </div>
+
+                    <p style="font-size:13px;margin:0;">
+                        Admin มอบหมายเฉพาะรายวิชา
+                        ครูจะเลือกกลุ่มนักเรียนและจัดตารางสอนเอง
+                    </p>
+
+                </div>
+            `,
+            didOpen: () => {
+                document.getElementById(
+                    "assign-semester-info"
+                ).textContent =
+                    `ปีการศึกษา ${year.year} / ` +
+                    `ภาคเรียนที่ ${semester.semester_no}`;
+
+                const teacherSelect = document.getElementById(
+                    "assign-teacher"
+                );
+
+                const subjectSelect = document.getElementById(
+                    "assign-subject"
+                );
+
+                teacherSelect.add(
+                    new Option("-- เลือกครู --", "")
+                );
+
+                teachers.forEach(teacher => {
+                    const name = [
+                        teacher.first_name,
+                        teacher.last_name
+                    ].filter(Boolean).join(" ");
+
+                    const number =
+                        teacher.instructor_number ||
+                        teacher.teacher_code;
+
+                    teacherSelect.add(
+                        new Option(
+                            `${number} — ${name}`,
+                            teacher.id
+                        )
+                    );
+                });
+
+                subjectSelect.add(
+                    new Option("-- เลือกรายวิชา --", "")
+                );
+
+                    const subjectSearch = document.getElementById(
+                    "assign-subject-search"
+                );
+
+                function filterSubjectOptions() {
+                    const keyword = subjectSearch.value
+                        .trim()
+                        .toLocaleLowerCase();
+
+                    const previousSubjectId = subjectSelect.value;
+
+                    const filteredSubjects = subjects.filter(subject => {
+                        const code = String(
+                            subject.subject_code || ""
+                        ).toLocaleLowerCase();
+
+                        const name = String(
+                            subject.subject_name || ""
+                        ).toLocaleLowerCase();
+
+                        return (
+                            code.includes(keyword) ||
+                            name.includes(keyword)
+                        );
+                    });
+
+                    subjectSelect.replaceChildren(
+                        new Option(
+                            filteredSubjects.length === 0
+                                ? "-- ไม่พบรายวิชา --"
+                                : "-- เลือกรายวิชา --",
+                            ""
+                        )
+                    );
+
+                    filteredSubjects.forEach(subject => {
+                        subjectSelect.add(
+                            new Option(
+                                `${subject.subject_code} — ${subject.subject_name}`,
+                                subject.id
+                            )
+                        );
+                    });
+
+                    const selectedStillVisible = filteredSubjects.some(
+                        subject => subject.id === previousSubjectId
+                    );
+
+                    subjectSelect.value = selectedStillVisible
+                        ? previousSubjectId
+                        : "";
+                }
+
+                subjectSearch.addEventListener(
+                    "input",
+                    filterSubjectOptions
+                );
+
+                filterSubjectOptions();
+            },
+            showCancelButton: true,
+            confirmButtonText: "ตรวจสอบการมอบหมาย",
+            cancelButtonText: "ยกเลิก",
+            preConfirm: () => {
+                const teacherId = document.getElementById(
+                    "assign-teacher"
+                ).value;
+
+                const subjectId = document.getElementById(
+                    "assign-subject"
+                ).value;
+
+                if (!teacherId || !subjectId) {
+                    Swal.showValidationMessage(
+                        "กรุณาเลือกครูและรายวิชา"
+                    );
+                    return false;
+                }
+
+                return { teacherId, subjectId };
+            }
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        const selectedTeacher = teachers.find(
+            item => item.id === result.value.teacherId
+        );
+
+        const selectedSubject = subjects.find(
+            item => item.id === result.value.subjectId
+        );
+
+        if (!selectedTeacher || !selectedSubject) {
+            throw new Error("ข้อมูลที่เลือกไม่ถูกต้อง");
+        }
+
+        // 7. ตรวจรายการซ้ำจากฐานข้อมูลล่าสุด
+        const { data: existing, error: checkError } =
+            await supabaseClient
+                .from("teacher_subject_permissions")
+                .select("id")
+                .eq("teacher_id", selectedTeacher.id)
+                .eq("subject_id", selectedSubject.id)
+                .eq("semester_id", semesterId)
+                .limit(1);
+
+        if (checkError) {
+            throw checkError;
+        }
+
+        if (existing && existing.length > 0) {
+            await Swal.fire({
+                title: "มีการมอบหมายแล้ว",
+                text: "ครูคนนี้ได้รับรายวิชานี้ในภาคเรียนที่เลือกแล้ว",
+                confirmButtonText: "ตกลง"
+            });
+            return;
+        }
+
+        // 8. ยืนยันก่อนบันทึกข้อมูลจริง
+        const confirmation = await Swal.fire({
+            title: "ยืนยันการมอบหมายรายวิชา",
+            text:
+                `ครู: ${selectedTeacher.first_name} ${selectedTeacher.last_name}\n` +
+                `รายวิชา: ${selectedSubject.subject_code} — ${selectedSubject.subject_name}\n` +
+                `ปีการศึกษา: ${year.year}\n` +
+                `ภาคเรียน: ${semester.semester_no}`,
+            showCancelButton: true,
+            confirmButtonText: "ยืนยันมอบหมาย",
+            cancelButtonText: "ยกเลิก",
+            reverseButtons: true,
+            didOpen: () => {
+                const content = Swal.getHtmlContainer();
+
+                if (content) {
+                    content.style.whiteSpace = "pre-line";
+                }
+            }
+        });
+
+        if (!confirmation.isConfirmed) {
+            return;
+        }
+
+        // 9. บันทึกผ่าน Admin-only RPC
+        const { data: permissionId, error } =
+            await supabaseClient.rpc(
+                "admin_assign_teacher_subject",
+                {
+                    p_teacher_id: selectedTeacher.id,
+                    p_subject_id: selectedSubject.id,
+                    p_semester_id: semesterId
+                }
+            );
+
+        if (error) {
+            throw error;
+        }
+
+        if (!permissionId) {
+            throw new Error(
+                "ไม่สามารถยืนยันรหัสสิทธิ์สอนที่สร้างได้"
+            );
+        }
+
+        await Swal.fire({
+            title: "มอบหมายรายวิชาสำเร็จ",
+            text: "บันทึกสิทธิ์สอนให้ครูเรียบร้อยแล้ว",
+            confirmButtonText: "ตกลง"
+        });
+
+        await loadAdminTeachingAssignments();
+
+    } catch (error) {
+        console.error(
+            "Admin Teacher Subject Assignment Error:",
+            error
+        );
+
+        let message =
+            error?.message ||
+            "ไม่สามารถมอบหมายรายวิชาได้";
+
+        if (
+            message.includes("SUBJECT_ASSIGNMENT_ALREADY_EXISTS") ||
+            error?.code === "23505"
+        ) {
+            message =
+                "ครูได้รับรายวิชานี้ในภาคเรียนดังกล่าวแล้ว";
+        } else if (
+            message.includes("SUBJECT_ASSIGNMENT_ADMIN_REQUIRED")
+        ) {
+            message =
+                "เฉพาะ Admin เท่านั้นที่มอบหมายรายวิชาได้";
+        } else if (
+            message.includes("SUBJECT_ASSIGNMENT_SEMESTER_NOT_ACTIVE")
+        ) {
+            message =
+                "ภาคเรียนนี้ไม่เปิดให้มอบหมายรายวิชา";
+        }
+
+        await Swal.fire({
+            title: "ไม่สามารถมอบหมายรายวิชาได้",
+            text: message,
+            confirmButtonText: "รับทราบ"
+        });
+    }
+}
+// ============================================================
+// B57-03-42 — Admin Assignment Pagination
+// กรองครูก่อนแบ่งหน้า แสดงสูงสุด 25 รายการต่อหน้า
+// ============================================================
+
+function setupAdminAssignmentPagination() {
+    const tbody = document.getElementById(
+        "admin-assignment-table-body"
+    );
+
+    const pagination = document.getElementById(
+        "admin-assignment-pagination"
+    );
+
+    const pageInfo = document.getElementById(
+        "admin-assignment-page-info"
+    );
+
+    const pageNumber = document.getElementById(
+        "admin-assignment-page-number"
+    );
+
+    const prevButton = document.getElementById(
+        "admin-assignment-page-prev"
+    );
+
+    const nextButton = document.getElementById(
+        "admin-assignment-page-next"
+    );
+
+    const teacherFilter = document.getElementById(
+        "admin-assignment-teacher"
+    );
+
+    if (
+        !tbody ||
+        !pagination ||
+        !pageInfo ||
+        !pageNumber ||
+        !prevButton ||
+        !nextButton
+    ) {
+        return;
+    }
+
+    // ป้องกัน Observer ซ้ำเมื่อเปิดเมนูอีกครั้ง
+    if (typeof pagination._cleanupPagination === "function") {
+        pagination._cleanupPagination();
+    }
+
+    const pageSize = 25;
+    let currentPage = 1;
+
+    function getDataRows() {
+        const rows = Array.from(tbody.rows);
+
+        // ไม่รวมแถว Loading / Empty / Error
+        if (
+            rows.length === 1 &&
+            rows[0].cells.length === 1 &&
+            Number(rows[0].cells[0].colSpan) > 1
+        ) {
+            return [];
+        }
+
+        // กรองข้อมูลตามครูที่เลือก
+        const selectedTeacherId = teacherFilter
+            ? teacherFilter.value
+            : "";
+
+        return rows.filter(row => {
+            return (
+                !selectedTeacherId ||
+                row.dataset.teacherId === selectedTeacherId
+            );
+        });
+    }
+
+    function renderPage() {
+        const allRows = Array.from(tbody.rows);
+        const filteredRows = getDataRows();
+
+        const total = filteredRows.length;
+
+        if (total === 0) {
+            pagination.style.display = "none";
+            return;
+        }
+
+        const totalPages = Math.max(
+            1,
+            Math.ceil(total / pageSize)
+        );
+
+        currentPage = Math.min(
+            Math.max(1, currentPage),
+            totalPages
+        );
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(
+            startIndex + pageSize,
+            total
+        );
+
+        // เลือกเฉพาะรายการของหน้าปัจจุบัน
+        const visibleRows = new Set(
+            filteredRows.slice(startIndex, endIndex)
+        );
+
+        // ซ่อนทั้งแถวที่ไม่ตรงกับครู
+        // และแถวที่อยู่นอกหน้าปัจจุบัน
+        allRows.forEach(row => {
+            row.style.display = visibleRows.has(row)
+                ? ""
+                : "none";
+        });
+
+        pageInfo.textContent =
+            `แสดง ${startIndex + 1}–${endIndex} จาก ${total} รายการ`;
+
+        pageNumber.textContent =
+            `${currentPage} / ${totalPages}`;
+
+        prevButton.disabled = currentPage <= 1;
+        nextButton.disabled = currentPage >= totalPages;
+
+        prevButton.style.opacity =
+            prevButton.disabled ? "0.45" : "1";
+
+        nextButton.style.opacity =
+            nextButton.disabled ? "0.45" : "1";
+
+        prevButton.style.cursor =
+            prevButton.disabled ? "not-allowed" : "pointer";
+
+        nextButton.style.cursor =
+            nextButton.disabled ? "not-allowed" : "pointer";
+
+        pagination.style.display = "flex";
+    }
+
+    prevButton.onclick = function () {
+        if (currentPage <= 1) {
+            return;
+        }
+
+        currentPage--;
+        renderPage();
+    };
+
+    nextButton.onclick = function () {
+        const totalPages = Math.max(
+            1,
+            Math.ceil(getDataRows().length / pageSize)
+        );
+
+        if (currentPage >= totalPages) {
+            return;
+        }
+
+        currentPage++;
+        renderPage();
+    };
+
+    // ให้ตัวกรองครูเรียกใช้เมื่อเปลี่ยนค่า
+    pagination._refreshPagination = function () {
+        currentPage = 1;
+        renderPage();
+    };
+
+    // เมื่อโหลดข้อมูลใหม่ ให้กลับหน้าแรก
+    const observer = new MutationObserver(() => {
+        currentPage = 1;
+        renderPage();
+    });
+
+    observer.observe(tbody, {
+        childList: true
+    });
+
+    pagination._cleanupPagination = function () {
+        observer.disconnect();
+        prevButton.onclick = null;
+        nextButton.onclick = null;
+        pagination._refreshPagination = null;
+    };
+
+    renderPage();
+}
+async function loadAdminTeachingAssignments() {
+    // B57-03: Read-only teaching assignments by semester
+
+    const yearSelect = document.getElementById("admin-assignment-year");
+    const semesterSelect = document.getElementById("admin-assignment-semester");
+    const status = document.getElementById("admin-assignment-status");
+    const tbody = document.getElementById("admin-assignment-table-body");
+
+    if (!yearSelect || !semesterSelect || !status || !tbody) {
+        return;
+    }
+
+    // B57-03-42 — Initialize 25-row Pagination
+    setupAdminAssignmentPagination();
+
+    let requestVersion = 0;
+
+    function showMessage(message) {
+        tbody.replaceChildren();
+
+        const row = tbody.insertRow();
+        const cell = row.insertCell();
+
+        cell.colSpan = 6;
+        cell.textContent = message;
+    }
+
+    yearSelect.disabled = true;
+    semesterSelect.disabled = true;
+
+    yearSelect.replaceChildren(new Option("-- เลือกปี --", ""));
+    semesterSelect.replaceChildren(new Option("-- เลือกภาคเรียน --", ""));
+
+    status.textContent = "กำลังโหลดข้อมูล...";
+    showMessage("กำลังโหลดข้อมูล");
+
+    try {
+        const role = await getCurrentUserRole();
+
+                if (role !== "Admin") {
+            status.textContent = "ไม่มีสิทธิ์เข้าถึงข้อมูลการมอบหมาย";
+            showMessage("เฉพาะ Admin เท่านั้น");
+            return;
+        }
+
+        // B57-03-42 — เปิดปุ่มมอบหมายรายวิชาสำหรับ Admin
+        const addButton = document.getElementById(
+            "admin-assignment-add-btn"
+        );
+
+        if (addButton) {
+            addButton.style.display = "inline-flex";
+            addButton.onclick = openAdminTeacherSubjectBatchPreview;
+        }
+
+        const [yearResult, semesterResult] = await Promise.all([
+            supabaseClient
+                .from("academic_years")
+                .select("id, year, is_current")
+                .order("year", { ascending: false }),
+
+            supabaseClient
+                .from("semesters")
+                .select("id, academic_year_id, semester_no, start_date, end_date")
+                .order("semester_no", { ascending: true })
+        ]);
+
+        if (yearResult.error) throw yearResult.error;
+        if (semesterResult.error) throw semesterResult.error;
+
+        const years = yearResult.data || [];
+        const semesters = semesterResult.data || [];
+
+        years.forEach(year => {
+            yearSelect.add(
+                new Option(`ปีการศึกษา ${year.year}`, year.id)
+            );
+        });
+
+        function getBangkokDate() {
+            const parts = new Intl.DateTimeFormat("en-US", {
+                timeZone: "Asia/Bangkok",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit"
+            }).formatToParts(new Date());
+
+            const values = Object.fromEntries(
+                parts.map(part => [part.type, part.value])
+            );
+
+            return `${values.year}-${values.month}-${values.day}`;
+        }
+
+        async function loadSelectedAssignments() {
+            const version = ++requestVersion;
+            const yearId = yearSelect.value;
+            const semesterId = semesterSelect.value;
+
+            if (!yearId || !semesterId) {
+                status.textContent = "กรุณาเลือกปีการศึกษาและภาคเรียน";
+                showMessage("กรุณาเลือกภาคเรียน");
+                return;
+            }
+
+            status.textContent = "กำลังโหลดรายการมอบหมายการสอน...";
+            showMessage("กำลังโหลดรายการมอบหมายการสอน");
+
+            try {
+                // Fetch all assignment pages for the selected term.
+                const assignments = [];
+                const pageSize = 500;
+                let offset = 0;
+
+                while (true) {
+                    const { data, error } = await supabaseClient
+                        .from("subject_assignments")
+                        .select(
+                            "id, teacher_id, subject_id, room_id, academic_year_id, semester_id"
+                        )
+                        .eq("academic_year_id", yearId)
+                        .eq("semester_id", semesterId)
+                        .order("id", { ascending: true })
+                        .range(offset, offset + pageSize - 1);
+
+                    if (error) throw error;
+
+                    const page = data || [];
+                    assignments.push(...page);
+
+                    if (page.length < pageSize) {
+                        break;
+                    }
+
+                    offset += pageSize;
+                }
+
+                if (version !== requestVersion) {
+                    return;
+                }
+                // B57-03-42 — โหลดสิทธิ์สอนในภาคเรียนที่เลือก
+                // READ ONLY — ไม่เปลี่ยนข้อมูลจริง
+                const permissions = [];
+                const permissionPageSize = 500;
+                let permissionOffset = 0;
+
+                while (true) {
+                    const { data, error } = await supabaseClient
+                        .from("teacher_subject_permissions")
+                        .select("id, teacher_id, subject_id, semester_id")
+                        .eq("semester_id", semesterId)
+                        .order("id", { ascending: true })
+                        .range(
+                            permissionOffset,
+                            permissionOffset + permissionPageSize - 1
+                        );
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    const page = data || [];
+                    permissions.push(...page);
+
+                    if (page.length < permissionPageSize) {
+                        break;
+                    }
+
+                    permissionOffset += permissionPageSize;
+                }
+
+                if (version !== requestVersion) {
+                    return;
+                }
+
+                const [teacherResult, subjectResult, roomResult] =
+                    await Promise.all([
+                        supabaseClient
+                            .from("teachers")
+                            .select(
+                                "id, teacher_code, instructor_number, first_name, last_name"
+                            ),
+
+                        supabaseClient
+                            .from("subjects")
+                            .select("id, subject_code, subject_name, credit"),
+
+                        supabaseClient
+                            .from("rooms")
+                            .select("id, room_name")
+                            .eq("academic_year_id", yearId)
+                    ]);
+
+                if (teacherResult.error) throw teacherResult.error;
+                if (subjectResult.error) throw subjectResult.error;
+                if (roomResult.error) throw roomResult.error;
+
+                if (version !== requestVersion) {
+                    return;
+                }
+
+                const teacherMap = new Map(
+                    (teacherResult.data || []).map(item => [item.id, item])
+                );
+
+                const subjectMap = new Map(
+                    (subjectResult.data || []).map(item => [item.id, item])
+                );
+
+                const roomMap = new Map(
+                    (roomResult.data || []).map(item => [item.id, item])
+                );
+
+                const rows = assignments.map(assignment => {
+                    const teacher = teacherMap.get(assignment.teacher_id);
+                    const subject = subjectMap.get(assignment.subject_id);
+                    const room = roomMap.get(assignment.room_id);
+
+                    const teacherName = teacher
+                        ? [teacher.first_name, teacher.last_name]
+                            .filter(Boolean)
+                            .join(" ")
+                        : "ไม่พบข้อมูลครู";
+
+                    const teacherCode = teacher
+                        ? teacher.instructor_number || teacher.teacher_code || ""
+                        : "";
+
+                        return {
+                        teacherId: assignment.teacher_id,
+                        teacher: [teacherCode, teacherName]
+                            .filter(Boolean)
+                            .join(" — "),
+                        subjectCode: subject?.subject_code || "-",
+                        subjectName: subject?.subject_name || "-",
+                        credit: subject?.credit == null ? "-" : subject.credit,
+                        roomName: room?.room_name || "-"
+                    };
+                });
+
+                // B57-03-42 — เพิ่มรายการสิทธิ์สอนที่ยังไม่มีห้อง
+                // ไม่แก้ไข Assignment เดิม
+
+                const assignmentKeys = new Set(
+                    assignments.map(assignment =>
+                        `${assignment.teacher_id}|${assignment.subject_id}`
+                    )
+                );
+
+                permissions.forEach(permission => {
+                    const key =
+                        `${permission.teacher_id}|${permission.subject_id}`;
+
+                    // ถ้ารายวิชานี้มี Assignment แล้ว
+                    // ให้ใช้รายการห้องเรียนเดิม ไม่เพิ่มแถวซ้ำ
+                    if (assignmentKeys.has(key)) {
+                        return;
+                    }
+
+                    const teacher = teacherMap.get(
+                        permission.teacher_id
+                    );
+
+                    const subject = subjectMap.get(
+                        permission.subject_id
+                    );
+
+                    const teacherName = teacher
+                        ? [teacher.first_name, teacher.last_name]
+                            .filter(Boolean)
+                            .join(" ")
+                        : "ไม่พบข้อมูลครู";
+
+                    const teacherCode = teacher
+                        ? (
+                            teacher.instructor_number ||
+                            teacher.teacher_code ||
+                            ""
+                        )
+                        : "";
+
+                    rows.push({
+                        teacherId: permission.teacher_id,
+                        teacher: [teacherCode, teacherName]
+                            .filter(Boolean)
+                            .join(" — "),
+                        subjectCode: subject?.subject_code || "-",
+                        subjectName: subject?.subject_name || "-",
+                        credit: subject?.credit == null
+                            ? "-"
+                            : subject.credit,
+                        roomName: "ยังไม่เลือกกลุ่มนักเรียน",
+                        pendingGroup: true
+                    });
+                });
+                rows.sort((a, b) =>
+                    a.teacher.localeCompare(b.teacher, "th") ||
+                    a.subjectCode.localeCompare(b.subjectCode, "th") ||
+                    a.roomName.localeCompare(b.roomName, "th")
+                );
+
+                tbody.replaceChildren();
+
+                const fragment = document.createDocumentFragment();
+
+                rows.forEach(item => {
+                    const row = document.createElement("tr");
+
+                    row.dataset.teacherId = item.teacherId;
+
+                    const teacherCell = row.insertCell();
+                    const codeCell = row.insertCell();
+                    const nameCell = row.insertCell();
+                    const creditCell = row.insertCell();
+                    const roomCell = row.insertCell();
+                    const actionCell = row.insertCell();
+
+                    teacherCell.textContent = item.teacher;
+                    codeCell.textContent = item.subjectCode;
+                    nameCell.textContent = item.subjectName;
+                    creditCell.textContent = item.credit;
+                    roomCell.textContent = item.roomName;
+
+                    actionCell.textContent = "—";
+
+                    fragment.appendChild(row);
+                });
+
+                tbody.appendChild(fragment);
+
+                // B57-03-42 — Teacher Filter
+                const teacherFilter = document.getElementById(
+                    "admin-assignment-teacher"
+                );
+
+                if (teacherFilter) {
+                    const previousTeacherId = teacherFilter.value;
+
+                    teacherFilter.replaceChildren(
+                        new Option("ครูทุกคน", "")
+                    );
+
+                    const uniqueTeachers = new Map();
+
+                    rows.forEach(item => {
+                        if (!uniqueTeachers.has(item.teacherId)) {
+                            uniqueTeachers.set(
+                                item.teacherId,
+                                item.teacher
+                            );
+                        }
+                    });
+
+                    Array.from(uniqueTeachers.entries())
+                        .sort((a, b) =>
+                            a[1].localeCompare(b[1], "th")
+                        )
+                        .forEach(([teacherId, teacherName]) => {
+                            teacherFilter.add(
+                                new Option(teacherName, teacherId)
+                            );
+                        });
+
+                    const teacherStillExists =
+                        Array.from(teacherFilter.options).some(
+                            option => option.value === previousTeacherId
+                        );
+
+                    teacherFilter.value = teacherStillExists
+                        ? previousTeacherId
+                        : "";
+
+                    teacherFilter.disabled = false;
+
+                    function applyTeacherFilter() {
+                        const selectedTeacherId = teacherFilter.value;
+                        let visibleCount = 0;
+
+                        Array.from(tbody.rows).forEach(row => {
+                            const matches =
+                                !selectedTeacherId ||
+                                row.dataset.teacherId === selectedTeacherId;
+
+                            row.style.display = matches ? "" : "none";
+
+                            if (matches) {
+                                visibleCount++;
+                            }
+                        });
+
+                        status.textContent =
+                            `แสดงรายการมอบหมายการสอน ${visibleCount} รายการ`;
+
+                        // B57-03-42 — อัปเดต Pagination หลังกรองครู
+                        const pagination = document.getElementById(
+                            "admin-assignment-pagination"
+                        );
+
+                        if (
+                            pagination &&
+                            typeof pagination._refreshPagination === "function"
+                        ) {
+                            pagination._refreshPagination();
+                        }
+                    }
+
+                    teacherFilter.onchange = applyTeacherFilter;
+
+                    applyTeacherFilter();
+
+                } else {
+                    status.textContent =
+                        `แสดงรายการมอบหมายการสอน ${rows.length} รายการ`;
+                }
+
+            } catch (error) {
+                if (version !== requestVersion) {
+                    return;
+                }
+
+                console.error(
+                    "B57-03: Failed to load teaching assignments:",
+                    error
+                );
+
+                status.textContent =
+                    "ไม่สามารถโหลดรายการมอบหมายการสอนได้";
+
+                showMessage("เกิดข้อผิดพลาดในการโหลดข้อมูล");
+            }
+        }
+
+        function updateSemesters() {
+            // Invalidate requests from the previous selection.
+            requestVersion++;
+
+            semesterSelect.replaceChildren(
+                new Option("-- เลือกภาคเรียน --", "")
+            );
+
+            const matchingSemesters = semesters.filter(
+                semester => semester.academic_year_id === yearSelect.value
+            );
+
+            matchingSemesters.forEach(semester => {
+                semesterSelect.add(
+                    new Option(
+                        `ภาคเรียนที่ ${semester.semester_no}`,
+                        semester.id
+                    )
+                );
+            });
+
+            semesterSelect.disabled = matchingSemesters.length === 0;
+
+            if (matchingSemesters.length === 0) {
+                status.textContent = yearSelect.value
+                    ? "ปีการศึกษานี้ยังไม่มีข้อมูลภาคเรียน"
+                    : "กรุณาเลือกปีการศึกษา";
+
+                showMessage("ยังไม่มีภาคเรียนที่เลือก");
+                return;
+            }
+
+            const today = getBangkokDate();
+
+            const activeSemester = matchingSemesters.find(
+                semester =>
+                    semester.start_date <= today &&
+                    semester.end_date >= today
+            );
+
+            if (activeSemester) {
+                semesterSelect.value = activeSemester.id;
+            }
+
+            loadSelectedAssignments();
+        }
+
+        yearSelect.onchange = updateSemesters;
+        semesterSelect.onchange = loadSelectedAssignments;
+
+        yearSelect.disabled = false;
+
+        const currentYear = years.find(
+            year => year.is_current === true
+        );
+
+        if (currentYear) {
+            yearSelect.value = currentYear.id;
+        }
+
+        updateSemesters();
+
+    } catch (error) {
+        console.error(
+            "B57-03: Failed to load academic context:",
+            error
+        );
+
+        status.textContent =
+            "ไม่สามารถโหลดปีการศึกษาและภาคเรียนได้";
+
+        showMessage("เกิดข้อผิดพลาดในการโหลดข้อมูล");
+    }
 }
 
  // ============================================================
@@ -3608,8 +6590,435 @@ if (returnScheduleId) {
 }
 
 /* =====================================================
-   B55-J — Activity Schedule Edit
-   รวมเครื่องมือจัดการกิจกรรมตามรูปแบบวิชา
+   B57-02 — Save Activity Schedule Changes
+   Protect attendance history and semester boundaries
+   ===================================================== */
+
+async function saveActivityScheduleEditChanges(
+    activity,
+    changes,
+    semester
+) {
+    if (!activity?.scheduleId || !semester?.id) {
+        throw new Error("ข้อมูลตารางกิจกรรมไม่ครบถ้วน");
+    }
+
+    const schedules = await getActivitySchedules();
+
+    const current = (schedules || []).find(item =>
+        item.scheduleId === activity.scheduleId &&
+        item.activityId === activity.activityId &&
+        item.semesterId === semester.id
+    );
+
+    if (!current) {
+        throw new Error(
+            "ไม่พบตารางกิจกรรมล่าสุด กรุณาโหลดหน้าใหม่"
+        );
+    }
+
+    const role = await getCurrentUserRole();
+
+    if (!["Admin", "Teacher"].includes(role)) {
+        throw new Error("ไม่มีสิทธิ์แก้ไขตารางกิจกรรม");
+    }
+
+    if (role === "Teacher") {
+        const context = await getCurrentTeacherContext();
+
+        if (
+            !context?.teacherId ||
+            !current.teacherIds?.includes(context.teacherId)
+        ) {
+            throw new Error(
+                "คุณไม่ได้รับมอบหมายให้ดูแลกิจกรรมนี้"
+            );
+        }
+    }
+
+    if (semester.schedule_locked_at) {
+        throw new Error("ภาคเรียนนี้ถูกล็อกแล้ว");
+    }
+
+    const weekday = Number(changes.weekday);
+    const lessonNo = changes.lessonNo == null
+        ? null
+        : Number(changes.lessonNo);
+
+    const startTime = String(changes.startTime || "");
+    const endTime = String(changes.endTime || "");
+    const validFrom = String(changes.validFrom || "");
+    const validUntil = changes.validUntil || null;
+
+    if (
+        !Number.isInteger(weekday) ||
+        weekday < 1 ||
+        weekday > 7
+    ) {
+        throw new Error("กรุณาเลือกวันให้ถูกต้อง");
+    }
+
+    if (
+        lessonNo !== null &&
+        (!Number.isInteger(lessonNo) ||
+         lessonNo < 1 ||
+         lessonNo > 20)
+    ) {
+        throw new Error("หมายเลขคาบไม่ถูกต้อง");
+    }
+
+    if (
+        !startTime ||
+        !endTime ||
+        startTime >= endTime
+    ) {
+        throw new Error("ช่วงเวลาเริ่มต้นและสิ้นสุดไม่ถูกต้อง");
+    }
+
+    if (
+        !validFrom ||
+        validFrom < semester.start_date ||
+        validFrom > semester.end_date
+    ) {
+        throw new Error(
+            "วันที่เริ่มใช้ต้องอยู่ภายในภาคเรียน (ค.ศ.)"
+        );
+    }
+
+    if (
+        validUntil &&
+        (
+            validUntil < validFrom ||
+            validUntil > semester.end_date
+        )
+    ) {
+        throw new Error(
+            "วันที่สิ้นสุดต้องอยู่ภายในช่วงวันที่ที่ถูกต้อง"
+        );
+    }
+
+    // Read all attendance sessions, including soft-deleted rows.
+    const { count, error: historyError } =
+        await supabaseClient
+            .from("attendance_sessions")
+            .select("id", {
+                count: "exact",
+                head: true
+            })
+            .eq(
+                "activity_schedule_id",
+                activity.scheduleId
+            );
+
+    if (historyError) {
+        throw historyError;
+    }
+
+    const normalizeTime = value =>
+        String(value || "").slice(0, 5);
+
+    if (count > 0) {
+        const detailsChanged =
+            weekday !== Number(current.weekday) ||
+            lessonNo !== (current.lessonNo ?? null) ||
+            startTime !== normalizeTime(current.startTime) ||
+            endTime !== normalizeTime(current.endTime) ||
+            validFrom !== current.validFrom;
+
+        if (detailsChanged) {
+            throw new Error(
+                "ตารางนี้มีประวัติเช็กชื่อแล้ว " +
+                "จึงแก้วัน คาบ เวลา หรือวันที่เริ่มใช้ไม่ได้"
+            );
+        }
+
+        if (!validUntil) {
+            throw new Error(
+                "ตารางที่มีประวัติเช็กชื่อต้องระบุวันที่สิ้นสุด"
+            );
+        }
+    }
+
+    // Database RLS and triggers perform the final checks.
+    return await updateActivitySchedule(
+        activity.scheduleId,
+        {
+            weekday,
+            lessonNo,
+            startTime,
+            endTime,
+            validFrom,
+            validUntil
+        }
+    );
+}
+
+/* =====================================================
+   B57-02 — Compact Activity Edit Layout
+   Responsive two-column form
+   Keep member management separate
+   Scroll only when viewport is too small
+   ===================================================== */
+
+function applyActivityScheduleEditLayout() {
+
+    const modal = document.getElementById(
+        "activity-schedule-edit-modal"
+    );
+
+    if (!modal) return;
+
+    const backdrop = modal.querySelector(
+        ".schedule-modal-backdrop"
+    );
+
+    const card = modal.querySelector(
+        ".schedule-modal"
+    );
+
+    const header = modal.querySelector(
+        ".schedule-modal-header"
+    );
+
+    const body = modal.querySelector(
+        ".schedule-modal-body"
+    );
+
+    const footer = modal.querySelector(
+        ".schedule-modal-footer"
+    );
+
+    if (!card || !body) return;
+
+    // --------------------------------------------------
+    // 1. Modal sizing
+    // --------------------------------------------------
+
+    if (backdrop) {
+        backdrop.style.display = "flex";
+        backdrop.style.alignItems = "center";
+        backdrop.style.justifyContent = "center";
+        backdrop.style.padding = "12px";
+        backdrop.style.boxSizing = "border-box";
+    }
+
+    card.style.width = "min(720px, calc(100vw - 24px))";
+    card.style.maxWidth = "100%";
+    card.style.maxHeight = "calc(100dvh - 24px)";
+    card.style.height = "auto";
+    card.style.display = "flex";
+    card.style.flexDirection = "column";
+    card.style.overflow = "hidden";
+    card.style.boxSizing = "border-box";
+
+    if (header) {
+        header.style.flex = "0 0 auto";
+        header.style.padding = "16px 22px 12px";
+    }
+
+    body.style.flex = "1 1 auto";
+    body.style.minHeight = "0";
+    body.style.overflowY = "auto";
+    body.style.overflowX = "hidden";
+    body.style.padding = "12px 22px 16px";
+
+    if (footer) {
+        footer.style.flex = "0 0 auto";
+        footer.style.padding = "12px 22px";
+        footer.style.borderTop = "1px solid #e2e8f0";
+        footer.style.background = "var(--card-bg, #ffffff)";
+    }
+
+    // --------------------------------------------------
+    // 2. Find existing form groups
+    // Do not recreate inputs or change their IDs
+    // --------------------------------------------------
+
+    const getGroup = id => {
+        const element = modal.querySelector(`#${id}`);
+
+        return element?.closest(
+            ".schedule-form-group"
+        ) || null;
+    };
+
+    const nameGroup = getGroup("activity-edit-name");
+    const typeGroup = getGroup("activity-edit-type");
+
+    const dayGroup = getGroup("activity-edit-weekday");
+    const lessonGroup = getGroup("activity-edit-lesson");
+
+    const startGroup = getGroup("activity-edit-start-time");
+    const endGroup = getGroup("activity-edit-end-time");
+
+    const fromGroup = getGroup("activity-edit-valid-from");
+    const untilGroup = getGroup("activity-edit-valid-until");
+
+    // --------------------------------------------------
+    // 3. Create responsive two-column rows
+    // --------------------------------------------------
+
+    const createRow = (groups) => {
+
+        const available = groups.filter(Boolean);
+
+        if (available.length === 0) return;
+
+        const row = document.createElement("div");
+
+        row.className = "b57-activity-edit-row";
+
+        row.style.display = "grid";
+        row.style.gridTemplateColumns =
+            "repeat(auto-fit, minmax(min(100%, 240px), 1fr))";
+
+        row.style.gap = "10px 14px";
+        row.style.marginBottom = "12px";
+
+        available.forEach(group => {
+
+            group.style.marginBottom = "0";
+            group.style.minWidth = "0";
+
+            const label = group.querySelector("label");
+
+            if (label) {
+                label.style.display = "block";
+                label.style.marginBottom = "5px";
+                label.style.fontSize = "13px";
+                label.style.fontWeight = "600";
+            }
+
+            const controls = group.querySelectorAll(
+                "input, select"
+            );
+
+            controls.forEach(control => {
+                control.style.width = "100%";
+                control.style.maxWidth = "100%";
+                control.style.minWidth = "0";
+                control.style.height = "40px";
+                control.style.boxSizing = "border-box";
+            });
+
+            row.appendChild(group);
+        });
+
+        return row;
+    };
+
+    // --------------------------------------------------
+    // 4. Preserve existing form nodes
+    // --------------------------------------------------
+
+    const historyNotice = modal.querySelector(
+        "#activity-edit-history-notice"
+    );
+
+    const memberButton = modal.querySelector(
+        "#activity-edit-members"
+    );
+
+    const memberMode = modal.querySelector(
+        "#activity-edit-member-mode"
+    );
+
+    const infoRow = createRow([
+        nameGroup,
+        typeGroup
+    ]);
+
+    const dayRow = createRow([
+        dayGroup,
+        lessonGroup
+    ]);
+
+    const timeRow = createRow([
+        startGroup,
+        endGroup
+    ]);
+
+    const dateRow = createRow([
+        fromGroup,
+        untilGroup
+    ]);
+
+    // --------------------------------------------------
+    // 5. Compact status notice
+    // --------------------------------------------------
+
+    if (historyNotice) {
+        historyNotice.style.margin = "0 0 12px";
+        historyNotice.style.padding = "9px 12px";
+        historyNotice.style.fontSize = "12px";
+        historyNotice.style.lineHeight = "1.5";
+    }
+
+    // --------------------------------------------------
+    // 6. Member management stays in its own section
+    // --------------------------------------------------
+
+    const memberSection = document.createElement("div");
+
+    memberSection.style.cssText = [
+        "display:flex",
+        "align-items:center",
+        "justify-content:space-between",
+        "flex-wrap:wrap",
+        "gap:10px",
+        "padding:12px 0 2px",
+        "margin-top:2px",
+        "border-top:1px solid #e2e8f0"
+    ].join(";");
+
+    const memberInfo = document.createElement("div");
+
+    memberInfo.style.flex = "1 1 180px";
+    memberInfo.style.minWidth = "0";
+
+    const memberTitle = document.createElement("strong");
+    memberTitle.textContent = "👥 สมาชิก / ผู้เข้าร่วม";
+    memberTitle.style.fontSize = "14px";
+
+    memberInfo.appendChild(memberTitle);
+
+    if (memberMode) {
+        memberMode.style.margin = "4px 0 0";
+        memberMode.style.fontSize = "12px";
+        memberInfo.appendChild(memberMode);
+    }
+
+    memberSection.appendChild(memberInfo);
+
+    if (memberButton) {
+        memberButton.style.flexShrink = "0";
+        memberButton.style.margin = "0";
+        memberSection.appendChild(memberButton);
+    }
+
+    // --------------------------------------------------
+    // 7. Rebuild layout without replacing live controls
+    // --------------------------------------------------
+
+    body.replaceChildren();
+
+    if (infoRow) body.appendChild(infoRow);
+
+    if (historyNotice) {
+        body.appendChild(historyNotice);
+    }
+
+    if (dayRow) body.appendChild(dayRow);
+    if (timeRow) body.appendChild(timeRow);
+    if (dateRow) body.appendChild(dateRow);
+
+    body.appendChild(memberSection);
+}
+
+/* =====================================================
+   B57-02 — Edit Activity Schedule
+   Edit day, period, time and effective dates
+   Protect attendance history and preserve member tools
    ===================================================== */
 
 async function openActivityScheduleEdit(scheduleId) {
@@ -3623,8 +7032,7 @@ async function openActivityScheduleEdit(scheduleId) {
             );
         }
 
-        const role =
-            await getCurrentUserRole();
+        const role = await getCurrentUserRole();
 
         if (!["Admin", "Teacher"].includes(role)) {
             throw new Error(
@@ -3632,13 +7040,11 @@ async function openActivityScheduleEdit(scheduleId) {
             );
         }
 
-        const schedules =
-            await getActivitySchedules();
+        const schedules = await getActivitySchedules();
 
-        const activity = (schedules || []).find(
-            item =>
-                item.scheduleId === scheduleId &&
-                item.semesterId === semester.id
+        const activity = (schedules || []).find(item =>
+            item.scheduleId === scheduleId &&
+            item.semesterId === semester.id
         );
 
         if (!activity) {
@@ -3653,10 +7059,7 @@ async function openActivityScheduleEdit(scheduleId) {
 
             if (
                 !context?.teacherId ||
-                !Array.isArray(activity.teacherIds) ||
-                !activity.teacherIds.includes(
-                    context.teacherId
-                )
+                !activity.teacherIds?.includes(context.teacherId)
             ) {
                 throw new Error(
                     "คุณไม่ได้รับผิดชอบกิจกรรมนี้"
@@ -3664,25 +7067,63 @@ async function openActivityScheduleEdit(scheduleId) {
             }
         }
 
-        const days = {
-            1: "จันทร์",
-            2: "อังคาร",
-            3: "พุธ",
-            4: "พฤหัสบดี",
-            5: "ศุกร์",
-            6: "เสาร์",
-            7: "อาทิตย์"
-        };
+        // Check all attendance sessions, including soft-deleted.
+        const { count, error: historyError } =
+            await supabaseClient
+                .from("attendance_sessions")
+                .select("id", {
+                    count: "exact",
+                    head: true
+                })
+                .eq(
+                    "activity_schedule_id",
+                    scheduleId
+                );
 
-        const oldModal =
-            document.getElementById(
-                "activity-schedule-edit-modal"
-            );
+        if (historyError) throw historyError;
+
+        const hasHistory = count > 0;
+
+        const oldModal = document.getElementById(
+            "activity-schedule-edit-modal"
+        );
 
         oldModal?.remove();
 
         const modal = document.createElement("div");
         modal.id = "activity-schedule-edit-modal";
+
+        const dayOptions = [
+            [1, "จันทร์"],
+            [2, "อังคาร"],
+            [3, "พุธ"],
+            [4, "พฤหัสบดี"],
+            [5, "ศุกร์"],
+            [6, "เสาร์"],
+            [7, "อาทิตย์"]
+        ];
+
+        const periodOptions = [
+            ...SCHEDULE_PERIODS
+        ];
+
+        if (
+            activity.lessonNo != null &&
+            !periodOptions.some(p =>
+                p.lessonNo === Number(activity.lessonNo)
+            )
+        ) {
+            periodOptions.push({
+                lessonNo: Number(activity.lessonNo),
+                label: `คาบที่ ${activity.lessonNo}`,
+                start: "",
+                end: ""
+            });
+        }
+
+        periodOptions.sort(
+            (a, b) => a.lessonNo - b.lessonNo
+        );
 
         modal.innerHTML = `
             <div class="schedule-modal-backdrop">
@@ -3691,18 +7132,14 @@ async function openActivityScheduleEdit(scheduleId) {
                     <div class="schedule-modal-header">
                         <div>
                             <h2>✏️ แก้ไขตารางกิจกรรม</h2>
-                            <p>
-                                จัดการคาบและสมาชิกกิจกรรม
-                            </p>
+                            <p>แก้ไขวัน คาบ เวลา และช่วงวันที่</p>
                         </div>
 
                         <button
                             type="button"
                             class="schedule-modal-close"
                             id="activity-edit-close"
-                        >
-                            ✕
-                        </button>
+                        >✕</button>
                     </div>
 
                     <div class="schedule-modal-body">
@@ -3717,14 +7154,92 @@ async function openActivityScheduleEdit(scheduleId) {
                             <div id="activity-edit-type"></div>
                         </div>
 
+                        <div
+                            id="activity-edit-history-notice"
+                            style="
+                                padding:12px;
+                                margin-bottom:16px;
+                                background:#f8fafc;
+                                border:1px solid #e2e8f0;
+                                border-radius:9px;
+                                font-size:13px;
+                                line-height:1.6;
+                            "
+                        ></div>
+
                         <div class="schedule-form-group">
-                            <label>วัน / คาบ / เวลา</label>
-                            <div id="activity-edit-time"></div>
+                            <label for="activity-edit-weekday">
+                                วัน
+                            </label>
+                            <select
+                                id="activity-edit-weekday"
+                                class="schedule-filter-select"
+                            >
+                                ${dayOptions.map(day => `
+                                    <option value="${day[0]}">
+                                        ${day[1]}
+                                    </option>
+                                `).join("")}
+                            </select>
                         </div>
 
                         <div class="schedule-form-group">
-                            <label>ช่วงวันที่ใช้ตาราง</label>
-                            <div id="activity-edit-dates"></div>
+                            <label for="activity-edit-lesson">
+                                คาบ
+                            </label>
+                            <select
+                                id="activity-edit-lesson"
+                                class="schedule-filter-select"
+                            >
+                                <option value="">
+                                    ไม่ระบุคาบ
+                                </option>
+                                ${periodOptions.map(period => `
+                                    <option value="${period.lessonNo}">
+                                        ${period.label}
+                                    </option>
+                                `).join("")}
+                            </select>
+                        </div>
+
+                        <div class="schedule-form-group">
+                            <label for="activity-edit-start-time">
+                                เวลาเริ่ม
+                            </label>
+                            <input
+                                type="time"
+                                id="activity-edit-start-time"
+                            >
+                        </div>
+
+                        <div class="schedule-form-group">
+                            <label for="activity-edit-end-time">
+                                เวลาสิ้นสุด
+                            </label>
+                            <input
+                                type="time"
+                                id="activity-edit-end-time"
+                            >
+                        </div>
+
+                        <div class="schedule-form-group">
+                            <label for="activity-edit-valid-from">
+                                วันที่เริ่มใช้ (ค.ศ.)
+                            </label>
+                            <input
+                                type="date"
+                                id="activity-edit-valid-from"
+                            >
+                        </div>
+
+                        <div class="schedule-form-group">
+                            <label for="activity-edit-valid-until">
+                                วันที่สิ้นสุด (ค.ศ.)
+                            </label>
+                            <input
+                                type="date"
+                                id="activity-edit-valid-until"
+                            >
                         </div>
 
                         <hr style="
@@ -3735,9 +7250,10 @@ async function openActivityScheduleEdit(scheduleId) {
 
                         <h3>👥 สมาชิก / ผู้เข้าร่วม</h3>
 
-                        <p id="activity-edit-member-mode"
-                           style="font-size:13px;color:#64748b;">
-                        </p>
+                        <p
+                            id="activity-edit-member-mode"
+                            style="font-size:13px;color:#64748b;"
+                        ></p>
 
                         <button
                             type="button"
@@ -3757,6 +7273,14 @@ async function openActivityScheduleEdit(scheduleId) {
                         >
                             ปิด
                         </button>
+
+                        <button
+                            type="button"
+                            class="schedule-add-btn"
+                            id="activity-edit-save"
+                        >
+                            💾 บันทึกการแก้ไข
+                        </button>
                     </div>
 
                 </div>
@@ -3764,14 +7288,14 @@ async function openActivityScheduleEdit(scheduleId) {
         `;
 
         document.body.appendChild(modal);
+        // B57-02 — Apply compact responsive layout
+        applyActivityScheduleEditLayout();
+
+        const field = id =>
+            modal.querySelector(`#${id}`);
 
         const setText = (id, value) => {
-            const element =
-                document.getElementById(id);
-
-            if (element) {
-                element.textContent = value;
-            }
+            field(id).textContent = value;
         };
 
         setText(
@@ -3786,19 +7310,74 @@ async function openActivityScheduleEdit(scheduleId) {
             "-"
         );
 
-        setText(
-            "activity-edit-time",
-            `${days[activity.weekday] || "-"} · ` +
-            `คาบ ${activity.lessonNo ?? "-"} · ` +
-            `${activity.startTime || "-"} – ` +
-            `${activity.endTime || "-"}`
-        );
+        const weekdayInput = field("activity-edit-weekday");
+        const lessonInput = field("activity-edit-lesson");
+        const startInput = field("activity-edit-start-time");
+        const endInput = field("activity-edit-end-time");
+        const fromInput = field("activity-edit-valid-from");
+        const untilInput = field("activity-edit-valid-until");
+        const saveButton = field("activity-edit-save");
 
-        setText(
-            "activity-edit-dates",
-            `${activity.validFrom || "-"} → ` +
-            `${activity.validUntil || "ไม่กำหนด"}`
-        );
+        const shortTime = value =>
+            String(value || "").slice(0, 5);
+
+        weekdayInput.value = String(activity.weekday);
+        lessonInput.value =
+            activity.lessonNo == null
+                ? ""
+                : String(activity.lessonNo);
+
+        startInput.value = shortTime(activity.startTime);
+        endInput.value = shortTime(activity.endTime);
+        fromInput.value = activity.validFrom || "";
+        untilInput.value = activity.validUntil || "";
+
+        fromInput.min = semester.start_date;
+        fromInput.max = semester.end_date;
+        untilInput.min = semester.start_date;
+        untilInput.max = semester.end_date;
+
+        const detailInputs = [
+            weekdayInput,
+            lessonInput,
+            startInput,
+            endInput,
+            fromInput
+        ];
+
+        if (hasHistory) {
+            detailInputs.forEach(input => {
+                input.disabled = true;
+            });
+
+            setText(
+                "activity-edit-history-notice",
+                "🔒 ตารางนี้มีประวัติเช็กชื่อแล้ว " +
+                "จึงแก้วัน คาบ เวลา และวันที่เริ่มใช้ไม่ได้ " +
+                "สามารถปรับวันที่สิ้นสุดได้ " +
+                "แต่ต้องไม่ตัดวันที่ที่เคยเช็กชื่อ"
+            );
+        } else {
+            setText(
+                "activity-edit-history-notice",
+                "✅ ยังไม่มีประวัติเช็กชื่อ " +
+                "สามารถแก้ไขตารางได้ภายในช่วงภาคเรียน " +
+                "โดยระบบจะตรวจตารางซ้ำก่อนบันทึก"
+            );
+        }
+
+        // Automatically fill standard times when period changes.
+        lessonInput.addEventListener("change", () => {
+            const period = SCHEDULE_PERIODS.find(
+                item =>
+                    item.lessonNo === Number(lessonInput.value)
+            );
+
+            if (!lessonInput.value || !period) return;
+
+            startInput.value = period.start;
+            endInput.value = period.end;
+        });
 
         const individualTypes = [
             "CLUB",
@@ -3806,10 +7385,9 @@ async function openActivityScheduleEdit(scheduleId) {
             "ROTC"
         ];
 
-        const individualMode =
-            individualTypes.includes(
-                activity.activityTypeCode
-            );
+        const individualMode = individualTypes.includes(
+            activity.activityTypeCode
+        );
 
         setText(
             "activity-edit-member-mode",
@@ -3820,31 +7398,147 @@ async function openActivityScheduleEdit(scheduleId) {
 
         const closeModal = () => modal.remove();
 
-        document.getElementById(
-            "activity-edit-close"
-        ).addEventListener("click", closeModal);
+        field("activity-edit-close")
+            .addEventListener("click", closeModal);
 
-        document.getElementById(
-            "activity-edit-cancel"
-        ).addEventListener("click", closeModal);
+        field("activity-edit-cancel")
+            .addEventListener("click", closeModal);
 
-        document.getElementById(
-    "activity-edit-members"
-).addEventListener("click", async () => {
-    closeModal();
+        // Preserve existing member management behavior.
+        field("activity-edit-members")
+            .addEventListener("click", async () => {
+                closeModal();
 
-    if (activity.activityTypeCode === "CLUB") {
-        await openClubMembersPreview(
-            activity.activityId,
-            activity.scheduleId
-        );
-    } else {
-        await openGeneralActivityMembers(
-            activity.activityId,
-            activity.scheduleId
-        );
-    }
-});
+                if (activity.activityTypeCode === "CLUB") {
+                    await openClubMembersPreview(
+                        activity.activityId,
+                        activity.scheduleId
+                    );
+                } else {
+                    await openGeneralActivityMembers(
+                        activity.activityId,
+                        activity.scheduleId
+                    );
+                }
+            });
+
+        let saving = false;
+
+        saveButton.addEventListener("click", async () => {
+            if (saving) return;
+
+            const changes = {
+                weekday: Number(weekdayInput.value),
+                lessonNo: lessonInput.value
+                    ? Number(lessonInput.value)
+                    : null,
+                startTime: startInput.value,
+                endTime: endInput.value,
+                validFrom: fromInput.value,
+                validUntil: untilInput.value || null
+            };
+
+            const original = {
+                weekday: Number(activity.weekday),
+                lessonNo: activity.lessonNo ?? null,
+                startTime: shortTime(activity.startTime),
+                endTime: shortTime(activity.endTime),
+                validFrom: activity.validFrom,
+                validUntil: activity.validUntil || null
+            };
+
+            const unchanged =
+                Object.keys(changes).every(
+                    key => changes[key] === original[key]
+                );
+
+            if (unchanged) {
+                await Swal.fire({
+                    icon: "info",
+                    title: "ไม่มีข้อมูลเปลี่ยนแปลง",
+                    confirmButtonText: "ตกลง"
+                });
+                return;
+            }
+
+            const confirmation = await Swal.fire({
+                icon: "question",
+                title: "ยืนยันแก้ไขตารางกิจกรรม",
+                text: "ต้องการบันทึกข้อมูลตารางกิจกรรมใหม่ใช่หรือไม่",
+                showCancelButton: true,
+                confirmButtonText: "ยืนยันบันทึก",
+                cancelButtonText: "ยกเลิก"
+            });
+
+            if (!confirmation.isConfirmed) return;
+
+            saving = true;
+            saveButton.disabled = true;
+
+            try {
+                await saveActivityScheduleEditChanges(
+                    activity,
+                    changes,
+                    semester
+                );
+
+                await Swal.fire({
+                    icon: "success",
+                    title: "แก้ไขตารางกิจกรรมสำเร็จ",
+                    confirmButtonText: "ตกลง"
+                });
+
+                closeModal();
+                await loadActivityScheduleManage();
+
+            } catch (error) {
+                console.error(
+                    "B57-02 Activity Edit:",
+                    error
+                );
+
+                const raw = String(error?.message || "");
+                let message = raw || "ไม่สามารถบันทึกได้";
+
+                if (raw.includes("ACTIVITY_SCHEDULE_OVERLAP")) {
+                    message =
+                        "ตารางกิจกรรมซ้ำกับรายการเดิม " +
+                        "กรุณาเปลี่ยนวัน คาบ หรือช่วงเวลา";
+                } else if (
+                    raw.includes(
+                        "ACTIVITY_SCHEDULE_HAS_HISTORY_CANNOT_CHANGE_DETAILS"
+                    )
+                ) {
+                    message =
+                        "มีประวัติเช็กชื่อแล้ว " +
+                        "ไม่สามารถแก้วัน คาบ เวลา หรือวันที่เริ่มใช้";
+                } else if (
+                    raw.includes(
+                        "ACTIVITY_SCHEDULE_DATES_EXCLUDE_ATTENDANCE_HISTORY"
+                    )
+                ) {
+                    message =
+                        "วันที่สิ้นสุดใหม่ตัดประวัติการเช็กชื่อเดิม";
+                } else if (
+                    raw.includes("ACTIVITY_SEMESTER_PERMANENTLY_LOCKED") ||
+                    raw.includes("ACTIVITY_SEMESTER_EXPIRED")
+                ) {
+                    message =
+                        "ภาคเรียนถูกล็อกหรือสิ้นสุดแล้ว";
+                }
+
+                await Swal.fire({
+                    icon: "error",
+                    title: "ไม่สามารถแก้ไขตารางกิจกรรม",
+                    text: message,
+                    confirmButtonText: "ตกลง"
+                });
+
+            } finally {
+                saving = false;
+                saveButton.disabled = false;
+            }
+        });
 
     } catch (error) {
         console.error(
@@ -3855,9 +7549,7 @@ async function openActivityScheduleEdit(scheduleId) {
         await Swal.fire({
             icon: "error",
             title: "ไม่สามารถเปิดแก้ไขกิจกรรม",
-            text:
-                error?.message ||
-                "เกิดข้อผิดพลาด"
+            text: error?.message || "เกิดข้อผิดพลาด"
         });
     }
 }
@@ -7144,10 +10836,10 @@ async function saveActivityScheduleCreate() {
             confirmButtonText: "ตกลง"
         });
 
-
+        // B57-01 — Switch to the correct tab after saving
         closeActivityScheduleCreate();
 
-        await loadActivityScheduleManage();
+        switchScheduleTab("timetable");
 
     } catch (error) {
 
@@ -7949,7 +11641,926 @@ function closeActivityScheduleCreate() {
         modal.remove();
     }
 }
+// ============================================================
+// B57-03 — Teacher Subject Permissions
+// อ่านรายวิชาที่ Admin มอบหมายให้ครู
+// READ ONLY — ไม่เปลี่ยนข้อมูล Supabase
+// ============================================================
 
+async function getTeacherAssignedSubjects() {
+    const role = await getCurrentUserRole();
+
+    if (role !== "Teacher") {
+        throw new Error(
+            "ฟังก์ชันนี้ใช้สำหรับบัญชีครูผู้สอนเท่านั้น"
+        );
+    }
+
+    const semester = await getScheduleManageActiveSemester();
+
+    if (!semester || !semester.id) {
+        throw new Error(
+            "ไม่พบภาคเรียนที่เปิดให้จัดการตารางสอน"
+        );
+    }
+
+    const context = await getCurrentTeacherContext();
+    const teacherId = context?.teacherId || null;
+
+    if (!teacherId) {
+        throw new Error(
+            "ไม่พบข้อมูลครูของบัญชีที่เข้าสู่ระบบ"
+        );
+    }
+
+    // อ่านสิทธิ์สอนของครูในภาคเรียนปัจจุบัน
+    // แบ่งการอ่านเป็นชุดเพื่อไม่ให้ขาดรายการ
+    const permissions = [];
+    const pageSize = 500;
+    let offset = 0;
+
+    while (true) {
+        const { data, error } = await supabaseClient
+            .from("teacher_subject_permissions")
+            .select("id, teacher_id, subject_id, semester_id")
+            .eq("teacher_id", teacherId)
+            .eq("semester_id", semester.id)
+            .order("id", { ascending: true })
+            .range(offset, offset + pageSize - 1);
+
+        if (error) {
+            throw error;
+        }
+
+        const page = data || [];
+        permissions.push(...page);
+
+        if (page.length < pageSize) {
+            break;
+        }
+
+        offset += pageSize;
+    }
+
+    if (permissions.length === 0) {
+        return [];
+    }
+
+    // ใช้ทะเบียนรายวิชากลางเดิม
+    // ไม่สร้างรายวิชาใหม่
+    const subjects = await getSubjects();
+
+    const subjectMap = new Map(
+        (subjects || []).map(subject => [
+            subject.id,
+            subject
+        ])
+    );
+
+    const assignedSubjects = permissions
+        .map(permission => {
+            const subject = subjectMap.get(
+                permission.subject_id
+            );
+
+            if (!subject || subject.deleted_at != null) {
+                return null;
+            }
+
+            return {
+                permissionId: permission.id,
+                subjectId: permission.subject_id,
+                subjectCode: subject.subject_code,
+                subjectName: subject.subject_name,
+                credit: subject.credit,
+                semesterId: permission.semester_id
+            };
+        })
+        .filter(Boolean);
+
+    assignedSubjects.sort((a, b) =>
+        String(a.subjectCode).localeCompare(
+            String(b.subjectCode),
+            "th"
+        )
+    );
+
+    return assignedSubjects;
+}
+// ============================================================
+// B57-03 — Check Existing Teacher Assignment
+// ตรวจสอบวิชาและกลุ่มนักเรียนที่มีอยู่แล้ว
+// READ ONLY — ไม่เปลี่ยนข้อมูลจริง
+// ============================================================
+
+async function checkTeacherAssignmentFromPermission(
+    permissionId,
+    roomId
+) {
+    if (!permissionId || !roomId) {
+        throw new Error(
+            "กรุณาเลือกรายวิชาและกลุ่มนักเรียนให้ครบ"
+        );
+    }
+
+    const role = await getCurrentUserRole();
+
+    if (role !== "Teacher") {
+        throw new Error(
+            "เฉพาะบัญชีครูผู้สอนเท่านั้น"
+        );
+    }
+
+    const semester =
+        await getScheduleManageActiveSemester();
+
+    if (!semester) {
+        throw new Error(
+            "ไม่มีภาคเรียนที่เปิดให้จัดการ"
+        );
+    }
+
+    const context =
+        await getCurrentTeacherContext();
+
+    const teacherId = context?.teacherId;
+
+    if (!teacherId) {
+        throw new Error(
+            "ไม่พบข้อมูลครูผู้เข้าสู่ระบบ"
+        );
+    }
+
+    // ตรวจว่าครูมีสิทธิ์ในรายวิชานี้จริง
+    const { data: permission, error: permissionError } =
+        await supabaseClient
+            .from("teacher_subject_permissions")
+            .select("id, teacher_id, subject_id, semester_id")
+            .eq("id", permissionId)
+            .eq("teacher_id", teacherId)
+            .eq("semester_id", semester.id)
+            .maybeSingle();
+
+    if (permissionError) {
+        throw permissionError;
+    }
+
+    if (!permission) {
+        throw new Error(
+            "ไม่พบสิทธิ์สอนรายวิชานี้ กรุณาติดต่อ Admin"
+        );
+    }
+
+    // ตรวจว่าห้องเรียนเป็นของปีการศึกษาปัจจุบัน
+    const { data: room, error: roomError } =
+        await supabaseClient
+            .from("rooms")
+            .select("id")
+            .eq("id", roomId)
+            .eq("academic_year_id", semester.academic_year_id)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+    if (roomError) {
+        throw roomError;
+    }
+
+    if (!room) {
+        throw new Error(
+            "กลุ่มนักเรียนนี้ไม่อยู่ในปีการศึกษาปัจจุบัน"
+        );
+    }
+
+    // ตรวจ Assignment เดิมโดยไม่แก้ไขข้อมูล
+    const { data: existingAssignment, error: assignmentError } =
+        await supabaseClient
+            .from("subject_assignments")
+            .select("id")
+            .eq("teacher_id", teacherId)
+            .eq("subject_id", permission.subject_id)
+            .eq("room_id", roomId)
+            .eq("semester_id", semester.id)
+            .eq("academic_year_id", semester.academic_year_id)
+            .maybeSingle();
+
+    if (assignmentError) {
+        throw assignmentError;
+    }
+
+    return {
+        exists: !!existingAssignment,
+        assignmentId: existingAssignment?.id || null,
+        permissionId: permission.id,
+        roomId: room.id
+    };
+}
+// ============================================================
+// B57-03 — Teacher Assignment From Permission
+// ใช้ RPC ที่ตรวจสิทธิ์ฝั่งฐานข้อมูล
+// ยังไม่เชื่อมปุ่มบันทึกจริง
+// ============================================================
+
+async function createTeacherAssignmentFromPermission(
+    permissionId,
+    roomId
+) {
+    // 1. ตรวจข้อมูลเบื้องต้น
+    if (
+        typeof permissionId !== "string" ||
+        !permissionId.trim() ||
+        typeof roomId !== "string" ||
+        !roomId.trim()
+    ) {
+        throw new Error(
+            "กรุณาเลือกรายวิชาและกลุ่มนักเรียนให้ครบ"
+        );
+    }
+
+    // 2. ตรวจบทบาทผู้ใช้งาน
+    const role = await getCurrentUserRole();
+
+    if (role !== "Teacher") {
+        throw new Error(
+            "เฉพาะบัญชีครูผู้สอนเท่านั้นที่ใช้ขั้นตอนนี้ได้"
+        );
+    }
+
+    // 3. ส่งคำขอให้ฐานข้อมูลตรวจสอบและสร้าง Assignment
+    // RPC เป็นผู้ตรวจเจ้าของสิทธิ์ วิชา ห้อง และภาคเรียน
+    const { data: assignmentId, error } =
+        await supabaseClient.rpc(
+            "teacher_create_assignment_from_permission",
+            {
+                p_permission_id: permissionId.trim(),
+                p_room_id: roomId.trim()
+            }
+        );
+
+    if (error) {
+        throw error;
+    }
+
+    // 4. ตรวจผลตอบกลับ
+    if (
+        typeof assignmentId !== "string" ||
+        !assignmentId
+    ) {
+        throw new Error(
+            "ไม่สามารถยืนยันรหัส Assignment ที่ได้รับ"
+        );
+    }
+
+    return assignmentId;
+}
+// ============================================================
+// B57-03 — Open Schedule After Teacher Assignment
+// เปิดหน้าจัดตารางสอนเดิมและเลือกรายการที่สร้างแล้ว
+// ยังไม่เชื่อมปุ่มบันทึกจริง
+// ============================================================
+
+async function openScheduleForTeacherAssignment(assignmentId) {
+    // 1. ตรวจสอบรหัส Assignment
+    if (
+        typeof assignmentId !== "string" ||
+        !assignmentId.trim()
+    ) {
+        throw new Error(
+            "ไม่พบรหัส Assignment สำหรับเปิดตารางสอน"
+        );
+    }
+
+    // 2. เปิดฟอร์มเพิ่มตารางสอนเดิม
+    await openScheduleCreate();
+
+    // 3. ค้นหาช่องเลือกรายวิชา / ห้องเรียน
+    const assignmentSelect = document.getElementById(
+        "schedule-assignment"
+    );
+
+    if (!assignmentSelect) {
+        throw new Error(
+            "ไม่พบช่องเลือกรายวิชาในหน้าต่างเพิ่มตารางสอน"
+        );
+    }
+
+    // 4. ตรวจว่ารายการที่ต้องการมีอยู่ในตัวเลือก
+    const assignmentOption = Array.from(
+        assignmentSelect.options
+    ).find(option => option.value === assignmentId.trim());
+
+    if (!assignmentOption) {
+        throw new Error(
+            "เปิดหน้าต่างเพิ่มตารางสอนแล้ว " +
+            "แต่ยังไม่พบวิชาและกลุ่มนักเรียนที่เลือก " +
+            "กรุณาปิดหน้าต่างและเปิดใหม่อีกครั้ง"
+        );
+    }
+
+    // 5. เลือก Assignment ที่ได้รับ
+    assignmentSelect.value = assignmentId.trim();
+
+    // แจ้งส่วนอื่นของฟอร์มว่ามีการเลือกค่า
+    assignmentSelect.dispatchEvent(
+        new Event("change", { bubbles: true })
+    );
+
+    // 6. เลื่อนโฟกัสไปยังช่องที่เลือก
+    assignmentSelect.focus();
+
+    return true;
+}
+// ============================================================
+// B57-03 — Teacher Assigned Subject Selection
+// เลือกรายวิชาจากสิทธิ์ที่ Admin มอบหมาย
+// Preview Only — ยังไม่บันทึกฐานข้อมูล
+// ============================================================
+
+async function openTeacherAssignedSubjectPreview() {
+    try {
+        const semester =
+            await getScheduleManageActiveSemester();
+
+        if (!semester) {
+            throw new Error(
+                "ไม่มีภาคเรียนที่เปิดให้จัดการตารางสอน"
+            );
+        }
+
+        const assignedSubjects =
+            await getTeacherAssignedSubjects();
+
+        if (assignedSubjects.length === 0) {
+            await Swal.fire({
+                icon: "info",
+                title: "ยังไม่มีรายวิชาที่ได้รับมอบหมาย",
+                text:
+                    "กรุณาติดต่อ Admin " +
+                    "เพื่อมอบหมายรายวิชาในภาคเรียนนี้",
+                confirmButtonText: "ตกลง"
+            });
+
+            return;
+        }
+
+        // อ่านห้องเรียนจากปีการศึกษาที่เปิดใช้งาน
+        const { data: rooms, error: roomError } =
+            await supabaseClient
+                .from("rooms")
+                .select("id, room_name")
+                .eq(
+                    "academic_year_id",
+                    semester.academic_year_id
+                )
+                .is("deleted_at", null)
+                .order("room_name", {
+                    ascending: true
+                });
+
+        if (roomError) {
+            throw roomError;
+        }
+
+        if (!rooms || rooms.length === 0) {
+            throw new Error(
+                "ไม่พบห้องเรียนในปีการศึกษาปัจจุบัน"
+            );
+        }
+
+        const result = await Swal.fire({
+            title: "📚 เลือกรายวิชาที่ได้รับมอบหมาย",
+            width: 580,
+
+            html: `
+                <div style="
+                    text-align:left;
+                    display:grid;
+                    gap:16px;
+                ">
+
+                    <div style="
+                        padding:12px 14px;
+                        border:1px solid #dbeafe;
+                        border-radius:10px;
+                        background:#eff6ff;
+                        color:#1d4ed8;
+                        font-size:14px;
+                    ">
+                        แสดงเฉพาะรายวิชาที่ Admin
+                        มอบหมายให้คุณในภาคเรียนนี้
+                    </div>
+
+                    <div>
+                        <label
+                            for="teacher-permission-subject"
+                            style="
+                                display:block;
+                                margin-bottom:7px;
+                                font-weight:600;
+                            "
+                        >
+                            รายวิชาที่ได้รับมอบหมาย
+                        </label>
+
+                        <select
+                            id="teacher-permission-subject"
+                            style="
+                                width:100%;
+                                min-width:0;
+                                padding:11px 12px;
+                                border:1px solid #cbd5e1;
+                                border-radius:10px;
+                                font-family:inherit;
+                            "
+                        ></select>
+                    </div>
+
+                    <div>
+                        <label
+                            for="teacher-permission-room"
+                            style="
+                                display:block;
+                                margin-bottom:7px;
+                                font-weight:600;
+                            "
+                        >
+                            กลุ่มนักเรียน / ชั้นเรียน
+                        </label>
+
+                        <select
+                            id="teacher-permission-room"
+                            style="
+                                width:100%;
+                                min-width:0;
+                                padding:11px 12px;
+                                border:1px solid #cbd5e1;
+                                border-radius:10px;
+                                font-family:inherit;
+                            "
+                        ></select>
+                    </div>
+
+                    <div
+                        id="teacher-permission-subject-info"
+                        style="
+                            padding:12px;
+                            border-radius:10px;
+                            background:#f8fafc;
+                            color:#475569;
+                            font-size:14px;
+                            line-height:1.7;
+                        "
+                    ></div>
+
+                    <p style="
+                        margin:0;
+                        font-size:13px;
+                        color:#64748b;
+                        line-height:1.7;
+                    ">
+                        ขั้นตอนนี้เป็นการตรวจสอบข้อมูล
+                        ยังไม่มีการสร้าง Assignment
+                        หรือบันทึกข้อมูลลงฐานข้อมูล
+                    </p>
+
+                </div>
+            `,
+
+            didOpen: () => {
+                const subjectSelect =
+                    document.getElementById(
+                        "teacher-permission-subject"
+                    );
+
+                const roomSelect =
+                    document.getElementById(
+                        "teacher-permission-room"
+                    );
+
+                const info =
+                    document.getElementById(
+                        "teacher-permission-subject-info"
+                    );
+
+                if (
+                    !subjectSelect ||
+                    !roomSelect ||
+                    !info
+                ) {
+                    return;
+                }
+
+                subjectSelect.add(
+                    new Option("-- เลือกรายวิชา --", "")
+                );
+
+                assignedSubjects.forEach(subject => {
+                    subjectSelect.add(
+                        new Option(
+                            `${subject.subjectCode} — ${subject.subjectName}`,
+                            subject.permissionId
+                        )
+                    );
+                });
+
+                roomSelect.add(
+                    new Option("-- เลือกกลุ่มนักเรียน --", "")
+                );
+
+                rooms.forEach(room => {
+                    roomSelect.add(
+                        new Option(
+                            room.room_name,
+                            room.id
+                        )
+                    );
+                });
+
+                function updateSubjectInfo() {
+                    const selected =
+                        assignedSubjects.find(
+                            subject =>
+                                subject.permissionId ===
+                                subjectSelect.value
+                        );
+
+                    if (!selected) {
+                        info.textContent =
+                            "กรุณาเลือกรายวิชาที่ได้รับมอบหมาย";
+                        return;
+                    }
+
+                    info.textContent =
+                        `รหัสวิชา: ${selected.subjectCode}\n` +
+                        `ชื่อวิชา: ${selected.subjectName}\n` +
+                        `หน่วยกิต: ${
+                            selected.credit == null
+                                ? "ไม่ระบุ"
+                                : selected.credit
+                        }`;
+
+                    info.style.whiteSpace = "pre-line";
+                }
+
+                subjectSelect.onchange = updateSubjectInfo;
+                updateSubjectInfo();
+            },
+
+            showCancelButton: true,
+            confirmButtonText: "ตรวจสอบรายการที่เลือก",
+            cancelButtonText: "ยกเลิก",
+            confirmButtonColor: "#2563eb",
+            reverseButtons: true,
+
+            preConfirm: () => {
+                const permissionId =
+                    document.getElementById(
+                        "teacher-permission-subject"
+                    )?.value || "";
+
+                const roomId =
+                    document.getElementById(
+                        "teacher-permission-room"
+                    )?.value || "";
+
+                const subject =
+                    assignedSubjects.find(
+                        item =>
+                            item.permissionId === permissionId
+                    );
+
+                const room =
+                    rooms.find(
+                        item => item.id === roomId
+                    );
+
+                if (!subject) {
+                    Swal.showValidationMessage(
+                        "กรุณาเลือกรายวิชา"
+                    );
+                    return false;
+                }
+
+                if (!room) {
+                    Swal.showValidationMessage(
+                        "กรุณาเลือกกลุ่มนักเรียน"
+                    );
+                    return false;
+                }
+
+                return {
+                    subject,
+                    room
+                };
+            }
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        const { subject, room } = result.value;
+
+        // B57-03 — ตรวจสอบ Assignment เดิม
+        // READ ONLY — ไม่สร้างหรือเปลี่ยนข้อมูล
+        const assignmentCheck =
+            await checkTeacherAssignmentFromPermission(
+                subject.permissionId,
+                room.id
+            );
+
+        // แสดงข้อมูลด้วย textContent
+        // ไม่แทรกข้อมูลจากฐานข้อมูลเป็น HTML โดยตรง
+            const summaryResult = await Swal.fire({
+            icon: "info",
+            title: "ตรวจสอบข้อมูลการสอน",
+            html: `
+                <div style="
+                    text-align:left;
+                    display:grid;
+                    gap:10px;
+                    padding:14px;
+                    background:#f8fafc;
+                    border-radius:12px;
+                ">
+                    <div>
+                        รหัสวิชา:
+                        <strong id="preview-subject-code"></strong>
+                    </div>
+
+                    <div>
+                        ชื่อวิชา:
+                        <strong id="preview-subject-name"></strong>
+                    </div>
+
+                    <div>
+                        หน่วยกิต:
+                        <strong id="preview-subject-credit"></strong>
+                    </div>
+
+                    <div>
+                        กลุ่มนักเรียน:
+                        <strong id="preview-subject-room"></strong>
+                    </div>
+
+                    <div style="
+                        margin-top:8px;
+                        padding:12px;
+                        border:1px solid #cbd5e1;
+                        border-radius:10px;
+                        background:#ffffff;
+                    ">
+                        <strong>สถานะการมอบหมาย:</strong>
+                        <div
+                            id="preview-assignment-status"
+                            style="
+                                margin-top:6px;
+                                line-height:1.6;
+                            "
+                        ></div>
+                    </div>
+                </div>
+
+                <p style="
+                    margin-top:16px;
+                    color:#64748b;
+                    font-size:13px;
+                    line-height:1.7;
+                ">
+                    ${
+                        assignmentCheck.exists
+                            ? "ระบบพบกลุ่มเรียนนี้แล้ว สามารถไปจัดตารางสอนได้โดยไม่สร้างรายการซ้ำ"
+                            : "หากเลือกสร้างกลุ่มเรียน ระบบจะขอให้ยืนยันอีกครั้งก่อนบันทึกข้อมูลจริง"
+                    }
+                </p>
+            `,
+
+            didOpen: () => {
+                const values = {
+                    "preview-subject-code":
+                        subject.subjectCode,
+
+                    "preview-subject-name":
+                        subject.subjectName,
+
+                    "preview-subject-credit":
+                        subject.credit == null
+                            ? "ไม่ระบุ"
+                            : String(subject.credit),
+
+                        "preview-subject-room":
+                        room.room_name,
+
+                    "preview-assignment-status":
+                        assignmentCheck.exists
+                            ? "มี Assignment นี้อยู่แล้ว สามารถนำไปจัดตารางสอนได้"
+                            : "ยังไม่มี Assignment สำหรับวิชาและกลุ่มนักเรียนนี้"
+                };
+
+                Object.entries(values).forEach(
+                    ([id, value]) => {
+                        const element =
+                            document.getElementById(id);
+
+                        if (element) {
+                            element.textContent = value;
+                        }
+                    }
+                );
+            },
+
+            confirmButtonText: assignmentCheck.exists
+                ? "ไปจัดตารางสอน"
+                : "สร้างกลุ่มเรียนนี้",
+
+            showCancelButton: true,
+            cancelButtonText: "ยกเลิก"
+        });
+
+        // B57-03 — ผู้ใช้ยกเลิก ไม่ดำเนินการใด ๆ
+        if (!summaryResult.isConfirmed) {
+            return;
+        }
+
+        // กรณีมี Assignment เดิม ใช้รายการเดิมทันที
+        if (
+            assignmentCheck.exists &&
+            assignmentCheck.assignmentId
+        ) {
+            await openScheduleForTeacherAssignment(
+                assignmentCheck.assignmentId
+            );
+
+            return;
+        }
+
+        // กรณียังไม่มี Assignment ต้องยืนยันก่อนสร้างจริง
+        const confirmation = await Swal.fire({
+            icon: "question",
+            title: "ยืนยันสร้างกลุ่มเรียน?",
+            text:
+                `${subject.subjectCode} — ${subject.subjectName}\n` +
+                `กลุ่มนักเรียน: ${room.room_name}\n\n` +
+                "ระบบจะบันทึกการมอบหมายการสอนลงฐานข้อมูลจริง",
+            showCancelButton: true,
+            confirmButtonText: "ยืนยันสร้างกลุ่มเรียน",
+            cancelButtonText: "ยกเลิก",
+            confirmButtonColor: "#2563eb",
+            reverseButtons: true,
+            didOpen: () => {
+                const content = Swal.getHtmlContainer();
+
+                if (content) {
+                    content.style.whiteSpace = "pre-line";
+                }
+            }
+        });
+
+        if (!confirmation.isConfirmed) {
+            return;
+        }
+
+        // RPC ตรวจสิทธิ์และป้องกัน Assignment ซ้ำอีกชั้น
+        let assignmentId;
+
+        try {
+            assignmentId =
+                await createTeacherAssignmentFromPermission(
+                    subject.permissionId,
+                    room.id
+                );
+
+        } catch (saveError) {
+            console.error(
+                "Teacher Assignment Save Error:",
+                saveError
+            );
+
+            // ไม่เรียก RPC สร้างซ้ำ
+            // อ่านข้อมูลจริงเพื่อตรวจว่ามี Assignment แล้วหรือไม่
+            let verified = null;
+            let verificationError = null;
+
+            try {
+                verified =
+                    await checkTeacherAssignmentFromPermission(
+                        subject.permissionId,
+                        room.id
+                    );
+
+            } catch (readError) {
+                verificationError = readError;
+
+                console.error(
+                    "Teacher Assignment Verification Error:",
+                    readError
+                );
+            }
+
+            if (verified?.exists && verified.assignmentId) {
+                const result = await Swal.fire({
+                    icon: "warning",
+                    title: "พบกลุ่มเรียนในฐานข้อมูลแล้ว",
+                    text:
+                        "แม้คำขอบันทึกจะเกิดข้อผิดพลาด " +
+                        "แต่ตรวจพบ Assignment สำหรับวิชาและกลุ่มนี้แล้ว " +
+                        "ไม่จำเป็นต้องสร้างรายการซ้ำ",
+                    showCancelButton: true,
+                    confirmButtonText: "ไปจัดตารางสอน",
+                    cancelButtonText: "ปิด"
+                });
+
+                if (result.isConfirmed) {
+                    try {
+                        await openScheduleForTeacherAssignment(
+                            verified.assignmentId
+                        );
+
+                    } catch (scheduleError) {
+                        console.error(
+                            "Teacher Schedule Open Error:",
+                            scheduleError
+                        );
+
+                        await Swal.fire({
+                            icon: "warning",
+                            title: "พบกลุ่มเรียนแล้ว",
+                            text:
+                                "ไม่สามารถเปิดหน้าจัดตารางสอนได้ " +
+                                "กรุณาเปิดเมนูจัดตารางสอนอีกครั้ง " +
+                                "โดยไม่ต้องสร้างกลุ่มเรียนซ้ำ",
+                            confirmButtonText: "รับทราบ"
+                        });
+                    }
+                }
+
+                return;
+            }
+
+            await Swal.fire({
+                icon: "warning",
+                title: "ยังยืนยันผลการบันทึกไม่ได้",
+                text: verificationError
+                    ? "คำขอบันทึกเกิดข้อผิดพลาด และไม่สามารถอ่านข้อมูลยืนยันได้ กรุณาตรวจสอบรายการในระบบเมื่อการเชื่อมต่อกลับมาปกติ ก่อนลองสร้างอีกครั้ง"
+                    : "คำขอบันทึกเกิดข้อผิดพลาด และยังไม่พบ Assignment จากการตรวจล่าสุด กรุณาตรวจสอบรายการอีกครั้งก่อนลองสร้างใหม่",
+                confirmButtonText: "รับทราบ"
+            });
+
+            return;
+        }
+
+        await Swal.fire({
+            icon: "success",
+            title: "บันทึกกลุ่มเรียนสำเร็จ",
+            text:
+                "บันทึกการมอบหมายการสอนแล้ว " +
+                "ขั้นต่อไปสามารถกำหนดวันและคาบสอนได้",
+            confirmButtonText: "ไปจัดตารางสอน"
+        });
+
+        // B57-03 — Assignment บันทึกสำเร็จแล้ว
+        // แยกข้อผิดพลาดในการเปิดหน้าจัดตารางสอน
+        // เพื่อไม่ให้ครูเข้าใจว่าการบันทึกล้มเหลว
+        try {
+            await openScheduleForTeacherAssignment(
+                assignmentId
+            );
+
+        } catch (scheduleError) {
+            console.error(
+                "Teacher Schedule Open Error:",
+                scheduleError
+            );
+
+            await Swal.fire({
+                icon: "warning",
+                title: "บันทึกกลุ่มเรียนแล้ว",
+                text:
+                    "บันทึก Assignment สำเร็จแล้ว " +
+                    "แต่ไม่สามารถเปิดหน้าจัดตารางสอนได้ " +
+                    "กรุณากลับไปเปิดเมนูจัดตารางสอนอีกครั้ง " +
+                    "โดยไม่ต้องสร้างกลุ่มเรียนซ้ำ",
+                confirmButtonText: "รับทราบ"
+            });
+        }
+
+        return;
+
+    } catch (error) {
+        console.error(
+            "Teacher Assigned Subject Preview Error:",
+            error
+        );
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถโหลดรายวิชาได้",
+            text:
+                error?.message ||
+                "เกิดข้อผิดพลาดในการอ่านข้อมูล",
+            confirmButtonText: "ตกลง"
+        });
+    }
+}
  // ============================================================
  // B55 — Teacher Subject Create Form
  // UI Preview Only: ยังไม่บันทึกฐานข้อมูล
@@ -8398,7 +13009,51 @@ async function openTeacherSubjectCreateForm() {
         });
     }
 }
+// ============================================================
+// B57-03 — Teacher Subject Entry
+// เปิดหน้าต่างเลือกรายวิชาที่ Admin มอบหมาย
+// ============================================================
 
+async function openScheduleSubjectAddEntry() {
+    try {
+        const role = await getCurrentUserRole();
+
+        if (role === "Teacher") {
+            await openTeacherAssignedSubjectPreview();
+            return;
+        }
+
+        if (role === "Admin") {
+            await Swal.fire({
+                icon: "info",
+                title: "การมอบหมายรายวิชา",
+                text:
+                    "Admin สามารถมอบหมายรายวิชาให้ครูได้ที่เมนู " +
+                    "การมอบหมายการสอน ส่วนครูผู้สอนจะเลือกกลุ่มนักเรียน " +
+                    "จากรายวิชาที่ได้รับมอบหมาย",
+                confirmButtonText: "รับทราบ"
+            });
+            return;
+        }
+
+        await Swal.fire({
+            icon: "warning",
+            title: "ไม่มีสิทธิ์ดำเนินการ",
+            text: "เมนูนี้สำหรับครูผู้สอนและ Admin เท่านั้น",
+            confirmButtonText: "ตกลง"
+        });
+
+    } catch (error) {
+        console.error("Schedule Subject Entry Error:", error);
+
+        await Swal.fire({
+            icon: "error",
+            title: "ไม่สามารถเปิดรายการวิชาได้",
+            text: error?.message || "เกิดข้อผิดพลาด",
+            confirmButtonText: "ตกลง"
+        });
+    }
+}
 // ============================================================
 // SCHEDULE CREATE
 // STEP 5B.8.5 — Create Schedule Form
@@ -8457,9 +13112,9 @@ async function openScheduleCreate() {
     type="button"
     class="schedule-add-btn"
     style="margin-top:10px;"
-    onclick="openTeacherSubjectCreateForm()"
+    onclick="openScheduleSubjectAddEntry()"
 >
-    ＋ เพิ่มวิชาใหม่
+    ＋ เลือกรายวิชาที่ได้รับมอบหมาย
 </button>
 
 </div>
@@ -9079,11 +13734,10 @@ console.table({
 closeScheduleCreate();
 
         // ============================================
-        // 7. กลับไปโหลด Timetable ใหม่
+        // B57-01 — Switch to timetable after saving
         // ============================================
 
-        await loadScheduleView();
-
+        switchScheduleTab("timetable");
 
     } catch (error) {
 
