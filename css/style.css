@@ -5050,3 +5050,412 @@ body.dark-mode #view-admin-assignments select {
     font-size: 16px;
     padding: 12px 14px;
 }
+/* =========================================================
+   B56 — Primary Parent Confirmation Modal
+   UI.2.2 — Readable and Responsive
+   ========================================================= */
+
+.b56-primary-confirm-popup {
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    border-radius: 18px;
+    font-family: 'Prompt', sans-serif;
+}
+
+.b56-primary-confirm-popup .swal2-title {
+    font-size: clamp(21px, 3vw, 27px);
+    font-weight: 700;
+    line-height: 1.5;
+    color: #1e293b;
+    padding: 8px 8px 4px;
+}
+
+.b56-primary-confirm-popup .swal2-html-container {
+    margin: 16px 0 0;
+    padding: 0 2px;
+    overflow: visible;
+    text-align: left;
+}
+
+.b56-primary-confirm {
+    display: grid;
+    gap: 14px;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #334155;
+}
+
+.b56-primary-confirm > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.b56-confirm-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 5px;
+}
+
+.b56-confirm-student {
+    padding: 15px 17px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+}
+
+.b56-confirm-student strong,
+.b56-confirm-parent strong,
+.b56-confirm-new-parent strong {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.b56-confirm-student strong {
+    color: #1d4ed8;
+}
+
+#b56-confirm-student-code {
+    margin-top: 4px;
+    font-size: 14px;
+    color: #475569;
+}
+
+.b56-confirm-parent {
+    padding: 15px 17px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.b56-confirm-parent strong {
+    color: #334155;
+}
+
+.b56-confirm-arrow {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.b56-confirm-new-parent {
+    padding: 15px 17px;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 12px;
+}
+
+.b56-confirm-new-parent strong {
+    color: #166534;
+}
+
+.b56-confirm-note {
+    padding: 14px 17px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 15px;
+    line-height: 1.8;
+    color: #334155;
+}
+
+.b56-confirm-note p {
+    margin: 0;
+}
+
+.b56-confirm-note p + p {
+    margin-top: 10px;
+}
+
+.b56-primary-confirm-popup .swal2-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0 0;
+}
+
+.b56-primary-confirm-popup .swal2-actions button {
+    font-family: 'Prompt', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 11px 18px;
+    margin: 0;
+}
+
+.b56-primary-confirm-popup .swal2-confirm {
+    background: #166534;
+    color: #ffffff;
+}
+
+.b56-primary-confirm-popup .swal2-cancel {
+    background: #64748b;
+    color: #ffffff;
+}
+
+@media (max-width: 600px) {
+    .b56-primary-confirm-popup {
+        padding: 14px !important;
+    }
+
+    .b56-primary-confirm {
+        gap: 10px;
+        font-size: 15px;
+    }
+
+    .b56-confirm-student,
+    .b56-confirm-parent,
+    .b56-confirm-new-parent,
+    .b56-confirm-note {
+        padding: 12px;
+    }
+
+    .b56-confirm-student strong,
+    .b56-confirm-parent strong,
+    .b56-confirm-new-parent strong {
+        font-size: 16px;
+    }
+
+    .b56-primary-confirm-popup .swal2-actions button {
+        font-size: 14px;
+        padding: 10px 14px;
+    }
+}
+/* =================================================
+   B56 — Parent Student Link Form
+   Improve readability without affecting other pages
+   ================================================= */
+
+.b56-parent-link-popup {
+    font-family: 'Prompt', sans-serif;
+}
+
+.b56-parent-link-popup .swal2-title {
+    font-size: 27px;
+    font-weight: 700;
+}
+
+.b56-parent-link-popup .swal2-html-container {
+    font-size: 16px;
+    line-height: 1.7;
+}
+
+.b56-parent-link-popup #b56-student-search-status {
+    font-size: 15px !important;
+}
+
+.b56-parent-link-popup #b56-student-search-results {
+    font-size: 16px;
+}
+
+.b56-parent-link-popup #b56-student-selected {
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.b56-parent-link-popup #b56-link-review {
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.b56-parent-link-popup button {
+    font-size: 15px;
+}
+/* =========================================================
+   B56 — Parent Student Link Confirmation
+   UI.3.3 — Readable, Responsive
+   ========================================================= */
+
+.b56-link-confirm-popup {
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    border-radius: 18px;
+    font-family: 'Prompt', sans-serif;
+}
+
+.b56-link-confirm-popup .swal2-title {
+    padding: 8px 8px 4px;
+    font-size: clamp(21px, 3vw, 27px);
+    font-weight: 700;
+    line-height: 1.5;
+    color: #1e293b;
+}
+
+.b56-link-confirm-popup .swal2-html-container {
+    margin: 16px 0 0;
+    padding: 0 2px;
+    text-align: left;
+    overflow: visible;
+}
+
+.b56-link-confirm {
+    display: grid;
+    gap: 14px;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #334155;
+}
+
+.b56-link-confirm > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.b56-link-confirm-label {
+    margin-bottom: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+}
+
+/* Student information */
+
+.b56-link-confirm-student {
+    padding: 15px 17px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+}
+
+.b56-link-confirm-student strong {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1d4ed8;
+    line-height: 1.5;
+}
+
+#b56-link-confirm-code {
+    margin-top: 4px;
+    font-size: 14px;
+    color: #475569;
+}
+
+/* Parent information */
+
+.b56-link-confirm-parent {
+    padding: 15px 17px;
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 12px;
+}
+
+.b56-link-confirm-parent strong {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #166534;
+    line-height: 1.5;
+}
+
+/* Relationship */
+
+.b56-link-confirm-relationship {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 15px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.b56-link-confirm-relationship strong {
+    color: #166534;
+    font-weight: 700;
+}
+
+/* Explanation */
+
+.b56-link-confirm-note {
+    padding: 14px 17px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 15px;
+    line-height: 1.8;
+    color: #334155;
+}
+
+.b56-link-confirm-note p {
+    margin: 0;
+}
+
+.b56-link-confirm-note p + p {
+    margin-top: 10px;
+}
+
+/* Confirmation buttons */
+
+.b56-link-confirm-popup .swal2-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0 0;
+}
+
+.b56-link-confirm-popup .swal2-actions button {
+    margin: 0;
+    padding: 11px 18px;
+    border-radius: 10px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.b56-link-confirm-popup .swal2-confirm {
+    background: #166534;
+    color: #ffffff;
+}
+
+.b56-link-confirm-popup .swal2-cancel {
+    background: #64748b;
+    color: #ffffff;
+}
+
+/* Smaller screens */
+
+@media (max-width: 600px) {
+    .b56-link-confirm-popup {
+        padding: 14px !important;
+    }
+
+    .b56-link-confirm {
+        gap: 10px;
+        font-size: 15px;
+    }
+
+    .b56-link-confirm-student,
+    .b56-link-confirm-parent,
+    .b56-link-confirm-note {
+        padding: 12px;
+    }
+
+    .b56-link-confirm-student strong,
+    .b56-link-confirm-parent strong {
+        font-size: 16px;
+    }
+
+    .b56-link-confirm-popup .swal2-actions button {
+        font-size: 14px;
+        padding: 10px 14px;
+    }
+}
