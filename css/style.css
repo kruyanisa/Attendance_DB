@@ -5459,3 +5459,149 @@ body.dark-mode #view-admin-assignments select {
         padding: 10px 14px;
     }
 }
+/* ============================================================
+   AUDIT.3-07B — ADMIN AUDIT HISTORY TABLE
+   ใช้เฉพาะหน้า Audit ไม่กระทบตารางอื่น
+   ============================================================ */
+
+#view-admin-audit {
+    min-width: 0;
+}
+
+#view-admin-audit .glass-card {
+    min-width: 0;
+}
+
+#view-admin-audit .academic-table {
+    width: 100%;
+    min-width: 1150px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 16px;
+}
+
+#view-admin-audit .academic-table th,
+#view-admin-audit .academic-table td {
+    padding: 15px 14px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+    line-height: 1.7;
+}
+
+#view-admin-audit .academic-table th {
+    font-weight: 600;
+    white-space: nowrap;
+    background: var(--bg);
+    color: var(--text);
+}
+
+#view-admin-audit .academic-table td {
+    color: var(--text);
+}
+
+#view-admin-audit .academic-table th:nth-child(1),
+#view-admin-audit .academic-table td:nth-child(1) {
+    min-width: 165px;
+    white-space: nowrap;
+}
+
+#view-admin-audit .academic-table th:nth-child(2),
+#view-admin-audit .academic-table td:nth-child(2) {
+    min-width: 155px;
+}
+
+#view-admin-audit .academic-table th:nth-child(3),
+#view-admin-audit .academic-table td:nth-child(3) {
+    min-width: 210px;
+}
+
+#view-admin-audit .academic-table th:nth-child(4),
+#view-admin-audit .academic-table td:nth-child(4) {
+    min-width: 125px;
+    white-space: nowrap;
+}
+
+#view-admin-audit .academic-table th:nth-child(5),
+#view-admin-audit .academic-table td:nth-child(5),
+#view-admin-audit .academic-table th:nth-child(6),
+#view-admin-audit .academic-table td:nth-child(6) {
+    min-width: 100px;
+    white-space: nowrap;
+}
+
+#view-admin-audit .academic-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.05);
+}
+
+#view-admin-audit .academic-table td .btn {
+    width: auto;
+    height: auto;
+    min-height: 34px;
+    padding: 6px 12px !important;
+    border-radius: 8px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#view-admin-audit .filter-group label {
+    color: var(--text);
+}
+
+#view-admin-audit .filter-group input,
+#view-admin-audit .filter-group select {
+    background: var(--card);
+    color: var(--text);
+    border-color: var(--border);
+    font-family: 'Prompt', sans-serif;
+}
+
+#view-admin-audit #admin-audit-pagination {
+    color: var(--text);
+}
+
+#view-admin-audit #admin-audit-pagination .btn {
+    width: auto;
+    height: auto;
+    min-height: 38px;
+    padding: 8px 14px;
+    font-size: 13px;
+}
+
+#view-admin-audit #admin-audit-pagination .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+/* ============================================================
+   AUDIT.3-07C — Larger Text for Audit History
+   ============================================================ */
+
+#view-admin-audit .academic-table td .btn {
+    font-size: 14px !important;
+    min-height: 40px;
+    padding: 8px 14px !important;
+}
+
+#view-admin-audit #admin-audit-status {
+    font-size: 16px;
+}
+
+#view-admin-audit #admin-audit-page-info {
+    font-size: 15px;
+}
+
+#view-admin-audit #admin-audit-pagination .btn {
+    font-size: 14px;
+    min-height: 42px;
+}
+
+#view-admin-audit .filter-group label {
+    font-size: 15px;
+}
+
+#view-admin-audit .filter-group input,
+#view-admin-audit .filter-group select {
+    font-size: 15px;
+}

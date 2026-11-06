@@ -27,7 +27,8 @@ function switchView(view) {
         "admin-users",
         "admin-activities",
         "admin-subjects",
-        "admin-assignments"
+        "admin-assignments",
+        "admin-audit"
     ];
 
     views.forEach(v => {
@@ -101,6 +102,19 @@ function switchView(view) {
     if (view === "admin-assignments") {
         loadAdminTeachingAssignments();
     }
+
+    // AUDIT.3 — Admin Audit History Module
+    if (view === "admin-audit") {
+        if (typeof AdminAudit !== "undefined") {
+            AdminAudit.init();
+        } else {
+            console.error("AUDIT.3: AdminAudit module not loaded.");
+        }
+    }
+
+    // AUDIT.3: Admin Audit History
+    // หน้าจอจะเพิ่มใน index.html ขั้นตอนถัดไป
+    // ยังไม่มีการเรียกฐานข้อมูล
 
     const activeMenu =
         document.getElementById(`menu-${view}`);
@@ -4083,7 +4097,6 @@ function showNavigationPlaceholder(featureName) {
         return;
     }
 
-
     // ซ่อน View หลักทั้งหมด
     const views = [
         "attendance",
@@ -4102,7 +4115,11 @@ function showNavigationPlaceholder(featureName) {
         "student-detail",
         "admin-academic",
         "admin-users",
-        "admin-activities"
+        "admin-activities",
+        "admin-subjects",
+        "admin-assignments",
+        "admin-audit"
+
     ];
 
     views.forEach(viewName => {

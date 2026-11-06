@@ -317,14 +317,16 @@
     <span class="menu-icon">🎯</span>
     <span class="menu-text">มอบหมายกิจกรรม</span>
 </button>
-
-        <button
-            class="menu-btn submenu-btn"
-            onclick="showNavigationPlaceholder('ประวัติการเปลี่ยนแปลงงานวิชาการ')"
-        >
-            <span class="menu-icon">📋</span>
-            <span class="menu-text">ประวัติการเปลี่ยนแปลง</span>
-        </button>
+                <!-- AUDIT.3 — Admin Audit History -->
+                <button
+                    id="menu-admin-audit"
+                    type="button"
+                    class="menu-btn submenu-btn"
+                    onclick="switchView('admin-audit')"
+                >
+                    <span class="menu-icon">📋</span>
+                    <span class="menu-text">ประวัติการดำเนินการ</span>
+                </button>
     </div>
 </div>
 
@@ -1828,7 +1830,117 @@
 
     </div>
 </div>
+<!-- ==========================================
+     AUDIT.3 — ADMIN AUDIT HISTORY
+     UI SHELL / READ ONLY
+     ========================================== -->
 
+<div
+    id="view-admin-audit"
+    class="view-section"
+    style="display:none;"
+>
+    <div class="page-header">
+        <div>
+            <h1>📋 ประวัติการดำเนินการ</h1>
+            <p>ตรวจสอบประวัติการบันทึกและแก้ไขข้อมูล สำหรับผู้ดูแลระบบ</p>
+        </div>
+    </div>
+
+    <div class="glass-card">
+
+        <h2>🕘 ประวัติการเช็กชื่อนักเรียน</h2>
+        <p style="margin:10px 0 20px;">
+            ตรวจสอบผู้ดำเนินการ วันเวลา และสถานะก่อน–หลังการแก้ไข
+        </p>
+
+        <div
+            style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:20px;"
+        >
+            <div class="filter-group">
+                <label for="admin-audit-date-from">ตั้งแต่วันที่</label>
+                <input id="admin-audit-date-from" type="date" disabled>
+            </div>
+
+            <div class="filter-group">
+                <label for="admin-audit-date-to">ถึงวันที่</label>
+                <input id="admin-audit-date-to" type="date" disabled>
+            </div>
+
+            <div class="filter-group">
+                <label for="admin-audit-action">ประเภทการดำเนินการ</label>
+                <select id="admin-audit-action" disabled>
+                    <option value="">ทั้งหมด</option>
+                    <option value="INSERT">บันทึกใหม่</option>
+                    <option value="UPDATE">แก้ไขข้อมูล</option>
+                    <option value="SOFT_DELETE">ยกเลิกรายการ</option>
+                    <option value="RESTORE">คืนรายการ</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="admin-audit-search">ค้นหา</label>
+                <input
+                    id="admin-audit-search"
+                    type="search"
+                    placeholder="ชื่อครู / นักเรียน"
+                    disabled
+                >
+            </div>
+        </div>
+
+        <!-- AUDIT.3-07D — คำอธิบายตัวกรองวันที่ -->
+        <p
+            style="
+                margin:-6px 0 18px;
+                padding:10px 14px;
+                background:var(--bg);
+                border-left:3px solid var(--primary);
+                border-radius:8px;
+                color:var(--text-light);
+                font-size:14px;
+                line-height:1.7;
+            "
+        >
+            ℹ️ วันที่ที่เลือกเป็นวันที่บันทึกหรือแก้ไขข้อมูล
+            ไม่ใช่วันที่นักเรียนเข้าเรียน
+            โดยระบบเริ่มเก็บประวัติใหม่ตั้งแต่วันที่ 6 พฤศจิกายน 2569
+        </p>
+
+        <div id="admin-audit-status" role="status"
+             style="margin-bottom:16px;">
+            ยังไม่ได้เชื่อมต่อข้อมูลจาก Supabase
+        </div>
+
+        <div style="width:100%;overflow-x:auto;">
+            <table class="academic-table">
+                <thead>
+                    <tr>
+                        <th>วันเวลา</th>
+                        <th>ผู้ดำเนินการ</th>
+                        <th>นักเรียน</th>
+                        <th>การดำเนินการ</th>
+                        <th>สถานะเดิม</th>
+                        <th>สถานะใหม่</th>
+                        <th>รายละเอียด</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-audit-table-body">
+                    <tr>
+                        <td colspan="7" style="text-align:center;padding:30px;">
+                            ยังไม่ได้เชื่อมต่อข้อมูลประวัติ
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p style="margin-top:18px;color:var(--text-light);">
+            🔒 หน้านี้ใช้ตรวจสอบประวัติเท่านั้น ไม่สามารถแก้ไขข้อมูลได้
+        </p>
+
+    </div>
+</div>
 <!-- ==========================================
      B56 — ADMIN USER MANAGEMENT
      UI SHELL / NO DATABASE WRITES
@@ -2400,6 +2512,7 @@
 <script src="js/student-management.js"></script>
 <script src="js/student-detail.js"></script>
 <script src="js/admin-users.js"></script>
+<script src="js/admin-audit.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
