@@ -1,0 +1,619 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>ลงทะเบียนรับแจ้งเตือนผ่าน LINE</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px 14px 40px;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: #f3f7f5;
+      color: #24342d;
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      background: #e2f8e9;
+      font-size: 32px;
+    }
+
+    h1 {
+      margin: 12px 0 6px;
+      font-size: 23px;
+      line-height: 1.4;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: #66756c;
+      font-size: 14px;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e0e9e3;
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.035);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 17px;
+    }
+
+    .notice {
+      padding: 13px 15px;
+      background: #fff8e9;
+      color: #76551d;
+      border: 1px solid #f1dfb5;
+      border-radius: 12px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .info-box {
+      padding: 14px;
+      background: #effaf2;
+      border-radius: 12px;
+      color: #255d3b;
+      font-size: 14px;
+    }
+
+    .info-box ul {
+      margin: 8px 0 0;
+      padding-left: 22px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    label.field-label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 46px;
+      padding: 11px 13px;
+      border: 1px solid #ccd8d0;
+      border-radius: 10px;
+      background: #fff;
+      color: #24342d;
+      font: inherit;
+      font-size: 15px;
+    }
+
+    input:focus,
+    select:focus {
+      outline: 2px solid #91d8a3;
+      outline-offset: 1px;
+      border-color: #36a35b;
+    }
+
+    .hint {
+      margin-top: 5px;
+      font-size: 12px;
+      color: #77847b;
+    }
+
+    .privacy-text {
+      font-size: 13px;
+      color: #526158;
+    }
+
+    .privacy-text p {
+      margin: 0 0 10px;
+    }
+
+    .privacy-text ul {
+      margin-top: 5px;
+      padding-left: 20px;
+    }
+
+    .agreement {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid #dae5dc;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    .agreement input {
+      width: 19px;
+      height: 19px;
+      min-height: auto;
+      margin: 2px 0 0;
+      flex-shrink: 0;
+      accent-color: #16a34a;
+    }
+
+    .submit-button {
+      display: block;
+      width: 100%;
+      margin-top: 18px;
+      padding: 14px;
+      border: 0;
+      border-radius: 12px;
+      background: #a9b9ae;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 13px;
+      color: #7b6440;
+    }
+
+    .footer {
+      padding: 8px;
+      text-align: center;
+      color: #849188;
+      font-size: 12px;
+    }
+
+    @media (max-width: 420px) {
+      .card {
+        padding: 18px;
+      }
+
+      h1 {
+        font-size: 21px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="container">
+
+    <header class="header">
+      <div class="header-icon" aria-hidden="true">🔔</div>
+
+      <h1>ลงทะเบียนรับแจ้งเตือนผ่าน LINE</h1>
+
+      <p class="subtitle">
+        ระบบจัดการข้อมูลโรงเรียน
+      </p>
+    </header>
+
+    <div class="notice" role="status">
+      🛠️ หน้านี้อยู่ระหว่างการพัฒนา
+      ยังไม่เปิดรับคำขอลงทะเบียนจริง
+      และยังไม่มีการส่งข้อมูลเข้าสู่ระบบโรงเรียน
+    </div>
+
+    <!-- LINE.08.5.B: สถานะการเชื่อม LIFF -->
+    <section class="card" aria-live="polite">
+      <h2>🔗 สถานะการเชื่อมต่อ LINE</h2>
+
+      <div
+        id="liffConnectionStatus"
+        class="info-box"
+        role="status"
+      >
+        กำลังตรวจสอบสภาพแวดล้อม LINE...
+      </div>
+      
+      <button
+        type="button"
+        id="verifyLineButton"
+        disabled
+        style="
+          width: 100%;
+          margin-top: 14px;
+          padding: 12px;
+          border: none;
+          border-radius: 10px;
+          background: #06c755;
+          color: white;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+        "
+      >
+        ทดสอบการยืนยันบัญชี LINE
+      </button>
+
+      <p class="hint">
+        ขั้นตอนนี้ตรวจสอบสถานะเท่านั้น
+        ยังไม่มีการเชื่อมบัญชีผู้ปกครองหรือบันทึกข้อมูลจริง
+      </p>
+    </section>
+
+    <section class="card">
+
+      <h2>👨‍👩‍👧 ข้อมูลสำหรับลงทะเบียน</h2>
+
+      <p class="privacy-text">
+        กรุณากรอกข้อมูลให้ตรงกับข้อมูล
+        ที่โรงเรียนบันทึกไว้
+      </p>
+
+      <form id="registrationForm" autocomplete="off">
+
+        <div class="field">
+          <label class="field-label" for="parentName">
+            ชื่อ–นามสกุลผู้ปกครอง
+          </label>
+
+          <input
+            type="text"
+            id="parentName"
+            name="parentName"
+            placeholder="กรอกชื่อและนามสกุล"
+            maxlength="150"
+          >
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="studentCode">
+            รหัสนักเรียน
+          </label>
+
+          <input
+            type="text"
+            id="studentCode"
+            name="studentCode"
+            placeholder="กรอกรหัสนักเรียน"
+            maxlength="30"
+            inputmode="numeric"
+          >
+
+          <div class="hint">
+            ใช้รหัสนักเรียนที่โรงเรียนกำหนด
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="gradeLevel">
+            ระดับชั้นนักเรียน
+          </label>
+
+          <select id="gradeLevel" name="gradeLevel">
+            <option value="">-- เลือกระดับชั้น --</option>
+            <option value="ม.1">มัธยมศึกษาปีที่ 1</option>
+            <option value="ม.2">มัธยมศึกษาปีที่ 2</option>
+            <option value="ม.3">มัธยมศึกษาปีที่ 3</option>
+            <option value="ม.4">มัธยมศึกษาปีที่ 4</option>
+            <option value="ม.5">มัธยมศึกษาปีที่ 5</option>
+            <option value="ม.6">มัธยมศึกษาปีที่ 6</option>
+          </select>
+        </div>
+
+        <div class="notice">
+          🔐 ข้อมูลที่กรอกใช้เพื่อให้โรงเรียน
+          ตรวจสอบคำขอลงทะเบียนเท่านั้น
+          การกรอกข้อมูลตรงกับทะเบียนโรงเรียน
+          ยังไม่ถือว่าเป็นการยืนยันตัวตนสำเร็จ
+        </div>
+
+        <h2>🔒 การใช้ข้อมูลส่วนบุคคล</h2>
+
+        <div class="privacy-text">
+
+          <p>
+            โรงเรียนมีแผนใช้ข้อมูลบัญชี LINE
+            เพื่อเชื่อมกับข้อมูลผู้ปกครอง
+            และส่งการแจ้งเตือนเกี่ยวกับนักเรียน
+            ที่ท่านมีสิทธิ์ดูแล
+          </p>
+
+          <p>
+            ข้อมูลที่จำเป็นอาจประกอบด้วย
+          </p>
+
+          <ul>
+            <li>รหัสระบุตัวตนบัญชี LINE (LINE User ID)</li>
+            <li>ข้อมูลที่ใช้ตรวจสอบความสัมพันธ์กับนักเรียน</li>
+            <li>สถานะคำขอและการอนุมัติของโรงเรียน</li>
+          </ul>
+
+          <p>
+            ระบบไม่ได้ขอสิทธิ์อ่านแชตส่วนตัว
+            รายชื่อเพื่อน หรือรหัสผ่าน LINE ของท่าน
+          </p>
+
+          <p>
+            คำขอลงทะเบียนต้องผ่านการตรวจสอบ
+            และอนุมัติโดยโรงเรียนก่อน
+            จึงจะสามารถเชื่อมบัญชีได้
+          </p>
+
+          <p>
+            ก่อนเปิดใช้งานจริง โรงเรียนจะจัดให้มี
+            ประกาศความเป็นส่วนตัวฉบับสมบูรณ์
+            พร้อมข้อมูลติดต่อและวิธีขอยกเลิก
+            การเชื่อมบัญชี
+          </p>
+
+        </div>
+
+        <label class="agreement" for="privacyAcknowledged">
+
+          <input
+            type="checkbox"
+            id="privacyAcknowledged"
+            name="privacyAcknowledged"
+          >
+
+          <span>
+            ข้าพเจ้าได้อ่านและรับทราบคำชี้แจง
+            การใช้ข้อมูลข้างต้น
+            และประสงค์จะลงทะเบียนรับแจ้งเตือน
+            ผ่าน LINE เมื่อระบบเปิดให้บริการ
+          </span>
+
+        </label>
+
+        <button
+          class="submit-button"
+          id="submitButton"
+          type="submit"
+          disabled
+        >
+          ลงทะเบียน (ยังไม่เปิดให้บริการ)
+        </button>
+
+        <div class="status" id="registrationStatus">
+          ยังไม่เปิดรับคำขอลงทะเบียนจริง
+        </div>
+
+      </form>
+
+    </section>
+
+    <footer class="footer">
+      ระบบจัดการข้อมูลโรงเรียน
+      <br>
+      LINE Registration — Development Preview
+    </footer>
+
+  </main>
+
+  <!-- LINE.08.5.B: LINE LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <script>
+    "use strict";
+
+    // LINE Login / LIFF configuration
+    // LIFF ID เป็นข้อมูลสาธารณะ ไม่ใช่รหัสลับ
+    const LIFF_ID = "2012450330-tvCkhv0c";
+
+    const registrationForm = document.getElementById(
+      "registrationForm"
+    );
+
+    const connectionStatus = document.getElementById(
+      "liffConnectionStatus"
+    );
+
+    const submitButton = document.getElementById(
+      "submitButton"
+    );
+
+    // ปิดการลงทะเบียนจริงไว้เสมอในขั้นตอนนี้
+    submitButton.disabled = true;
+
+    registrationForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+    });
+
+    function setLiffStatus(message) {
+      connectionStatus.textContent = message;
+    }
+
+    // LINE.08.8.F
+    // ทดสอบยืนยัน LINE ID Token เท่านั้น
+    // ไม่ส่งข้อมูลผู้ปกครองหรือนักเรียน
+    // ไม่บันทึกฐานข้อมูล
+
+    const verifyLineButton = document.getElementById(
+      "verifyLineButton"
+    );
+
+    const LINE_REGISTER_ENDPOINT =
+      "https://zxbxfmcoadtxngxugpqz.supabase.co/functions/v1/line-register";
+
+    async function verifyLineIdentity() {
+      if (
+        typeof liff === "undefined" ||
+        !liff.isLoggedIn()
+      ) {
+        setLiffStatus(
+          "กรุณาเข้าสู่ระบบ LINE ก่อนทดสอบ"
+        );
+        return;
+      }
+
+      const idToken = liff.getIDToken();
+
+      if (!idToken) {
+        setLiffStatus(
+          "ไม่พบ LINE ID Token กรุณาตรวจสอบสิทธิ์ openid"
+        );
+        return;
+      }
+
+      verifyLineButton.disabled = true;
+
+      setLiffStatus(
+        "กำลังตรวจสอบบัญชี LINE..."
+      );
+
+      try {
+        const response = await fetch(
+          LINE_REGISTER_ENDPOINT,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              idToken: idToken
+            }),
+            cache: "no-store"
+          }
+        );
+
+        const result = await response.json();
+
+        if (
+          response.status === 503 &&
+          result.code === "REGISTRATION_NOT_AVAILABLE"
+        ) {
+          setLiffStatus(
+            "✅ LINE ยืนยันบัญชีสำเร็จแล้ว " +
+            "แต่ระบบยังไม่เปิดรับคำขอลงทะเบียนจริง"
+          );
+        } else if (
+          response.status === 401
+        ) {
+          setLiffStatus(
+            "❌ LINE ไม่สามารถยืนยันบัญชีนี้ได้"
+          );
+        } else {
+          setLiffStatus(
+            "⚠️ ยังตรวจสอบไม่สำเร็จ " +
+            "กรุณาตรวจสอบการตั้งค่าระบบ"
+          );
+        }
+
+      } catch {
+        setLiffStatus(
+          "❌ ไม่สามารถติดต่อระบบตรวจสอบ LINE ได้"
+        );
+      } finally {
+        verifyLineButton.disabled = false;
+      }
+    }
+
+    verifyLineButton.addEventListener(
+      "click",
+      verifyLineIdentity
+    );
+
+    async function initializeLineRegistration() {
+      // Live Server เป็นพื้นที่ทดสอบหน้าจอ
+      // ไม่ใช้ URL localhost เพื่อเข้าสู่ระบบ LINE จริง
+      const hostname = window.location.hostname;
+
+      const isLocalDevelopment =
+        hostname === "localhost" ||
+        hostname === "127.0.0.1";
+
+      if (isLocalDevelopment) {
+        setLiffStatus(
+          "🛠️ โหมดทดสอบด้วย Live Server " +
+          "ยังไม่เข้าสู่ระบบ LINE " +
+          "และยังไม่ส่งข้อมูลใด ๆ"
+        );
+        return;
+      }
+
+      // ป้องกันการใช้หน้าเว็บจากโฮสต์อื่นโดยไม่ได้ตั้งใจ
+      const isExpectedHost =
+        hostname === "kruyanisa.github.io" &&
+        window.location.protocol === "https:";
+
+      if (!isExpectedHost) {
+        setLiffStatus(
+          "⚠️ หน้านี้ไม่ได้เปิดจากเว็บไซต์ที่กำหนด"
+        );
+        return;
+      }
+
+      // ตรวจว่าดาวน์โหลด LIFF SDK สำเร็จหรือไม่
+      if (typeof liff === "undefined") {
+        setLiffStatus(
+          "❌ ไม่สามารถโหลด LINE LIFF SDK ได้"
+        );
+        return;
+      }
+
+      try {
+        await liff.init({
+          liffId: LIFF_ID
+        });
+
+        const isInLine = liff.isInClient();
+        const isLoggedIn = liff.isLoggedIn();
+        verifyLineButton.disabled = !isLoggedIn;
+
+        if (isInLine && isLoggedIn) {
+          setLiffStatus(
+            "✅ เปิดผ่าน LINE และเข้าสู่ระบบ LINE แล้ว " +
+            "ขณะนี้ยังไม่เปิดรับคำขอลงทะเบียน"
+          );
+          return;
+        }
+
+        if (isLoggedIn) {
+          setLiffStatus(
+            "✅ เข้าสู่ระบบ LINE แล้วผ่านเว็บเบราว์เซอร์ " +
+            "ขณะนี้ยังไม่เปิดรับคำขอลงทะเบียน"
+          );
+          return;
+        }
+
+        setLiffStatus(
+          "ℹ️ ยังไม่ได้เข้าสู่ระบบ LINE " +
+          "ขณะนี้ยังไม่เปิดการเข้าสู่ระบบอัตโนมัติ"
+        );
+
+      } catch (error) {
+        // ไม่แสดง token หรือข้อมูลการยืนยันตัวตน
+        console.error("LIFF initialization failed");
+
+        setLiffStatus(
+          "❌ ไม่สามารถเริ่มต้น LINE LIFF ได้ " +
+          "กรุณาตรวจสอบการตั้งค่า Endpoint URL"
+        );
+      }
+    }
+
+    initializeLineRegistration();
+  </script>
+
+</body>
+</html>
