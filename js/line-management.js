@@ -145,6 +145,98 @@ const LineManagement = (() => {
 
         select.disabled = uniqueCandidates.length === 0;
         panel.append(select);
+        // LINE.08.9.G.33.A
+        // Compare names for administrative warning only.
+        // Name matching is NOT identity verification.
+
+        const nameWarning = createElement("p");
+
+        nameWarning.style.cssText = [
+            "margin:0",
+            "padding:12px 14px",
+            "font-size:15px",
+            "font-weight:600",
+            "line-height:1.8",
+            "border-radius:9px",
+            "white-space:pre-line",
+            "overflow-wrap:anywhere"
+        ].join(";");
+
+        const normalizeParentName = value =>
+    String(value || "")
+        .normalize("NFC")
+        // ลบอักขระมองไม่เห็นที่มักติดมาจากการคัดลอก
+        .replace(/[\u200B-\u200D\uFEFF]/gu, "")
+        // ไม่สนใจช่องว่างในการเปรียบเทียบชื่อ
+        .replace(/\s+/gu, "")
+        .trim()
+        .toLocaleLowerCase();
+
+        const updateNameWarning = () => {
+
+            // ล้างสีเดิมก่อนตรวจชื่อครั้งใหม่
+            nameWarning.style.background = "";
+            nameWarning.style.border = "";
+            nameWarning.style.color = "";
+
+            const selected = uniqueCandidates.find(
+                item => item.parent_id === select.value
+            );
+
+            if (!selected) {
+                nameWarning.textContent = "";
+                return;
+            }
+
+            const submittedName = normalizeParentName(
+                request.submitted_parent_name
+            );
+
+            const registeredName = normalizeParentName(
+                selected.parent_name
+            );
+
+            if (
+                !submittedName ||
+                !registeredName ||
+                submittedName !== registeredName
+            ) {
+                nameWarning.style.cssText += [
+                    ";background:#fef2f2",
+                    "border:1px solid #fca5a5",
+                    "color:#991b1b"
+                ].join(";");
+
+                nameWarning.textContent = [
+                    "⚠️ ชื่อผู้ยื่นไม่ตรงกับทะเบียน",
+                    "",
+                    "ชื่อที่กรอก: " +
+                        request.submitted_parent_name,
+                    "ชื่อในทะเบียน: " +
+                        selected.parent_name,
+                    "",
+                    "กรุณาตรวจสอบตัวบุคคลและบันทึกเหตุผลก่อนอนุมัติ"
+                ].join("\n");
+
+            } else {
+                nameWarning.style.cssText += [
+                    ";background:#f0fdf4",
+                    "border:1px solid #86efac",
+                    "color:#166534"
+                ].join(";");
+
+                nameWarning.textContent =
+                    "✓ ชื่อที่กรอกตรงกับทะเบียน\n" +
+                    "แต่ยังต้องตรวจยืนยันตัวบุคคลจริงก่อนอนุมัติ";
+            }
+        };
+
+        select.addEventListener(
+            "change",
+            updateNameWarning
+        );
+
+        panel.append(nameWarning);
 
         const verificationLabel =
             document.createElement("label");
@@ -318,7 +410,7 @@ const LineManagement = (() => {
 
                 if (!checkbox.checked) {
                     status.textContent =
-                        "กรุณายืนยันว่าตรวจตัวบุคคลแล้ว";
+                        "กรุณาติ๊กยืนยันว่าตรวจตัวบุคคลแล้ว";
                     return;
                 }
             }
@@ -333,6 +425,15 @@ const LineManagement = (() => {
             }
 
             const currentNote = note.value.trim();
+            if (
+                decision === "APPROVE" &&
+                currentNote.length < 10
+            ) {
+                status.textContent =
+                    "กรุณาระบุวิธีตรวจยืนยันตัวบุคคล " +
+                    "อย่างน้อย 10 ตัวอักษรก่อนอนุมัติ";
+                return;
+            }
 
             if (
                 currentNote.length > 1000 ||
@@ -484,6 +585,16 @@ const LineManagement = (() => {
                         console.info(
                             "LINE registration approved"
                         );
+
+                        // LINE.08.9.G.37.B
+                        // Refresh Parent table after approval
+                        if (
+                            typeof AdminUsers !== "undefined" &&
+                            typeof AdminUsers.refreshParentLineStatus === "function"
+                        ) {
+                            await AdminUsers.refreshParentLineStatus();
+                        }
+
                     } else if (data === "REJECTED") {
                         console.info(
                             "LINE registration rejected"
@@ -775,8 +886,10 @@ const LineManagement = (() => {
 
         const note = createElement(
             "p",
-            "หน้านี้ใช้ตรวจสอบข้อมูลเท่านั้น " +
-            "ยังไม่สามารถอนุมัติหรือปฏิเสธคำขอได้"
+            "คำขอลงทะเบียนต้องผ่านการตรวจสอบข้อมูล " +
+            "และยืนยันตัวบุคคลก่อนอนุมัติ " +
+            "การอนุมัติหรือปฏิเสธจะมีผลเมื่อ Admin " +
+            "กดยืนยันดำเนินการจริงเท่านั้น"
         );
 
         note.style.cssText =
@@ -976,7 +1089,9 @@ const LineManagement = (() => {
                     "display:flex",
                     "align-items:flex-start",
                     "gap:10px",
-                    "margin:14px 0",
+                    "margin:14px 0 14px 24px",
+                    "max-width:calc(100% - 24px)",
+                    "box-sizing:border-box",
                     "text-align:left",
                     "font-size:14px",
                     "line-height:1.6"
@@ -1032,22 +1147,132 @@ const LineManagement = (() => {
         const reason = details.value;
 
         const finalConfirmation = await Swal.fire({
-            title: "ยืนยันการยกเลิกจริง",
-            text: [
-                "ผู้ปกครอง: " + parentName,
-                "",
-                "เหตุผล: " + reason,
-                "",
-                "ระบบจะบันทึกประวัติ Admin",
-                "และยกเลิก LINE ที่เชื่อมอยู่",
-                "",
-                "ต้องการดำเนินการหรือไม่?"
-            ].join("\n"),
-            icon: "warning",
+            title: "ยืนยันการยกเลิก LINE",
+
+            width: "min(560px, calc(100vw - 24px))",
+            padding: "24px",
+            heightAuto: false,
+
             showCancelButton: true,
+
             confirmButtonText: "ยืนยันยกเลิก LINE",
             cancelButtonText: "ไม่ดำเนินการ",
-            confirmButtonColor: "#b91c1c"
+
+            confirmButtonColor: "#b91c1c",
+            cancelButtonColor: "#64748b",
+
+            reverseButtons: false,
+
+            // ไม่แสดง Icon เครื่องหมายตกใจ
+            icon: undefined,
+
+            html: `
+                <div style="
+                    text-align:left;
+                    font-size:15px;
+                    line-height:1.8;
+                    color:#334155;
+                ">
+
+                    <div style="
+                        background:#f8fafc;
+                        border:1px solid #e2e8f0;
+                        border-radius:12px;
+                        padding:16px;
+                        margin:16px 0;
+                    ">
+
+                        <div style="
+                            font-weight:700;
+                            font-size:16px;
+                            color:#0f172a;
+                            margin-bottom:12px;
+                        ">
+                            ข้อมูลการยกเลิก
+                        </div>
+
+                        <div style="
+                            margin-bottom:10px;
+                        ">
+                            <strong>ผู้ปกครอง</strong>
+                            <div id="line-revoke-parent"
+                                 style="overflow-wrap:anywhere;">
+                            </div>
+                        </div>
+
+                        <div style="
+                            margin-bottom:10px;
+                        ">
+                            <strong>สถานะปัจจุบัน</strong>
+                            <div style="color:#166534;">
+                                เชื่อม LINE แล้ว
+                            </div>
+                        </div>
+
+                        <div>
+                            <strong>เหตุผลการยกเลิก</strong>
+                            <div id="line-revoke-reason"
+                                 style="
+                                    margin-top:4px;
+                                    white-space:pre-wrap;
+                                    overflow-wrap:anywhere;
+                                 ">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div style="
+                        border-left:4px solid #dc2626;
+                        background:#fef2f2;
+                        color:#991b1b;
+                        padding:12px 14px;
+                        border-radius:8px;
+                        margin-bottom:14px;
+                    ">
+                        <strong>ผลหลังยกเลิก</strong>
+
+                        <div style="margin-top:5px;">
+                            บัญชี LINE เดิมจะไม่เชื่อมกับ
+                            Parent ID นี้อีก แต่ข้อมูลผู้ปกครอง
+                            นักเรียน และความสัมพันธ์เดิมจะยังอยู่ครบ
+                        </div>
+                    </div>
+
+                    <p style="
+                        font-size:13px;
+                        color:#64748b;
+                        margin:0 0 8px;
+                    ">
+                        ระบบจะบันทึกผู้ดำเนินการ เวลา
+                        และเหตุผลการยกเลิกไว้ในประวัติ
+                        กรุณาตรวจสอบข้อมูลก่อนยืนยัน
+                    </p>
+
+                </div>
+            `,
+
+            didOpen: () => {
+                const popup = Swal.getPopup();
+
+                if (!popup) return;
+
+                const parentElement = popup.querySelector(
+                    "#line-revoke-parent"
+                );
+
+                const reasonElement = popup.querySelector(
+                    "#line-revoke-reason"
+                );
+
+                if (parentElement) {
+                    parentElement.textContent = parentName;
+                }
+
+                if (reasonElement) {
+                    reasonElement.textContent = reason;
+                }
+            }
         });
 
         if (!finalConfirmation.isConfirmed) {
@@ -1077,13 +1302,21 @@ const LineManagement = (() => {
 
             if (data === "REVOKED") {
 
+                // LINE.08.9.G.37.B
+                // Refresh Parent table after revocation
+                if (
+                    typeof AdminUsers !== "undefined" &&
+                    typeof AdminUsers.refreshParentLineStatus === "function"
+                ) {
+                    await AdminUsers.refreshParentLineStatus();
+                }
+
                 await Swal.fire({
                     icon: "success",
                     title: "ยกเลิก LINE สำเร็จ",
                     text:
                         "บันทึกประวัติการยกเลิกแล้ว " +
-                        "กรุณาโหลดรายชื่อ Parent ใหม่ " +
-                        "เพื่อดูสถานะล่าสุด"
+                        "และโหลดสถานะ LINE ล่าสุดเรียบร้อย"
                 });
 
                 return;

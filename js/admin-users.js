@@ -4158,5 +4158,32 @@ if (displayRows.length) {
         }
     }
 
-    return { init };
+    // =================================================
+    // LINE.08.9.G.37.A
+    // Refresh Parent table after LINE status changes
+    // READ ONLY - does not modify database records
+    // =================================================
+
+    async function refreshParentLineStatus() {
+        await loadRole("parent");
+
+        const target = document.getElementById(
+            "admin-users-parent-content"
+        );
+
+        if (
+            !target ||
+            target.textContent.includes(
+                "ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบ Console"
+                        ) ||
+            target.textContent.includes("ตรวจสอบไม่ได้")
+        ) {
+            throw new Error("PARENT_LINE_REFRESH_FAILED");
+        }
+    }
+
+    return {
+        init,
+        refreshParentLineStatus
+    };
 })();
