@@ -217,48 +217,11 @@
     </header>
 
     <div class="notice" role="status">
-      🛠️ หน้านี้อยู่ระหว่างการพัฒนา
-      ยังไม่เปิดรับคำขอลงทะเบียนจริง
-      และยังไม่มีการส่งข้อมูลเข้าสู่ระบบโรงเรียน
+        📌 การลงทะเบียน LINE เป็นการส่งคำขอให้โรงเรียน
+        ตรวจสอบความสัมพันธ์ระหว่างผู้ปกครองกับนักเรียน
+        โดยโรงเรียนจะต้องตรวจยืนยันตัวบุคคล
+        และอนุมัติก่อนเชื่อมบัญชี LINE
     </div>
-
-    <!-- LINE.08.5.B: สถานะการเชื่อม LIFF -->
-    <section class="card" aria-live="polite">
-      <h2>🔗 สถานะการเชื่อมต่อ LINE</h2>
-
-      <div
-        id="liffConnectionStatus"
-        class="info-box"
-        role="status"
-      >
-        กำลังตรวจสอบสภาพแวดล้อม LINE...
-      </div>
-      
-      <button
-        type="button"
-        id="verifyLineButton"
-        disabled
-        style="
-          width: 100%;
-          margin-top: 14px;
-          padding: 12px;
-          border: none;
-          border-radius: 10px;
-          background: #06c755;
-          color: white;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
-        "
-      >
-        ทดสอบการยืนยันบัญชี LINE
-      </button>
-
-      <p class="hint">
-        ขั้นตอนนี้ตรวจสอบสถานะเท่านั้น
-        ยังไม่มีการเชื่อมบัญชีผู้ปกครองหรือบันทึกข้อมูลจริง
-      </p>
-    </section>
 
     <section class="card">
 
@@ -282,6 +245,7 @@
             name="parentName"
             placeholder="กรอกชื่อและนามสกุล"
             maxlength="150"
+            required
           >
         </div>
 
@@ -297,6 +261,7 @@
             placeholder="กรอกรหัสนักเรียน"
             maxlength="30"
             inputmode="numeric"
+            required
           >
 
           <div class="hint">
@@ -309,15 +274,15 @@
             ระดับชั้นนักเรียน
           </label>
 
-          <select id="gradeLevel" name="gradeLevel">
-            <option value="">-- เลือกระดับชั้น --</option>
-            <option value="ม.1">มัธยมศึกษาปีที่ 1</option>
-            <option value="ม.2">มัธยมศึกษาปีที่ 2</option>
-            <option value="ม.3">มัธยมศึกษาปีที่ 3</option>
-            <option value="ม.4">มัธยมศึกษาปีที่ 4</option>
-            <option value="ม.5">มัธยมศึกษาปีที่ 5</option>
-            <option value="ม.6">มัธยมศึกษาปีที่ 6</option>
-          </select>
+        <select id="gradeLevel" name="gradeLevel" required>
+          <option value="">-- เลือกระดับชั้น --</option>
+          <option value="ม.1">มัธยมศึกษาปีที่ 1</option>
+          <option value="ม.2">มัธยมศึกษาปีที่ 2</option>
+          <option value="ม.3">มัธยมศึกษาปีที่ 3</option>
+          <option value="ม.4">มัธยมศึกษาปีที่ 4</option>
+          <option value="ม.5">มัธยมศึกษาปีที่ 5</option>
+          <option value="ม.6">มัธยมศึกษาปีที่ 6</option>
+        </select>
         </div>
 
         <div class="notice">
@@ -329,44 +294,61 @@
 
         <h2>🔒 การใช้ข้อมูลส่วนบุคคล</h2>
 
-        <div class="privacy-text">
+<div class="privacy-text">
 
-          <p>
-            โรงเรียนมีแผนใช้ข้อมูลบัญชี LINE
-            เพื่อเชื่อมกับข้อมูลผู้ปกครอง
-            และส่งการแจ้งเตือนเกี่ยวกับนักเรียน
-            ที่ท่านมีสิทธิ์ดูแล
-          </p>
+  <p>
+    ระบบจัดการข้อมูลโรงเรียนใช้ข้อมูลที่ท่านกรอก
+    เพื่อรับคำขอลงทะเบียน ตรวจสอบความสัมพันธ์
+    ระหว่างผู้ปกครองกับนักเรียน และพิจารณา
+    การเชื่อมบัญชี LINE สำหรับรับแจ้งเตือน
+    ที่เกี่ยวข้องกับนักเรียนในความดูแล
+  </p>
 
-          <p>
-            ข้อมูลที่จำเป็นอาจประกอบด้วย
-          </p>
+  <p>
+    ข้อมูลที่ระบบใช้ประกอบด้วย
+  </p>
 
-          <ul>
-            <li>รหัสระบุตัวตนบัญชี LINE (LINE User ID)</li>
-            <li>ข้อมูลที่ใช้ตรวจสอบความสัมพันธ์กับนักเรียน</li>
-            <li>สถานะคำขอและการอนุมัติของโรงเรียน</li>
-          </ul>
+  <ul>
+    <li>ชื่อ–นามสกุลผู้ปกครองที่กรอก</li>
+    <li>รหัสนักเรียนและระดับชั้น</li>
+    <li>รหัสระบุตัวตนบัญชี LINE (LINE User ID)</li>
+    <li>ข้อมูลการตรวจสอบและผลการอนุมัติของโรงเรียน</li>
+    <li>ประวัติการเชื่อมและยกเลิกการเชื่อมบัญชี</li>
+  </ul>
 
-          <p>
-            ระบบไม่ได้ขอสิทธิ์อ่านแชตส่วนตัว
-            รายชื่อเพื่อน หรือรหัสผ่าน LINE ของท่าน
-          </p>
+  <p>
+    โรงเรียนจะตรวจสอบข้อมูลกับทะเบียนที่มีอยู่
+    และตรวจยืนยันตัวบุคคลก่อนอนุมัติ
+    การกรอกข้อมูลถูกต้องไม่ได้ทำให้บัญชี LINE
+    เชื่อมกับข้อมูลนักเรียนโดยอัตโนมัติ
+  </p>
 
-          <p>
-            คำขอลงทะเบียนต้องผ่านการตรวจสอบ
-            และอนุมัติโดยโรงเรียนก่อน
-            จึงจะสามารถเชื่อมบัญชีได้
-          </p>
+  <p>
+    คำขอลงทะเบียนที่ยังไม่ได้รับการพิจารณา
+    มีระยะเวลาหมดอายุ 14 วันตามการตั้งค่าระบบ
+    ทั้งนี้ การหมดอายุไม่ได้หมายความว่า
+    ข้อมูลคำขอถูกลบออกจากฐานข้อมูลทันที
+  </p>
 
-          <p>
-            ก่อนเปิดใช้งานจริง โรงเรียนจะจัดให้มี
-            ประกาศความเป็นส่วนตัวฉบับสมบูรณ์
-            พร้อมข้อมูลติดต่อและวิธีขอยกเลิก
-            การเชื่อมบัญชี
-          </p>
+  <p>
+    ระบบไม่ขอรหัสผ่าน LINE และไม่ได้ขอสิทธิ์
+    อ่านข้อความแชตส่วนตัวหรือรายชื่อเพื่อนของท่าน
+  </p>
 
-        </div>
+  <p>
+    หากต้องการแก้ไขข้อมูล สอบถามการใช้ข้อมูล
+    หรือขอยกเลิกการเชื่อมบัญชี LINE
+    กรุณาติดต่อผู้ดูแลระบบของโรงเรียน
+    เพื่อดำเนินการตรวจสอบตามขั้นตอน
+  </p>
+
+  <p>
+    การส่งคำขอเป็นเพียงการขอให้โรงเรียนพิจารณา
+    ยังไม่ได้หมายความว่าบัญชีเชื่อมสำเร็จ
+    หรือเริ่มได้รับข้อความแจ้งเตือนแล้ว
+  </p>
+
+</div>
 
         <label class="agreement" for="privacyAcknowledged">
 
@@ -374,13 +356,14 @@
             type="checkbox"
             id="privacyAcknowledged"
             name="privacyAcknowledged"
+            required
           >
 
           <span>
-            ข้าพเจ้าได้อ่านและรับทราบคำชี้แจง
-            การใช้ข้อมูลข้างต้น
-            และประสงค์จะลงทะเบียนรับแจ้งเตือน
-            ผ่าน LINE เมื่อระบบเปิดให้บริการ
+             ข้าพเจ้าได้อ่านและรับทราบคำชี้แจง
+             เกี่ยวกับการใช้ข้อมูลส่วนบุคคลข้างต้น
+             และประสงค์จะส่งคำขอลงทะเบียนเชื่อมบัญชี LINE
+             เพื่อรับการแจ้งเตือนเกี่ยวกับนักเรียนในความดูแล
           </span>
 
         </label>
@@ -405,7 +388,7 @@
     <footer class="footer">
       ระบบจัดการข้อมูลโรงเรียน
       <br>
-      LINE Registration — Development Preview
+      LINE Parent Registration
     </footer>
 
   </main>
@@ -424,62 +407,124 @@
       "registrationForm"
     );
 
-    const connectionStatus = document.getElementById(
-      "liffConnectionStatus"
-    );
-
     const submitButton = document.getElementById(
       "submitButton"
     );
 
-    // ปิดการลงทะเบียนจริงไว้เสมอในขั้นตอนนี้
-    submitButton.disabled = true;
+    // LINE.08.9.G.28.D
+    // เปิดเป็น true เมื่อหน้า LIFF, Privacy Notice
+    // และ Edge Function พร้อมใช้งานจริงแล้ว
+    const REGISTRATION_UI_ENABLED = true;
 
-    registrationForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-    });
+    let lineLoginReady = false;
 
-    function setLiffStatus(message) {
-      connectionStatus.textContent = message;
+    function updateRegistrationButton() {
+      const canRegister =
+        REGISTRATION_UI_ENABLED &&
+        lineLoginReady &&
+        !registrationSubmitting;
+
+      submitButton.disabled = !canRegister;
+      submitButton.textContent = canRegister
+        ? "ส่งคำขอลงทะเบียน LINE"
+        : "ลงทะเบียน (ยังไม่เปิดให้บริการ)";
+
+      submitButton.style.background = canRegister
+        ? "#06c755"
+        : "#a9b9ae";
+
+      submitButton.style.cursor = canRegister
+        ? "pointer"
+        : "not-allowed";
     }
 
-    // LINE.08.8.F
-    // ทดสอบยืนยัน LINE ID Token เท่านั้น
-    // ไม่ส่งข้อมูลผู้ปกครองหรือนักเรียน
-    // ไม่บันทึกฐานข้อมูล
+    // =====================================================
+    // LINE.08.9.G.28.A
+    // Submit LINE Parent Registration
+    // Uses verified LINE ID Token
+    // =====================================================
 
-    const verifyLineButton = document.getElementById(
-      "verifyLineButton"
-    );
+    let registrationSubmitting = false;
 
-    const LINE_REGISTER_ENDPOINT =
-      "https://zxbxfmcoadtxngxugpqz.supabase.co/functions/v1/line-register";
+    async function submitLineRegistration(event) {
+      event.preventDefault();
 
-    async function verifyLineIdentity() {
+      if (registrationSubmitting) {
+        return;
+      }
+
+      const statusElement = document.getElementById(
+        "registrationStatus"
+      );
+
       if (
         typeof liff === "undefined" ||
         !liff.isLoggedIn()
       ) {
-        setLiffStatus(
-          "กรุณาเข้าสู่ระบบ LINE ก่อนทดสอบ"
-        );
+        statusElement.textContent =
+          "กรุณาเข้าสู่ระบบ LINE ก่อนลงทะเบียน";
+        return;
+      }
+
+      if (!registrationForm.reportValidity()) {
+        return;
+      }
+
+      const parentName = document.getElementById(
+        "parentName"
+      ).value.trim();
+
+      const studentCode = document.getElementById(
+        "studentCode"
+      ).value.trim();
+
+      const gradeValue = document.getElementById(
+        "gradeLevel"
+      ).value;
+
+      const privacyAcknowledged =
+        document.getElementById(
+          "privacyAcknowledged"
+        ).checked;
+
+      const gradeMatch = /^ม\.([1-6])$/.exec(
+        gradeValue
+      );
+
+      const controlCharacters =
+        /[\u0000-\u001F\u007F-\u009F]/u;
+
+      if (
+        parentName.length < 1 ||
+        parentName.length > 150 ||
+        studentCode.length < 1 ||
+        studentCode.length > 30 ||
+        !gradeMatch ||
+        !privacyAcknowledged ||
+        controlCharacters.test(parentName) ||
+        controlCharacters.test(studentCode)
+      ) {
+        statusElement.textContent =
+          "กรุณาตรวจสอบข้อมูลและยอมรับคำชี้แจง";
         return;
       }
 
       const idToken = liff.getIDToken();
 
       if (!idToken) {
-        setLiffStatus(
-          "ไม่พบ LINE ID Token กรุณาตรวจสอบสิทธิ์ openid"
-        );
+        statusElement.textContent =
+          "ไม่สามารถรับข้อมูลยืนยันจาก LINE ได้ " +
+          "กรุณาเข้าสู่ระบบใหม่";
         return;
       }
 
-      verifyLineButton.disabled = true;
+      registrationSubmitting = true;
+      submitButton.disabled = true;
 
-      setLiffStatus(
-        "กำลังตรวจสอบบัญชี LINE..."
-      );
+      statusElement.textContent =
+        "กำลังส่งคำขอลงทะเบียน กรุณาอย่ากดซ้ำ...";
+
+      let requestAccepted = false;
 
       try {
         const response = await fetch(
@@ -490,52 +535,104 @@
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              idToken: idToken
+              action: "REGISTER",
+              idToken: idToken,
+              registration: {
+                parentName: parentName,
+                studentCode: studentCode,
+                gradeLevel: Number(gradeMatch[1]),
+                privacyAcknowledged: true
+              }
             }),
-            cache: "no-store"
+            cache: "no-store",
+            signal: AbortSignal.timeout(15000)
           }
         );
 
         const result = await response.json();
 
         if (
-          response.status === 503 &&
-          result.code === "REGISTRATION_NOT_AVAILABLE"
+          response.status === 202 &&
+          result.code === "REGISTRATION_RECEIVED"
         ) {
-          setLiffStatus(
-            "✅ LINE ยืนยันบัญชีสำเร็จแล้ว " +
-            "แต่ระบบยังไม่เปิดรับคำขอลงทะเบียนจริง"
-          );
+          requestAccepted = true;
+
+          statusElement.textContent =
+            "✅ ระบบได้รับคำขอแล้ว " +
+            "กรุณารอเจ้าหน้าที่โรงเรียนตรวจสอบและอนุมัติ " +
+            "การส่งคำขอไม่ได้หมายความว่าเชื่อม LINE สำเร็จแล้ว";
+
+        } else if (
+          response.status === 429 &&
+          result.code === "RATE_LIMIT_EXCEEDED"
+        ) {
+          statusElement.textContent =
+            "ส่งคำขอเกินจำนวนครั้งที่อนุญาต " +
+            "กรุณาลองใหม่ภายหลัง";
+
         } else if (
           response.status === 401
         ) {
-          setLiffStatus(
-            "❌ LINE ไม่สามารถยืนยันบัญชีนี้ได้"
-          );
+          statusElement.textContent =
+            "ไม่สามารถยืนยันบัญชี LINE ได้ " +
+            "กรุณาเข้าสู่ระบบ LINE ใหม่";
+
+        } else if (
+          result.code === "REGISTRATION_NOT_AVAILABLE"
+        ) {
+          statusElement.textContent =
+            "ระบบยังไม่เปิดรับคำขอลงทะเบียน";
+
         } else {
-          setLiffStatus(
-            "⚠️ ยังตรวจสอบไม่สำเร็จ " +
-            "กรุณาตรวจสอบการตั้งค่าระบบ"
-          );
+          statusElement.textContent =
+            "ยังไม่สามารถยืนยันผลการส่งคำขอได้ " +
+            "กรุณาติดต่อโรงเรียนเพื่อตรวจสอบสถานะ " +
+            "ก่อนส่งซ้ำ";
         }
 
-      } catch {
-        setLiffStatus(
-          "❌ ไม่สามารถติดต่อระบบตรวจสอบ LINE ได้"
+      } catch (error) {
+        console.error(
+          "LINE registration request failed"
         );
-      } finally {
-        verifyLineButton.disabled = false;
+
+        statusElement.textContent =
+          "ไม่สามารถยืนยันผลการส่งคำขอได้ " +
+          "กรุณาติดต่อโรงเรียนเพื่อตรวจสอบสถานะ " +
+          "ก่อนส่งซ้ำ";
+
+        } finally {
+        registrationSubmitting = false;
+
+        if (requestAccepted) {
+          // ป้องกันการส่งซ้ำหลัง Server รับคำขอแล้ว
+          submitButton.disabled = true;
+          submitButton.textContent = "ส่งคำขอแล้ว";
+          submitButton.style.background = "#a9b9ae";
+          submitButton.style.cursor = "not-allowed";
+        } else {
+          // หากยังยืนยันผลไม่ได้ ให้ผู้ใช้ติดต่อ
+          // โรงเรียนตรวจสอบก่อนส่งคำขอใหม่
+          submitButton.disabled = true;
+        }
       }
     }
 
-    verifyLineButton.addEventListener(
-      "click",
-      verifyLineIdentity
+    registrationForm.addEventListener(
+      "submit",
+      submitLineRegistration
     );
 
+    function setLiffStatus(message) {
+  document.getElementById("registrationStatus").textContent = message;
+    }
+
+  const LINE_REGISTER_ENDPOINT =
+  "https://zxbxfmcoadtxngxugpqz.supabase.co/functions/v1/line-register";
+
     async function initializeLineRegistration() {
-      // Live Server เป็นพื้นที่ทดสอบหน้าจอ
-      // ไม่ใช้ URL localhost เพื่อเข้าสู่ระบบ LINE จริง
+
+      updateRegistrationButton();
+
       const hostname = window.location.hostname;
 
       const isLocalDevelopment =
@@ -544,29 +641,26 @@
 
       if (isLocalDevelopment) {
         setLiffStatus(
-          "🛠️ โหมดทดสอบด้วย Live Server " +
-          "ยังไม่เข้าสู่ระบบ LINE " +
-          "และยังไม่ส่งข้อมูลใด ๆ"
+          "โหมดพัฒนา: กรุณาเปิดผ่าน LINE " +
+          "เมื่อระบบพร้อมใช้งานจริง"
         );
         return;
       }
 
-      // ป้องกันการใช้หน้าเว็บจากโฮสต์อื่นโดยไม่ได้ตั้งใจ
       const isExpectedHost =
         hostname === "kruyanisa.github.io" &&
         window.location.protocol === "https:";
 
       if (!isExpectedHost) {
         setLiffStatus(
-          "⚠️ หน้านี้ไม่ได้เปิดจากเว็บไซต์ที่กำหนด"
+          "ไม่สามารถใช้งานจากเว็บไซต์นี้ได้"
         );
         return;
       }
 
-      // ตรวจว่าดาวน์โหลด LIFF SDK สำเร็จหรือไม่
       if (typeof liff === "undefined") {
         setLiffStatus(
-          "❌ ไม่สามารถโหลด LINE LIFF SDK ได้"
+          "ไม่สามารถโหลดระบบเข้าสู่ LINE ได้"
         );
         return;
       }
@@ -576,38 +670,60 @@
           liffId: LIFF_ID
         });
 
-        const isInLine = liff.isInClient();
-        const isLoggedIn = liff.isLoggedIn();
-        verifyLineButton.disabled = !isLoggedIn;
-
-        if (isInLine && isLoggedIn) {
+        if (!liff.isLoggedIn()) {
           setLiffStatus(
-            "✅ เปิดผ่าน LINE และเข้าสู่ระบบ LINE แล้ว " +
-            "ขณะนี้ยังไม่เปิดรับคำขอลงทะเบียน"
+            "กรุณาเข้าสู่ระบบ LINE เพื่อดำเนินการลงทะเบียน"
+          );
+
+          // ยังไม่เปิดการเข้าสู่ระบบอัตโนมัติ
+          // จนกว่าหน้าลงทะเบียนพร้อมใช้งานจริง
+          if (REGISTRATION_UI_ENABLED) {
+            liff.login({
+              redirectUri: window.location.href
+            });
+          }
+
+          return;
+        }
+
+        const idToken = liff.getIDToken();
+
+        if (!idToken) {
+          setLiffStatus(
+            "ไม่สามารถรับข้อมูลยืนยันจาก LINE ได้ " +
+            "กรุณาเข้าสู่ระบบใหม่"
           );
           return;
         }
 
-        if (isLoggedIn) {
+        lineLoginReady = true;
+        updateRegistrationButton();
+
+        if (!REGISTRATION_UI_ENABLED) {
           setLiffStatus(
-            "✅ เข้าสู่ระบบ LINE แล้วผ่านเว็บเบราว์เซอร์ " +
-            "ขณะนี้ยังไม่เปิดรับคำขอลงทะเบียน"
+            "เข้าสู่ระบบ LINE สำเร็จแล้ว " +
+            "ระบบลงทะเบียนกำลังเตรียมเปิดให้บริการ"
           );
           return;
         }
 
         setLiffStatus(
-          "ℹ️ ยังไม่ได้เข้าสู่ระบบ LINE " +
-          "ขณะนี้ยังไม่เปิดการเข้าสู่ระบบอัตโนมัติ"
+          "เข้าสู่ระบบ LINE สำเร็จ " +
+          "กรุณากรอกข้อมูลและส่งคำขอลงทะเบียน"
         );
 
       } catch (error) {
-        // ไม่แสดง token หรือข้อมูลการยืนยันตัวตน
-        console.error("LIFF initialization failed");
+
+        console.error(
+          "LIFF initialization failed"
+        );
+
+        lineLoginReady = false;
+        updateRegistrationButton();
 
         setLiffStatus(
-          "❌ ไม่สามารถเริ่มต้น LINE LIFF ได้ " +
-          "กรุณาตรวจสอบการตั้งค่า Endpoint URL"
+          "ไม่สามารถเชื่อมต่อ LINE ได้ " +
+          "กรุณาลองใหม่ภายหลัง"
         );
       }
     }

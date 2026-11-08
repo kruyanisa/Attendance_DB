@@ -695,6 +695,23 @@ if (type === "teacher") {
             );
 
             row.append(addParentButton);
+
+            // LINE.08.9.G.20.B
+            // ปุ่มคำขอลงทะเบียน LINE
+            const lineRequestButton = el(
+                "button",
+                "💬 คำขอลงทะเบียน LINE",
+                "btn"
+            );
+
+            lineRequestButton.type = "button";
+
+            lineRequestButton.addEventListener(
+                "click",
+                () => LineManagement.openRequests()
+            );
+
+            row.append(lineRequestButton);
         }
 
 target.append(row);
@@ -1052,7 +1069,7 @@ target.append(row);
                 },
                 {
                     title: "LINE",
-                    value: () => "ยังไม่เปิดใช้"
+                    render: r => LineManagement.renderParentLineStatus(r)
                 },
                 {
                     title: "จัดการ",
@@ -3945,11 +3962,39 @@ let displayRows = await withAccountRoles(
 );
 
 if (type === "parent") {
+
+    // โหลดความสัมพันธ์ผู้ปกครองกับนักเรียนตามเดิม
     displayRows = await withParentStudents(
         displayRows
     );
-}
 
+    // LINE.08.9.G.22.C
+    // โหลดสถานะ LINE ผ่าน RPC ที่ตรวจสิทธิ์ Admin
+    // READ ONLY
+
+    let linkedParentIds = null;
+
+    try {
+        linkedParentIds =
+            await LineManagement.getLinkedParentIds();
+
+    } catch (error) {
+        console.error(
+            "LINE Parent Status:",
+            error
+        );
+    }
+
+    displayRows = displayRows.map(parent => ({
+        ...parent,
+
+        line_status: linkedParentIds === null
+            ? "ตรวจสอบไม่ได้"
+            : linkedParentIds.has(parent.id)
+                ? "เชื่อมแล้ว"
+                : "ยังไม่เชื่อม"
+    }));
+}
             const [total, linked] = type === "admin"
                 ? [null, null]
                 : await Promise.all([
