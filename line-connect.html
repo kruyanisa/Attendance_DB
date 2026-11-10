@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>เชื่อมบัญชี LINE | SMS</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 30px 16px;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: #f3f7f5;
+      color: #24342d;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header-icon {
+      width: 68px;
+      height: 68px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 20px;
+      background: #e2f8e9;
+      font-size: 32px;
+    }
+
+    h1 {
+      font-size: 23px;
+      margin: 12px 0 5px;
+    }
+
+    .subtitle {
+      color: #66756c;
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e0e9e3;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    h2 {
+      font-size: 17px;
+      margin: 0 0 16px;
+    }
+
+    .status {
+      padding: 14px;
+      border-radius: 12px;
+      background: #f1f5f9;
+      color: #475569;
+      margin-bottom: 18px;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .status.success {
+      background: #ecfdf3;
+      color: #166534;
+    }
+
+    .status.error {
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .profile-box {
+      display: none;
+      background: #f8faf9;
+      border: 1px solid #e2e8e4;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+
+    .profile-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #e7eeea;
+      font-size: 14px;
+    }
+
+    .profile-row:last-child {
+      border-bottom: none;
+    }
+
+    .profile-label {
+      color: #66756c;
+    }
+
+    .profile-value {
+      font-weight: 600;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
+    .notice {
+      padding: 14px;
+      background: #fff8e9;
+      border: 1px solid #f1dfb5;
+      border-radius: 12px;
+      color: #76551d;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+
+    .connect-button {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      background: #a9b9ae;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: not-allowed;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: #256d43;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .footer {
+      text-align: center;
+      color: #849188;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 420px) {
+      .card {
+        padding: 18px;
+      }
+
+      h1 {
+        font-size: 21px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="container">
+
+    <header class="header">
+      <div class="header-icon" aria-hidden="true">
+        💬
+      </div>
+
+      <h1>เชื่อมบัญชี LINE</h1>
+
+      <p class="subtitle">
+        ระบบจัดการข้อมูลโรงเรียน (SMS)
+      </p>
+    </header>
+
+    <section class="card">
+
+      <h2>ข้อมูลบัญชีผู้ใช้งาน</h2>
+
+      <div
+        id="connectionStatus"
+        class="status"
+        role="status"
+        aria-live="polite"
+      >
+        กำลังตรวจสอบบัญชีผู้ใช้งาน...
+      </div>
+
+      <div id="teacherProfile" class="profile-box">
+
+        <div class="profile-row">
+          <span class="profile-label">
+            ประเภทบัญชี
+          </span>
+          <span class="profile-value">
+            Teacher
+          </span>
+        </div>
+
+        <div class="profile-row">
+          <span class="profile-label">
+            ชื่อครู
+          </span>
+          <span
+            id="teacherName"
+            class="profile-value"
+          >-</span>
+        </div>
+
+        <div class="profile-row">
+          <span class="profile-label">
+            รหัสประจำตัว
+          </span>
+          <span
+            id="teacherNumber"
+            class="profile-value"
+          >-</span>
+        </div>
+
+      </div>
+
+      <div class="notice">
+        🔐 การเชื่อม LINE ต้องยืนยันตัวตน
+        ผ่านบัญชีโรงเรียนและ LINE ก่อน
+        จากนั้นผู้ดูแลระบบจะตรวจสอบและอนุมัติ
+
+        <p>
+          ขณะนี้อยู่ระหว่างพัฒนา
+          ยังไม่มีการส่งคำขอเชื่อม LINE
+        </p>
+      </div>
+
+      <button
+        id="connectLineButton"
+        type="button"
+        class="connect-button"
+        disabled
+      >
+        เชื่อมบัญชี LINE (ยังไม่เปิดใช้งาน)
+      </button>
+
+      <!-- LINE Connect 2.15.3: Backend PRECHECK test -->
+      <button
+        id="testBackendButton"
+        type="button"
+        class="connect-button"
+        style="margin-top: 12px; background: #256d43;"
+        disabled
+      >
+        ทดสอบการยืนยันบัญชีกับ Backend
+      </button>
+
+      <div
+        id="backendTestStatus"
+        class="status"
+        role="status"
+        aria-live="polite"
+        style="margin-top: 12px; display: none;"
+      ></div>
+
+      <a class="back-link" href="index.html">
+        ← กลับสู่ระบบ SMS
+      </a>
+
+    </section>
+
+    <footer class="footer">
+      SMS | LINE Connect
+    </footer>
+
+  </main>
+
+  <!-- Supabase SDK: same version as index.html -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+
+  <!-- Existing Supabase configuration -->
+  <script src="js/config.js"></script>
+
+  <script>
+    "use strict";
+
+    // LINE Connect 2.13
+    // Read-only Teacher account verification.
+    //
+    // No LINE Login.
+    // No database writes.
+    // No registration request.
+    // No LINE Push.
+
+    const statusElement =
+      document.getElementById("connectionStatus");
+
+    const teacherProfile =
+      document.getElementById("teacherProfile");
+
+    const teacherName =
+      document.getElementById("teacherName");
+
+    const teacherNumber =
+      document.getElementById("teacherNumber");
+
+    function setConnectionStatus(message, type = "") {
+      statusElement.textContent = message;
+      statusElement.className =
+        "status" + (type ? " " + type : "");
+    }
+
+    // LINE Connect 2.15.3
+    // Test the deployed Teacher PRECHECK.
+    // No LINE Login, database writes, or LINE Push.
+
+    async function testTeacherBackendPrecheck() {
+      const testButton = document.getElementById(
+        "testBackendButton"
+      );
+
+      const resultElement = document.getElementById(
+        "backendTestStatus"
+      );
+
+      testButton.disabled = true;
+      resultElement.style.display = "block";
+      resultElement.className = "status";
+      resultElement.textContent =
+        "กำลังตรวจสอบบัญชีกับ Backend...";
+
+      try {
+        // Read the existing SMS login session.
+        const {
+          data: sessionData,
+          error: sessionError
+        } = await supabaseClient.auth.getSession();
+
+        const accessToken =
+          sessionData?.session?.access_token;
+
+        if (sessionError || !accessToken) {
+          throw new Error("SMS_LOGIN_REQUIRED");
+        }
+
+        // Recheck the currently authenticated user.
+        const {
+          data: userData,
+          error: userError
+        } = await supabaseClient.auth.getUser();
+
+        if (
+          userError ||
+          !userData?.user ||
+          userData.user.id !== sessionData.session.user.id
+        ) {
+          throw new Error("SMS_SESSION_INVALID");
+        }
+
+        const endpoint =
+          SUPABASE_URL +
+          "/functions/v1/line-teacher-connect";
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": "Bearer " + accessToken
+          },
+          body: JSON.stringify({
+            action: "PRECHECK"
+          }),
+          cache: "no-store",
+          signal: AbortSignal.timeout(15000)
+        });
+
+        const result = await response.json();
+
+        if (
+          response.ok &&
+          result.ok === true &&
+          result.code === "TEACHER_PRECHECK_PASSED"
+        ) {
+          resultElement.className = "status success";
+          resultElement.textContent =
+            "✅ Backend ยืนยันบัญชี Teacher สำเร็จ " +
+            "(TEACHER_PRECHECK_PASSED)";
+        } else {
+          resultElement.className = "status error";
+          resultElement.textContent =
+            "❌ Backend ไม่ผ่านการตรวจสอบ: " +
+            String(result.code || "UNKNOWN_ERROR");
+        }
+
+      } catch (error) {
+        resultElement.className = "status error";
+
+        if (
+          error instanceof Error &&
+          error.message === "SMS_LOGIN_REQUIRED"
+        ) {
+          resultElement.textContent =
+            "กรุณาเข้าสู่ระบบ SMS ก่อนทดสอบ";
+        } else if (
+          error instanceof Error &&
+          error.message === "SMS_SESSION_INVALID"
+        ) {
+          resultElement.textContent =
+            "Session ของ SMS ไม่ถูกต้อง " +
+            "กรุณาเข้าสู่ระบบใหม่";
+        } else {
+          resultElement.textContent =
+            "ไม่สามารถติดต่อ Backend ได้ " +
+            "กรุณาตรวจสอบการ Deploy และการเชื่อมต่อ";
+        }
+      } finally {
+        testButton.disabled = false;
+      }
+    }
+
+    async function initializeLineConnect() {
+
+      // Check Supabase configuration.
+      if (
+        typeof supabaseClient === "undefined" ||
+        !supabaseClient
+      ) {
+        setConnectionStatus(
+          "ไม่สามารถโหลดระบบยืนยันบัญชีได้",
+          "error"
+        );
+        return;
+      }
+
+      try {
+
+        // 1. Verify current Supabase Auth user.
+        const {
+          data: userData,
+          error: userError
+        } = await supabaseClient.auth.getUser();
+
+        if (userError || !userData?.user) {
+          setConnectionStatus(
+            "กรุณาเข้าสู่ระบบ SMS ก่อนเชื่อม LINE",
+            "error"
+          );
+          return;
+        }
+
+        const userId = userData.user.id;
+
+        // 2. Read active Profile.
+        const {
+          data: profile,
+          error: profileError
+        } = await supabaseClient
+          .from("profiles")
+          .select("id, role_id, is_active, deleted_at")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (
+          profileError ||
+          !profile ||
+          profile.is_active !== true ||
+          profile.deleted_at !== null
+        ) {
+          setConnectionStatus(
+            "บัญชี SMS ไม่พร้อมใช้งาน",
+            "error"
+          );
+          return;
+        }
+
+        // 3. Check Role.
+        const {
+          data: role,
+          error: roleError
+        } = await supabaseClient
+          .from("roles")
+          .select("name, deleted_at")
+          .eq("id", profile.role_id)
+          .maybeSingle();
+
+        if (
+          roleError ||
+          !role ||
+          role.name !== "Teacher" ||
+          role.deleted_at !== null
+        ) {
+          setConnectionStatus(
+            "หน้านี้เปิดให้เฉพาะบัญชี Teacher " +
+            "ส่วน Admin ใช้เมนูจัดการ LINE",
+            "error"
+          );
+          return;
+        }
+
+        // 4. Find Teacher linked to this Profile.
+        const {
+          data: teacher,
+          error: teacherError
+        } = await supabaseClient
+          .from("teachers")
+          .select(
+            "id, first_name, last_name, " +
+            "instructor_number, deleted_at"
+          )
+          .eq("profile_id", userId)
+          .is("deleted_at", null)
+          .maybeSingle();
+
+        if (
+          teacherError ||
+          !teacher
+        ) {
+          setConnectionStatus(
+            "ไม่พบข้อมูลครูที่ใช้งานอยู่ " +
+            "กรุณาติดต่อผู้ดูแลระบบ",
+            "error"
+          );
+          return;
+        }
+
+        // 5. Display safe Teacher information.
+        // Do not display UUID or LINE User ID.
+        const fullName = [
+          teacher.first_name,
+          teacher.last_name
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+
+        teacherName.textContent =
+          fullName || "-";
+
+        teacherNumber.textContent =
+          teacher.instructor_number?.trim() || "-";
+
+        teacherProfile.style.display = "block";
+
+        setConnectionStatus(
+          "✅ ตรวจสอบบัญชี Teacher สำเร็จ " +
+          "ระบบเชื่อม LINE กำลังเตรียมเปิดใช้งาน",
+          "success"
+        );
+
+        // Keep the real LINE Connect button disabled.
+        // Enable only the read-only Backend PRECHECK test.
+        const testBackendButton =
+          document.getElementById("testBackendButton");
+
+        testBackendButton.disabled = false;
+        testBackendButton.style.cursor = "pointer";
+
+        testBackendButton.addEventListener(
+          "click",
+          testTeacherBackendPrecheck
+        );
+
+      } catch (error) {
+        console.error(
+          "LINE Connect initialization failed"
+        );
+
+        setConnectionStatus(
+          "ไม่สามารถตรวจสอบบัญชีได้ในขณะนี้",
+          "error"
+        );
+      }
+    }
+
+    // LINE Connect 2.17.3
+    // Detect LINE callback without processing OAuth yet.
+    // No token exchange, database writes, or LINE Push.
+
+    function inspectLineCallback() {
+      const params = new URLSearchParams(
+        window.location.search
+      );
+
+      const hasCallback =
+        params.has("code") ||
+        params.has("state") ||
+        params.has("error");
+
+      if (!hasCallback) {
+        return;
+      }
+
+      const hasCode = params.has("code");
+      const hasState = params.has("state");
+      const hasError = params.has("error");
+
+      // Remove sensitive OAuth parameters from the URL.
+      // Never log or display their values.
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname
+      );
+
+      const resultElement =
+        document.getElementById("backendTestStatus");
+
+      resultElement.style.display = "block";
+
+      if (
+        hasError &&
+        !hasCode
+      ) {
+        resultElement.className = "status error";
+        resultElement.textContent =
+          "การเข้าสู่ระบบ LINE ถูกยกเลิกหรือไม่สำเร็จ " +
+          "ยังไม่มีการสร้างคำขอเชื่อม LINE";
+        return;
+      }
+
+      if (
+        hasCode &&
+        hasState &&
+        !hasError
+      ) {
+        resultElement.className = "status";
+        resultElement.textContent =
+          "ได้รับผลตอบกลับจาก LINE แล้ว " +
+          "แต่ระบบตรวจสอบ Callback ยังไม่เปิดใช้งาน " +
+          "ยังไม่มีการเชื่อมบัญชี";
+        return;
+      }
+
+      resultElement.className = "status error";
+      resultElement.textContent =
+        "ข้อมูลตอบกลับจาก LINE ไม่ครบถ้วน " +
+        "กรุณาเริ่มกระบวนการใหม่เมื่อเปิดใช้งาน";
+    }
+
+    // Inspect and clear callback parameters immediately,
+    // before starting asynchronous account verification.
+    inspectLineCallback();
+
+    initializeLineConnect();
+
+  </script>
+
+</body>
+</html>
