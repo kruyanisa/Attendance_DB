@@ -321,6 +321,47 @@
         "status" + (type ? " " + type : "");
     }
 
+    // LINE UI.1
+    // Prevent duplicate connection clicks after
+    // a successful Teacher LINE registration.
+    let teacherLinePendingThisPage = false;
+
+    // LINE UI.2
+    // Preserve callback detection before the URL is cleaned.
+    // Avoid enabling LINE Login while callback is processing.
+    const teacherLineCallbackOnLoad = (() => {
+      const params = new URLSearchParams(
+        window.location.search
+      );
+
+      return (
+        params.has("code") ||
+        params.has("state") ||
+        params.has("error")
+      );
+    })();
+
+    function showTeacherLinePending() {
+      teacherLinePendingThisPage = true;
+
+      const button =
+        document.getElementById("connectLineButton");
+
+      if (button) {
+        button.disabled = true;
+        button.textContent = "⏳ รอ Admin อนุมัติ";
+        button.style.background = "#a9b9ae";
+        button.style.cursor = "not-allowed";
+        button.style.opacity = "0.65";
+        button.onclick = null;
+      }
+
+      setConnectionStatus(
+        "⏳ ส่งคำขอเชื่อม LINE แล้ว รอ Admin อนุมัติ",
+        "success"
+      );
+    }
+
     // LINE Connect 2.15.3
     // Test the deployed Teacher PRECHECK.
     // No LINE Login, database writes, or LINE Push.
@@ -558,7 +599,6 @@
         "success"
         );
 
-
         // Keep the real LINE Connect button disabled.
         // Enable only the read-only Backend PRECHECK test.
         const testBackendButton =
@@ -584,25 +624,111 @@
           window.location.pathname ===
             "/Attendance_DB/line-connect.html";
 
-        if (isProductionLineConnect) {
-          connectLineButton.disabled = false;
+        // LINE UI.2
+        // Read actual connection status using the
+        // existing Teacher status RPC.
+        // READ ONLY: no registration or LINE Push.
 
+        connectLineButton.disabled = true;
+        connectLineButton.style.background = "#a9b9ae";
+        connectLineButton.style.cursor = "not-allowed";
+        connectLineButton.style.opacity = "0.65";
+
+        if (!isProductionLineConnect) {
           connectLineButton.textContent =
             "💬 เชื่อมบัญชี LINE";
+        } else if (
+          teacherLineCallbackOnLoad ||
+          teacherLinePendingThisPage
+        ) {
+          // The callback is already being processed.
+          // Do not allow another LINE Login.
 
-          connectLineButton.style.background = "#06c755";
-          connectLineButton.style.cursor = "pointer";
+          if (teacherLinePendingThisPage) {
+            showTeacherLinePending();
+          } else {
+            connectLineButton.textContent =
+              "⏳ กำลังตรวจสอบ LINE...";
+          }
+        } else {
+          connectLineButton.textContent =
+            "⏳ กำลังตรวจสอบสถานะ LINE...";
 
-          connectLineButton.addEventListener(
-            "click",
-            startTeacherLineLogin
+          const {
+            data: lineStatus,
+            error: lineStatusError
+          } = await supabaseClient.rpc(
+            "line_get_my_connection_status"
           );
 
-        } else {
-          connectLineButton.disabled = true;
+          if (lineStatusError) {
+            setConnectionStatus(
+              "ไม่สามารถตรวจสอบสถานะ LINE ได้ " +
+              "กรุณาลองใหม่",
+              "error"
+            );
 
-          connectLineButton.textContent =
-            "💬 เชื่อมบัญชี LINE";
+            connectLineButton.textContent =
+              "ตรวจสอบสถานะ LINE ไม่สำเร็จ";
+          } else {
+            switch (lineStatus) {
+              case "LINKED":
+                setConnectionStatus(
+                  "✅ เชื่อมบัญชี LINE แล้ว",
+                  "success"
+                );
+
+                connectLineButton.textContent =
+                  "✅ เชื่อมบัญชี LINE แล้ว";
+                break;
+
+              case "PENDING":
+                showTeacherLinePending();
+                break;
+
+              case "NOT_LINKED":
+                connectLineButton.disabled = false;
+                connectLineButton.textContent =
+                  "💬 เชื่อมบัญชี LINE";
+                connectLineButton.style.background =
+                  "#06c755";
+                connectLineButton.style.cursor = "pointer";
+                connectLineButton.style.opacity = "1";
+
+                connectLineButton.addEventListener(
+                  "click",
+                  startTeacherLineLogin
+                );
+                break;
+
+              case "EXPIRED_PENDING":
+                setConnectionStatus(
+                  "⚠️ คำขอเชื่อม LINE หมดอายุแล้ว " +
+                  "กรุณาติดต่อ Admin เพื่อตรวจสอบ",
+                  "error"
+                );
+
+                connectLineButton.disabled = true;
+                connectLineButton.textContent =
+                  "⚠️ กรุณาติดต่อ Admin";
+                connectLineButton.style.background =
+                  "#a9b9ae";
+                connectLineButton.style.cursor =
+                  "not-allowed";
+                connectLineButton.style.opacity = "0.65";
+                break;
+
+              default:
+                setConnectionStatus(
+                  "ไม่สามารถระบุสถานะ LINE ได้",
+                  "error"
+                );
+
+                connectLineButton.textContent =
+                  "ไม่สามารถตรวจสอบสถานะ LINE";
+                break;
+            }
+          }
         }
 
       } catch (error) {
@@ -823,10 +949,13 @@
           result.ok === true &&
           result.code === "LINE_TEACHER_REQUEST_PENDING"
         ) {
+          showTeacherLinePending();
+
           resultElement.className = "status success";
           resultElement.textContent =
-            "ส่งคำขอเชื่อม LINE สำเร็จ " +
+            "✅ ส่งคำขอเชื่อม LINE สำเร็จ " +
             "กรุณารอ Admin ตรวจสอบและอนุมัติ";
+
           return;
         }
 
