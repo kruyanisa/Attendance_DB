@@ -629,8 +629,13 @@ const AdminUsers = (() => {
         if (type === "admin") return;
 
         const row = el("div");
-        row.style.cssText =
-            "display:flex;gap:8px;flex-wrap:wrap;margin:12px 0";
+        row.style.cssText = [
+            "display:flex",
+            "align-items:center",
+            "gap:8px",
+            "flex-wrap:wrap",
+            "margin:12px 0"
+        ].join(";");
 
         const input = document.createElement("input");
         input.type = "search";
@@ -660,26 +665,43 @@ const AdminUsers = (() => {
 
         row.append(input, button);
 
-// B56 — ปุ่มเพิ่มบัญชีครู อยู่แถวเดียวกับค้นหา
-if (type === "teacher") {
-    const addTeacherButton = el(
-        "button",
-        "＋ เพิ่มบัญชีครู",
-        "btn"
-    );
+        // B56 — Add Teacher
+        // LINE Connect 2.17.42.5 — Teacher LINE Requests
+        if (type === "teacher") {
+            const addTeacherButton = el(
+                "button",
+                "＋ เพิ่มบัญชีครู",
+                "btn"
+            );
 
-    addTeacherButton.type = "button";
+            addTeacherButton.type = "button";
 
-    addTeacherButton.addEventListener(
-        "click",
-        openTeacherCreateForm
-    );
+            addTeacherButton.addEventListener(
+                "click",
+                openTeacherCreateForm
+            );
 
-    row.append(addTeacherButton);
-}
-        // =================================================
-        // B56 — Parent Create Button
-        // =================================================
+            row.append(addTeacherButton);
+
+            // Admin: view Teacher LINE requests.
+            // Read-only in this development step.
+            const teacherLineButton = el(
+                "button",
+                "💬 คำขอ LINE ของครู",
+                "btn"
+            );
+
+            teacherLineButton.type = "button";
+
+            teacherLineButton.addEventListener(
+                "click",
+                () => LineManagement.openTeacherRequests()
+            );
+
+            row.append(teacherLineButton);
+        }
+
+        // B56 — Parent Controls
         if (type === "parent") {
             const addParentButton = el(
                 "button",
@@ -695,9 +717,6 @@ if (type === "teacher") {
             );
 
             row.append(addParentButton);
-
-            // LINE.08.9.G.20.B
-            // ปุ่มคำขอลงทะเบียน LINE
             const lineRequestButton = el(
                 "button",
                 "💬 คำขอลงทะเบียน LINE",
@@ -712,10 +731,292 @@ if (type === "teacher") {
             );
 
             row.append(lineRequestButton);
+
+            // LINE.2.31 — Admin Welcome ON/OFF Switch
+
+            const settingBox = el("div");
+
+            settingBox.style.cssText = [
+                "display:flex",
+                "align-items:center",
+                "gap:12px",
+                "margin-left:auto",
+                "padding:7px 11px",
+                "border:1px solid #cbd5e1",
+                "border-radius:10px"
+            ].join(";");
+
+            const settingText = el("div");
+
+            settingText.style.cssText = [
+                "display:flex",
+                "flex-direction:column",
+                "gap:3px"
+            ].join(";");
+
+            const settingLabel = el(
+                "span",
+                "ส่งข้อความต้อนรับ LINE อัตโนมัติ"
+            );
+
+            settingLabel.style.cssText =
+                "font-size:12px;font-weight:600";
+
+            const settingStatus = el(
+                "small",
+                "กำลังตรวจสอบ..."
+            );
+
+            settingStatus.style.cssText =
+                "font-size:11px;color:#64748b";
+
+            settingText.append(
+                settingLabel,
+                settingStatus
+            );
+
+            const switchTrack = el("button");
+
+            switchTrack.type = "button";
+
+            switchTrack.style.cssText = [
+                "width:46px",
+                "height:26px",
+                "border:0",
+                "border-radius:999px",
+                "background:#cbd5e1",
+                "padding:3px",
+                "box-sizing:border-box",
+                "display:flex",
+                "align-items:center",
+                "justify-content:flex-start",
+                "flex-shrink:0",
+                "cursor:pointer"
+            ].join(";");
+
+            const switchThumb = el("span");
+
+            switchThumb.style.cssText = [
+                "display:block",
+                "width:20px",
+                "height:20px",
+                "border-radius:50%",
+                "background:#ffffff",
+                "box-shadow:0 1px 3px rgba(0,0,0,0.18)",
+                "transition:transform 0.2s",
+                "pointer-events:none"
+            ].join(";");
+
+            switchTrack.append(switchThumb);
+
+            switchTrack.setAttribute("role", "switch");
+
+            switchTrack.setAttribute(
+                "aria-label",
+                "ส่งข้อความต้อนรับ LINE อัตโนมัติ"
+            );
+
+            settingBox.append(
+                settingText,
+                switchTrack
+            );
+
+            row.append(settingBox);
+
+            let currentEnabled = false;
+            let settingLoaded = false;
+            let saving = false;
+
+            const renderSwitch = () => {
+                switchTrack.style.background = currentEnabled
+                    ? "#16a34a"
+                    : "#cbd5e1";
+
+                switchThumb.style.transform = currentEnabled
+                    ? "translateX(20px)"
+                    : "translateX(0)";
+
+                switchTrack.setAttribute(
+                    "aria-checked",
+                    String(currentEnabled)
+                );
+
+                switchTrack.disabled =
+                    !settingLoaded || saving;
+
+                switchTrack.style.cursor =
+                    switchTrack.disabled
+                        ? "not-allowed"
+                        : "pointer";
+
+                switchTrack.style.opacity =
+                    switchTrack.disabled ? "0.65" : "1";
+
+                if (settingLoaded && !saving) {
+                    settingStatus.textContent = currentEnabled
+                        ? "ON — เปิดส่งข้อความต้อนรับ"
+                        : "OFF — ไม่ส่งข้อความต้อนรับ";
+
+                    settingStatus.style.color = currentEnabled
+                        ? "#15803d"
+                        : "#64748b";
+                }
+            };
+
+            const readSetting = async () => {
+                settingLoaded = false;
+                renderSwitch();
+
+                const { data, error } =
+                    await supabaseClient.rpc(
+                        "admin_get_line_welcome_setting"
+                    );
+
+                if (!settingBox.isConnected) return;
+
+                if (error || typeof data !== "boolean") {
+                    settingLoaded = false;
+                    settingStatus.textContent =
+                        "ตรวจสอบสถานะไม่ได้";
+
+                    settingStatus.style.color = "#dc2626";
+                    renderSwitch();
+                    return;
+                }
+
+                currentEnabled = data;
+                settingLoaded = true;
+                renderSwitch();
+            };
+
+            switchTrack.addEventListener(
+                "click",
+                async () => {
+                    if (!settingLoaded || saving) return;
+
+                    // Read the latest state before changing.
+                    saving = true;
+                    settingStatus.textContent =
+                        "กำลังตรวจสอบสถานะ...";
+                    renderSwitch();
+
+                    try {
+                        const { data: latest, error: readError } =
+                            await supabaseClient.rpc(
+                                "admin_get_line_welcome_setting"
+                            );
+
+                        if (
+                            readError ||
+                            typeof latest !== "boolean"
+                        ) {
+                            throw new Error(
+                                "อ่านสถานะล่าสุดไม่สำเร็จ"
+                            );
+                        }
+
+                        currentEnabled = latest;
+
+                        const nextEnabled = !currentEnabled;
+
+                        const message = nextEnabled
+                            ? "ยืนยันเปิดส่งข้อความต้อนรับ LINE อัตโนมัติ?\n\n" +
+                              "ระบบจะส่งข้อความให้ผู้ปกครองที่ได้รับอนุมัติใหม่ " +
+                              "หลังเปิดใช้งาน โดย Worker ทำงานทุก 5 นาที\n\n" +
+                              "คำขอเก่าจะไม่ถูกส่งย้อนหลังโดยอัตโนมัติ"
+                            : "ยืนยันปิดส่งข้อความต้อนรับ LINE อัตโนมัติ?\n\n" +
+                              "ระบบจะหยุดเริ่มงานส่งใหม่ " +
+                              "แต่ไม่สามารถเรียกคืนข้อความที่ส่งออกไปแล้วได้";
+
+                        if (!window.confirm(message)) {
+                            return;
+                        }
+
+                        const { data, error } =
+                            await supabaseClient.rpc(
+                                "admin_set_line_welcome_setting",
+                                {
+                                    p_enabled: nextEnabled
+                                }
+                            );
+
+                        if (
+                            error ||
+                            data !== nextEnabled
+                        ) {
+                            throw new Error(
+                                "บันทึกสถานะไม่สำเร็จ"
+                            );
+                        }
+
+                        // Verify the saved state.
+                        const {
+                            data: verified,
+                            error: verifyError
+                        } = await supabaseClient.rpc(
+                            "admin_get_line_welcome_setting"
+                        );
+
+                        if (
+                            verifyError ||
+                            verified !== nextEnabled
+                        ) {
+                            throw new Error(
+                                "ตรวจสอบสถานะหลังบันทึกไม่สำเร็จ"
+                            );
+                        }
+
+                        currentEnabled = verified;
+
+                    } catch (error) {
+                        console.error(
+                            "LINE Welcome Switch:",
+                            error
+                        );
+
+                        window.alert(
+                            "ไม่สามารถเปลี่ยนสถานะ LINE ได้\n" +
+                            "กรุณาตรวจสอบสถานะอีกครั้ง"
+                        );
+
+                        settingLoaded = false;
+                    } finally {
+                        saving = false;
+
+                        if (settingBox.isConnected) {
+                            renderSwitch();
+
+                            if (!settingLoaded) {
+                                readSetting().catch(error => {
+                                    console.error(
+                                        "LINE Welcome Reload:",
+                                        error
+                                    );
+                                });
+                            }
+                        }
+                    }
+                }
+            );
+
+            readSetting().catch(error => {
+                console.error(
+                    "LINE Welcome Setting:",
+                    error
+                );
+
+                if (settingBox.isConnected) {
+                    settingLoaded = false;
+                    settingStatus.textContent =
+                        "ตรวจสอบสถานะไม่ได้";
+
+                    settingStatus.style.color = "#dc2626";
+                    renderSwitch();
+                }
+            });
         }
 
-target.append(row);
-
+        target.append(row);
     }
 
     function pagination(target, type, count, reload) {
@@ -769,11 +1070,11 @@ target.append(row);
         value: r => r.admin_name
     },
     {
-        title: "รหัสครู SMS",
+        title: "รหัสระบบ",
         value: r => r.admin_teacher_code
     },
     {
-        title: "รหัสโรงเรียน",
+        title: "รหัสประจำตัว",
         value: r => r.admin_school_code
     },
     {
@@ -800,10 +1101,10 @@ target.append(row);
         teacher: {
             tableName: "teachers",
             columns: [
-                { title: "รหัสครู", value: r => r.teacher_code },
+                { title: "รหัสระบบ", value: r => r.teacher_code },
                 { title: "ชื่อ–นามสกุล", value: nameOf },
                 {
-                    title: "รหัสโรงเรียน",
+                    title: "รหัสประจำตัว",
                     value: r => r.instructor_number
                 },
                 { title: "อีเมล", value: r => r.email },
@@ -814,7 +1115,82 @@ target.append(row);
 {
     title: "เชื่อม Profile",
     value: r => r.profile_id ? "มี" : "ไม่มี"
+},
+{
+    title: "LINE",
+    render: r => {
+        const status =
+            r.teacher_line_status || "ตรวจสอบไม่ได้";
+
+        // ยังไม่เชื่อม / ตรวจสอบไม่ได้
+        // แสดงเป็นข้อความธรรมดา ไม่ใช่ปุ่ม
+        if (
+            status === "ยังไม่เชื่อม" ||
+            status === "ตรวจสอบไม่ได้"
+        ) {
+            const text = el("span", status);
+
+            text.style.cssText = [
+                "font-size:13px",
+                "color:" + (
+                    status === "ยังไม่เชื่อม"
+                        ? "#64748b"
+                        : "#b91c1c"
+                ),
+                "white-space:nowrap"
+            ].join(";");
+
+            return text;
+        }
+
+        // เฉพาะสถานะที่จัดการได้จึงเป็นปุ่ม
+        const button = el("button", status);
+        button.type = "button";
+
+        const connected = status === "เชื่อมแล้ว";
+
+        button.style.cssText = [
+            "padding:8px 14px",
+            "border-radius:9px",
+            "font-size:13px",
+            "font-weight:700",
+            "white-space:nowrap",
+            "cursor:pointer",
+            "background:" + (
+                connected ? "#dcfce7" : "#fef3c7"
+            ),
+            "color:" + (
+                connected ? "#166534" : "#92400e"
+            ),
+            "border:1px solid " + (
+                connected ? "#86efac" : "#fcd34d"
+            )
+        ].join(";");
+
+        button.addEventListener("click", async () => {
+
+            // รออนุมัติ: เปิดเมนูพิจารณาคำขอจริง
+            if (status === "รออนุมัติ") {
+                await LineManagement.openTeacherRequests();
+                return;
+            }
+
+            // LINE Connect 2.17.80
+            // Open actual Teacher LINE management.
+            // Includes confirmation, secured revoke RPC
+            // and automatic status refresh.
+
+            if (status === "เชื่อมแล้ว") {
+                await LineManagement.openTeacherLineStatus(r);
+                return;
+            }
+
+        });
+
+        return button;
+    }
 }
+
             ],
             select: "id,teacher_code,first_name,last_name," +
                 "instructor_number,email,profile_id",
@@ -3961,6 +4337,82 @@ let displayRows = await withAccountRoles(
     data || []
 );
 
+            // LINE Connect 2.17.68
+            // Load Teacher LINE status from secured Admin RPCs.
+            // READ ONLY.
+
+            if (type === "teacher" && displayRows.length) {
+                let linkedTeacherIds = null;
+                let pendingTeacherCodes = null;
+
+                try {
+                    const { data, error } =
+                        await supabaseClient.rpc(
+                            "admin_list_linked_line_teachers"
+                        );
+
+                    if (error) throw error;
+
+                    linkedTeacherIds = new Set(
+                        (data || [])
+                            .map(row => row.teacher_id)
+                            .filter(Boolean)
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "Teacher LINE linked status:",
+                        error?.code || "UNKNOWN_ERROR"
+                    );
+                }
+
+                try {
+                    const { data, error } =
+                        await supabaseClient.rpc(
+                            "admin_list_teacher_line_registration_requests"
+                        );
+
+                    if (error) throw error;
+
+                    pendingTeacherCodes = new Set(
+                        (data || [])
+                            .filter(request =>
+                                request.is_expired !== true
+                            )
+                            .map(request => request.teacher_code)
+                            .filter(Boolean)
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "Teacher LINE pending status:",
+                        error?.code || "UNKNOWN_ERROR"
+                    );
+                }
+
+                displayRows = displayRows.map(teacher => {
+                    let lineStatus = "ตรวจสอบไม่ได้";
+
+                    if (linkedTeacherIds !== null) {
+                        if (linkedTeacherIds.has(teacher.id)) {
+                            lineStatus = "เชื่อมแล้ว";
+
+                        } else if (pendingTeacherCodes !== null) {
+                            lineStatus = pendingTeacherCodes.has(
+                                teacher.teacher_code
+                            )
+                                ? "รออนุมัติ"
+                                : "ยังไม่เชื่อม";
+                        }
+                    }
+
+                    return {
+                        ...teacher,
+                        teacher_line_status: lineStatus
+                    };
+                });
+            }
+
 if (type === "parent") {
 
     // โหลดความสัมพันธ์ผู้ปกครองกับนักเรียนตามเดิม
@@ -4182,8 +4634,36 @@ if (displayRows.length) {
         }
     }
 
+    // =================================================
+    // LINE Connect 2.17.75
+    // Refresh Teacher LINE status after Admin actions
+    // READ ONLY — reloads current database status
+    // =================================================
+
+    async function refreshTeacherLineStatus() {
+        await loadRole("teacher");
+
+        const target = document.getElementById(
+            "admin-users-teacher-content"
+        );
+
+        if (!target) {
+            throw new Error("TEACHER_VIEW_NOT_FOUND");
+        }
+
+        if (
+            target.textContent.includes(
+                "ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบ Console"
+            ) ||
+            target.textContent.includes("ตรวจสอบไม่ได้")
+        ) {
+            throw new Error("TEACHER_LINE_REFRESH_FAILED");
+        }
+    }
+
     return {
         init,
-        refreshParentLineStatus
+        refreshParentLineStatus,
+        refreshTeacherLineStatus
     };
 })();

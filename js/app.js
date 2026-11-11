@@ -55,6 +55,12 @@ function switchView(view) {
     if (view === "settings") {
         showSetting("profile");
         loadProfile();
+
+        // LINE Connect 2.17.82-D
+        // Shared LINE Settings for 4 Roles
+        if (typeof LineSettings !== "undefined") {
+            LineSettings.open();
+        }
     }
 
     if (view === "dashboard") {

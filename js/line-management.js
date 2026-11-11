@@ -1037,22 +1037,133 @@ const LineManagement = (() => {
 
         const firstConfirmation = await Swal.fire({
             title: "จัดการ LINE ผู้ปกครอง",
-            text: [
-                "ผู้ปกครอง: " + parentName,
-                "",
-                "สถานะ: เชื่อมแล้ว",
-                "",
-                "หากยกเลิกการเชื่อม",
-                "LINE เดิมจะไม่ผูกกับ Parent ID นี้อีก",
-                "แต่ข้อมูลผู้ปกครองและนักเรียนยังอยู่ครบ"
-            ].join("\n"),
-            icon: "warning",
             width: "min(600px, calc(100vw - 24px))",
+            heightAuto: false,
+            showCloseButton: true,
             showCancelButton: true,
+
             confirmButtonText: "ดำเนินการยกเลิก LINE",
             cancelButtonText: "ปิด",
             confirmButtonColor: "#b91c1c",
-            heightAuto: false
+            cancelButtonColor: "#64748b",
+
+            html: `
+                <div style="
+                    text-align:left;
+                    font-size:14px;
+                    line-height:1.8;
+                    color:#334155;
+                ">
+                    <div style="
+                        background:#f0fdf4;
+                        border:1px solid #bbf7d0;
+                        border-radius:12px;
+                        padding:16px;
+                        margin-bottom:16px;
+                    ">
+                        <div style="
+                            color:#64748b;
+                            font-size:12px;
+                            margin-bottom:4px;
+                        ">
+                            ชื่อผู้ปกครอง
+                        </div>
+
+                        <strong
+                            id="parent-line-display-name"
+                            style="
+                                display:block;
+                                font-size:17px;
+                                color:#0f172a;
+                                overflow-wrap:anywhere;
+                                margin-bottom:12px;
+                            "
+                        ></strong>
+
+                        <div style="
+                            color:#64748b;
+                            font-size:12px;
+                            margin-bottom:4px;
+                        ">
+                            สถานะการเชื่อม LINE
+                        </div>
+
+                        <div style="
+                            color:#166534;
+                            font-weight:700;
+                        ">
+                            ✅ เชื่อมบัญชี LINE แล้ว
+                        </div>
+                    </div>
+
+                    <div style="
+                        background:#fff7ed;
+                        border:1px solid #fed7aa;
+                        border-radius:12px;
+                        padding:16px;
+                        margin-bottom:14px;
+                    ">
+                        <strong style="
+                            display:block;
+                            color:#9a3412;
+                            margin-bottom:8px;
+                        ">
+                            ข้อมูลก่อนยกเลิกการเชื่อม
+                        </strong>
+
+                        <div style="color:#7c2d12;">
+                            หากยกเลิกการเชื่อม LINE
+                            บัญชี LINE เดิมจะไม่ผูกกับ
+                            Parent ID นี้อีก
+                        </div>
+
+                        <div style="
+                            margin-top:12px;
+                            padding-top:12px;
+                            border-top:1px solid #fed7aa;
+                            color:#166534;
+                        ">
+                            ✓ ข้อมูลผู้ปกครองยังอยู่ครบ
+                        </div>
+
+                        <div style="color:#166534;">
+                            ✓ ข้อมูลนักเรียนและความสัมพันธ์เดิม
+                            ยังคงอยู่
+                        </div>
+                    </div>
+
+                    <p style="
+                        margin:0;
+                        color:#64748b;
+                        font-size:13px;
+                        line-height:1.8;
+                    ">
+                        การกดดำเนินการยกเลิก LINE
+                        ยังไม่ใช่การยกเลิกทันที
+                        ระบบจะให้ตรวจสอบตัวบุคคล
+                        ระบุเหตุผล และยืนยันอีกครั้ง
+                        ก่อนบันทึกจริง
+                    </p>
+                </div>
+            `,
+
+            didOpen: () => {
+                const popup = Swal.getPopup();
+
+                if (!popup) return;
+
+                popup.style.maxHeight =
+                    "calc(100dvh - 24px)";
+                popup.style.overflowY = "auto";
+
+                const nameElement = popup.querySelector(
+                    "#parent-line-display-name"
+                );
+
+                if (nameElement) {
+                    nameElement.textContent = parentName;
+                }
+            }
         });
 
         if (!firstConfirmation.isConfirmed) {
@@ -1406,12 +1517,1161 @@ const LineManagement = (() => {
         return element;
     }
 
+    // =================================================
+    // LINE Connect 2.17.79
+    // Admin Teacher LINE Revoke
+    // Identity verification + reason + final confirmation
+    // =================================================
+
+    async function openTeacherLineStatus(teacher) {
+        if (
+            !teacher ||
+            !teacher.id ||
+            teacher.teacher_line_status !== "เชื่อมแล้ว"
+        ) {
+            return;
+        }
+
+        const teacherName = [
+            teacher.first_name,
+            teacher.last_name
+        ].filter(Boolean).join(" ") || "ไม่ระบุชื่อ";
+
+        // Step 1: Show current connection information.
+        const first = await Swal.fire({
+            title: "จัดการ LINE ของครู",
+            width: "min(600px, calc(100vw - 24px))",
+            heightAuto: false,
+            showCloseButton: true,
+            showCancelButton: true,
+            confirmButtonText: "ดำเนินการยกเลิก LINE",
+            cancelButtonText: "ปิด",
+            confirmButtonColor: "#b91c1c",
+            cancelButtonColor: "#64748b",
+            html: `
+                <div style="
+                    text-align:left;
+                    line-height:1.8;
+                    font-size:14px;
+                ">
+                    <div style="
+                        background:#f0fdf4;
+                        border:1px solid #bbf7d0;
+                        padding:16px;
+                        border-radius:12px;
+                        margin-bottom:16px;
+                    ">
+                        <div style="color:#64748b;font-size:12px;">
+                            ชื่อครู
+                        </div>
+                        <strong id="revoke-teacher-name"
+                            style="
+                                display:block;
+                                font-size:17px;
+                                overflow-wrap:anywhere;
+                                margin-bottom:12px;
+                            "
+                        ></strong>
+
+                        <div style="color:#64748b;font-size:12px;">
+                            สถานะ LINE
+                        </div>
+                        <strong style="color:#166534;">
+                            ✅ เชื่อมบัญชี LINE แล้ว
+                        </strong>
+                    </div>
+
+                    <div style="
+                        background:#fff7ed;
+                        border:1px solid #fed7aa;
+                        padding:16px;
+                        border-radius:12px;
+                    ">
+                        <strong style="color:#9a3412;">
+                            ข้อมูลก่อนยกเลิก
+                        </strong>
+                        <p>
+                            บัญชี LINE เดิมจะไม่เชื่อมกับครูรายนี้อีก
+                            แต่ข้อมูลครู บัญชี SMS
+                            และประวัติการเช็กชื่อจะยังอยู่ครบ
+                        </p>
+                        <p style="margin-bottom:0;">
+                            ระบบจะให้ยืนยันตัวบุคคล
+                            ระบุเหตุผล และตรวจสอบอีกครั้ง
+                            ก่อนบันทึกจริง
+                        </p>
+                    </div>
+                </div>
+            `,
+            didOpen: () => {
+                const popup = Swal.getPopup();
+                if (!popup) return;
+
+                popup.style.maxHeight =
+                    "calc(100dvh - 24px)";
+                popup.style.overflowY = "auto";
+
+                const nameNode = popup.querySelector(
+                    "#revoke-teacher-name"
+                );
+
+                if (nameNode) {
+                    nameNode.textContent = teacherName;
+                }
+            }
+        });
+
+        if (!first.isConfirmed) return;
+
+        // Step 2: Verify identity and collect reason.
+        let identityConfirmed = false;
+
+        const details = await Swal.fire({
+            title: "ตรวจสอบก่อนยกเลิก LINE",
+            text: "กรุณาระบุเหตุผลและยืนยันตัวบุคคล",
+            input: "textarea",
+            inputPlaceholder:
+                "เช่น ครูเปลี่ยนบัญชี LINE ใหม่",
+            inputAttributes: {
+                maxlength: "500",
+                rows: "4"
+            },
+            width: "min(600px, calc(100vw - 24px))",
+            heightAuto: false,
+            showCancelButton: true,
+            confirmButtonText: "ตรวจสอบข้อมูล",
+            cancelButtonText: "ย้อนกลับ",
+            confirmButtonColor: "#b91c1c",
+
+            didOpen: () => {
+                const input = Swal.getInput();
+                if (!input) return;
+
+                const label = document.createElement("label");
+
+                label.style.cssText = [
+                    "display:flex",
+                    "gap:10px",
+                    "align-items:flex-start",
+                    "text-align:left",
+                    "margin:14px 0",
+                    "line-height:1.7"
+                ].join(";");
+
+                const checkbox =
+                    document.createElement("input");
+
+                checkbox.type = "checkbox";
+                checkbox.style.marginTop = "5px";
+
+                const labelText = createElement(
+                    "span",
+                    "Admin ได้ตรวจยืนยันตัวบุคคลของครู " +
+                    "ผ่านช่องทางที่โรงเรียนเชื่อถือแล้ว"
+                );
+
+                label.append(checkbox, labelText);
+
+                input.insertAdjacentElement(
+                    "afterend",
+                    label
+                );
+
+                checkbox.addEventListener("change", () => {
+                    identityConfirmed = checkbox.checked;
+                });
+            },
+
+            preConfirm: value => {
+                const reason = String(value || "").trim();
+
+                if (
+                    reason.length < 5 ||
+                    reason.length > 500 ||
+                    /[\u0000-\u001F\u007F-\u009F]/u.test(
+                        reason
+                    )
+                ) {
+                    Swal.showValidationMessage(
+                        "กรุณาระบุเหตุผล 5–500 ตัวอักษร"
+                    );
+                    return false;
+                }
+
+                if (!identityConfirmed) {
+                    Swal.showValidationMessage(
+                        "กรุณายืนยันว่าตรวจตัวบุคคลแล้ว"
+                    );
+                    return false;
+                }
+
+                return reason;
+            }
+        });
+
+        if (!details.isConfirmed) return;
+
+        const reason = details.value;
+
+        // Step 3: Final confirmation before database write.
+        const final = await Swal.fire({
+            title: "ยืนยันยกเลิก LINE ของครู",
+            width: "min(600px, calc(100vw - 24px))",
+            heightAuto: false,
+            showCancelButton: true,
+            confirmButtonText: "ยืนยันยกเลิก LINE",
+            cancelButtonText: "ไม่ดำเนินการ",
+            confirmButtonColor: "#b91c1c",
+
+            html: `
+                <div style="
+                    text-align:left;
+                    line-height:1.8;
+                    padding:12px;
+                    background:#fff7ed;
+                    border:1px solid #fed7aa;
+                    border-radius:10px;
+                ">
+                    <strong>ครู</strong>
+                    <div id="teacher-final-name"></div>
+
+                    <strong>เหตุผล</strong>
+                    <div id="teacher-final-reason"
+                        style="
+                            white-space:pre-wrap;
+                            overflow-wrap:anywhere;
+                            margin-bottom:12px;
+                        "
+                    ></div>
+
+                    <div style="color:#991b1b;">
+                        การยืนยันจะยกเลิกการเชื่อมจริง
+                        และบันทึกประวัติ Audit
+                    </div>
+                </div>
+            `,
+
+            didOpen: () => {
+                const popup = Swal.getPopup();
+                if (!popup) return;
+
+                const nameNode = popup.querySelector(
+                    "#teacher-final-name"
+                );
+
+                const reasonNode = popup.querySelector(
+                    "#teacher-final-reason"
+                );
+
+                if (nameNode) {
+                    nameNode.textContent = teacherName;
+                }
+
+                if (reasonNode) {
+                    reasonNode.textContent = reason;
+                }
+            }
+        });
+
+        if (!final.isConfirmed) return;
+
+        // Step 4: Call the existing secured RPC.
+        Swal.fire({
+            title: "กำลังบันทึก",
+            text: "กรุณาอย่าส่งคำขอซ้ำ",
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const { data, error } =
+                await supabaseClient.rpc(
+                    "admin_revoke_teacher_line_identity",
+                    {
+                        p_teacher_id: teacher.id,
+                        p_identity_confirmed: true,
+                        p_reason: reason
+                    }
+                );
+
+            if (error) throw error;
+
+            if (data === "REVOKED") {
+                let refreshed = false;
+
+                try {
+                    await AdminUsers.refreshTeacherLineStatus();
+                    refreshed = true;
+                } catch (refreshError) {
+                    console.error(
+                        "Teacher LINE refresh failed:",
+                        refreshError?.code || "UNKNOWN_ERROR"
+                    );
+                }
+
+                await Swal.fire({
+                    icon: "success",
+                    title: "ยกเลิก LINE สำเร็จ",
+                    text: refreshed
+                        ? "บันทึก Audit และอัปเดตสถานะ LINE แล้ว"
+                        : "บันทึกการยกเลิกสำเร็จแล้ว " +
+                          "กรุณาโหลดรายชื่อครูใหม่",
+                    confirmButtonText: "ตกลง"
+                });
+
+                return;
+            }
+
+            if (data === "NOT_LINKED") {
+                await Swal.fire({
+                    icon: "info",
+                    title: "ไม่มี LINE ที่เชื่อมอยู่",
+                    text:
+                        "ข้อมูลอาจเปลี่ยนแปลงแล้ว " +
+                        "กรุณาโหลดรายชื่อครูใหม่"
+                });
+
+                return;
+            }
+
+            throw new Error(
+                "UNEXPECTED_TEACHER_REVOKE_RESULT"
+            );
+
+        } catch (error) {
+            console.error(
+                "Teacher LINE revoke failed:",
+                error?.code || "UNKNOWN_ERROR"
+            );
+
+            await Swal.fire({
+                icon: "error",
+                title: "ยังไม่สามารถยืนยันผลได้",
+                text:
+                    "กรุณาโหลดสถานะ LINE ใหม่ " +
+                    "ก่อนดำเนินการอีกครั้ง"
+            });
+        }
+    }
+    // =================================================
+    // LINE Connect 2.17.63
+    // Admin Teacher LINE Review — LIVE APPROVE / REJECT
+    // Two-step confirmation + secured RPC
+    // =================================================
+
+    function prepareTeacherReviewConfirmation(
+        request,
+        approve,
+        reject,
+        checkbox,
+        note,
+        status,
+        panel
+    ) {
+        const canReview =
+            request.is_expired !== true &&
+            typeof request.request_id === "string" &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+                .test(request.request_id);
+
+        approve.disabled = !canReview;
+        reject.disabled = !canReview;
+
+        if (!canReview) {
+            status.textContent =
+                "คำขอไม่พร้อมสำหรับการอนุมัติหรือปฏิเสธ";
+            return;
+        }
+
+        approve.textContent = "✅ อนุมัติเชื่อม LINE";
+        reject.textContent = "❌ ปฏิเสธคำขอ";
+
+        approve.style.cssText = [
+            "padding:11px 18px",
+            "border:0",
+            "border-radius:9px",
+            "background:#166534",
+            "color:#ffffff",
+            "font-weight:600",
+            "cursor:pointer"
+        ].join(";");
+
+        reject.style.cssText = [
+            "padding:11px 18px",
+            "border:1px solid #fca5a5",
+            "border-radius:9px",
+            "background:#fef2f2",
+            "color:#991b1b",
+            "font-weight:600",
+            "cursor:pointer"
+        ].join(";");
+
+        const confirmation = createElement("div");
+
+        confirmation.style.cssText = [
+            "display:none",
+            "padding:16px",
+            "border:1px solid #fbbf24",
+            "border-radius:12px",
+            "background:#fffbeb",
+            "line-height:1.8"
+        ].join(";");
+
+        const confirmationTitle = createElement(
+            "strong",
+            "ตรวจสอบข้อมูลครั้งสุดท้าย"
+        );
+
+        confirmationTitle.style.cssText =
+            "display:block;font-size:16px;" +
+            "color:#92400e;margin-bottom:10px";
+
+        const confirmationText = createElement("div");
+
+        confirmationText.style.cssText = [
+            "white-space:pre-line",
+            "overflow-wrap:anywhere",
+            "font-size:14px",
+            "color:#334155",
+            "margin-bottom:14px"
+        ].join(";");
+
+        const confirmationActions = createElement("div");
+
+        confirmationActions.style.cssText =
+            "display:flex;gap:10px;flex-wrap:wrap";
+
+        const finalConfirm = createElement(
+            "button",
+            "ยืนยันดำเนินการจริง"
+        );
+
+        const cancelButton = createElement(
+            "button",
+            "ย้อนกลับ"
+        );
+
+        finalConfirm.type = "button";
+        cancelButton.type = "button";
+
+        finalConfirm.style.cssText = [
+            "padding:11px 16px",
+            "border:0",
+            "border-radius:9px",
+            "background:#991b1b",
+            "color:white",
+            "font-weight:600",
+            "cursor:pointer"
+        ].join(";");
+
+        cancelButton.style.cssText = [
+            "padding:11px 16px",
+            "border:1px solid #cbd5e1",
+            "border-radius:9px",
+            "background:white",
+            "color:#334155",
+            "cursor:pointer"
+        ].join(";");
+
+        confirmationActions.append(
+            finalConfirm,
+            cancelButton
+        );
+
+        confirmation.append(
+            confirmationTitle,
+            confirmationText,
+            confirmationActions
+        );
+
+        panel.append(confirmation);
+
+        let pendingDecision = null;
+        let saving = false;
+        let finished = false;
+
+        function setFormDisabled(disabled) {
+            approve.disabled = disabled;
+            reject.disabled = disabled;
+            checkbox.disabled = disabled;
+            note.disabled = disabled;
+        }
+
+        function prepareDecision(decision) {
+            if (saving || finished || pendingDecision) {
+                return;
+            }
+
+            const reviewNote = note.value.trim();
+
+            if (
+                reviewNote.length > 1000 ||
+                /[\u0000-\u001F\u007F-\u009F]/u.test(reviewNote)
+            ) {
+                status.textContent =
+                    "หมายเหตุมีความยาวหรืออักขระไม่ถูกต้อง";
+                return;
+            }
+
+            if (decision === "APPROVE") {
+                if (!checkbox.checked) {
+                    status.textContent =
+                        "กรุณายืนยันว่าได้ตรวจสอบตัวบุคคลแล้ว";
+                    return;
+                }
+
+                if (reviewNote.length < 10) {
+                    status.textContent =
+                        "กรุณาระบุวิธีตรวจสอบตัวบุคคล" +
+                        "อย่างน้อย 10 ตัวอักษร";
+                    return;
+                }
+            }
+
+            if (
+                decision === "REJECT" &&
+                reviewNote.length === 0
+            ) {
+                status.textContent =
+                    "กรุณาระบุเหตุผลที่ปฏิเสธ";
+                return;
+            }
+
+            pendingDecision = {
+                decision: decision,
+                identityConfirmed:
+                    decision === "APPROVE" &&
+                    checkbox.checked,
+                reviewNote: reviewNote
+            };
+
+            confirmationText.textContent = [
+                decision === "APPROVE"
+                    ? "การดำเนินการ: อนุมัติเชื่อม LINE"
+                    : "การดำเนินการ: ปฏิเสธคำขอ",
+                "",
+                "ชื่อครู: " + (request.teacher_name || "—"),
+                "รหัสครู: " + (request.teacher_code || "—"),
+                "รหัสประจำตัว: " +
+                    (request.instructor_number || "—"),
+                "",
+                "หมายเหตุ: " + reviewNote,
+                "",
+                decision === "APPROVE"
+                    ? "เมื่อยืนยัน ระบบจะเชื่อมบัญชี LINE " +
+                      "กับครูรายนี้จริง"
+                    : "เมื่อยืนยัน ระบบจะเปลี่ยนสถานะคำขอ" +
+                      "เป็นปฏิเสธ",
+                "",
+                "กรุณาตรวจสอบข้อมูลให้ถูกต้องก่อนยืนยัน"
+            ].join("\n");
+
+            confirmation.style.display = "block";
+
+            setFormDisabled(true);
+
+            status.textContent =
+                "รอการยืนยันขั้นสุดท้าย ยังไม่ได้บันทึก";
+        }
+
+        approve.addEventListener("click", () => {
+            prepareDecision("APPROVE");
+        });
+
+        reject.addEventListener("click", () => {
+            prepareDecision("REJECT");
+        });
+
+        cancelButton.addEventListener("click", () => {
+            if (saving || finished) return;
+
+            pendingDecision = null;
+            confirmation.style.display = "none";
+
+            setFormDisabled(false);
+
+            status.textContent =
+                "ย้อนกลับแล้ว ยังไม่ได้บันทึกข้อมูล";
+        });
+
+        finalConfirm.addEventListener(
+            "click",
+            async () => {
+                if (
+                    !pendingDecision ||
+                    saving ||
+                    finished
+                ) {
+                    return;
+                }
+
+                saving = true;
+
+                finalConfirm.disabled = true;
+                cancelButton.disabled = true;
+
+                status.textContent =
+                    "กำลังบันทึกผลการพิจารณา " +
+                    "กรุณาอย่าส่งคำขอซ้ำ...";
+
+                const decision = pendingDecision;
+
+                try {
+                    const { data, error } =
+                        await supabaseClient.rpc(
+                            "admin_review_teacher_line_registration",
+                            {
+                                p_request_id:
+                                    request.request_id,
+                                p_decision:
+                                    decision.decision,
+                                p_identity_confirmed:
+                                    decision.identityConfirmed,
+                                p_review_note:
+                                    decision.reviewNote
+                            }
+                        );
+
+                    if (error) throw error;
+
+                    const messages = {
+                        APPROVED:
+                            "✅ อนุมัติและเชื่อม LINE ของครูสำเร็จ",
+                        REJECTED:
+                            "✅ ปฏิเสธคำขอเรียบร้อยแล้ว",
+                        REQUEST_EXPIRED:
+                            "คำขอหมดอายุแล้ว ไม่ได้อนุมัติ",
+                        NOT_PENDING:
+                            "คำขอนี้ไม่ได้รอการพิจารณาแล้ว"
+                    };
+
+                    if (
+                        typeof data !== "string" ||
+                        !Object.prototype.hasOwnProperty.call(
+                            messages,
+                            data
+                        )
+                    ) {
+                        throw new Error(
+                            "UNEXPECTED_TEACHER_REVIEW_RESULT"
+                        );
+                    }
+
+                    finished = true;
+                    pendingDecision = null;
+
+                    confirmation.style.display = "none";
+                    setFormDisabled(true);
+
+                    status.textContent = messages[data];
+
+                    // LINE Connect 2.17.76
+                    // Refresh Teacher LINE status after
+                    // the server confirms the review result.
+
+                    if (
+                        data === "APPROVED" ||
+                        data === "REJECTED"
+                    ) {
+                        try {
+                            if (
+                                typeof AdminUsers === "undefined" ||
+                                typeof AdminUsers.refreshTeacherLineStatus
+                                    !== "function"
+                            ) {
+                                throw new Error(
+                                    "TEACHER_REFRESH_UNAVAILABLE"
+                                );
+                            }
+
+                            await AdminUsers.refreshTeacherLineStatus();
+
+                            status.textContent =
+                                messages[data] +
+                                "\nอัปเดตสถานะในตาราง Teacher แล้ว";
+
+                        } catch (refreshError) {
+                            console.error(
+                                "Teacher LINE status refresh failed:",
+                                refreshError?.message ||
+                                    "UNKNOWN_ERROR"
+                            );
+
+                            status.textContent =
+                                messages[data] +
+                                "\nบันทึกผลสำเร็จแล้ว " +
+                                "แต่ยังโหลดตาราง Teacher ไม่สำเร็จ" +
+                                "\nกรุณาปิดหน้าต่างและโหลดรายชื่อใหม่";
+                        }
+                    } else {
+                        status.textContent =
+                            messages[data] +
+                            "\nกรุณาปิดหน้าต่างและโหลดรายการใหม่";
+                    }
+
+                    status.style.cssText = [
+                        "padding:14px",
+                        "border-radius:9px",
+                        "white-space:pre-line",
+                        "line-height:1.8",
+                        data === "APPROVED" ||
+                        data === "REJECTED"
+                            ? "background:#ecfdf5;color:#166534"
+                            : "background:#fff7ed;color:#9a3412"
+                    ].join(";");
+
+                } catch (error) {
+                    console.error(
+                        "Teacher LINE review failed:",
+                        error?.code || "UNKNOWN_ERROR"
+                    );
+
+                    finished = true;
+
+                    confirmation.style.display = "none";
+                    setFormDisabled(true);
+
+                    status.textContent =
+                        "ยังไม่สามารถยืนยันผลการบันทึกได้\n" +
+                        "กรุณาปิดหน้าต่างและเปิดรายการใหม่ " +
+                        "เพื่อตรวจสอบสถานะก่อนดำเนินการอีกครั้ง";
+
+                    status.style.cssText = [
+                        "padding:14px",
+                        "background:#fef2f2",
+                        "color:#991b1b",
+                        "border-radius:9px",
+                        "white-space:pre-line"
+                    ].join(";");
+
+                } finally {
+                    saving = false;
+                    finalConfirm.disabled = true;
+                    cancelButton.disabled = true;
+                }
+            }
+        );
+    }
+
+    // =================================================
+    // LINE Connect 2.17.43
+    // Teacher LINE Review Form — PREVIEW ONLY
+    // No database writes or approval actions.
+    // =================================================
+
+    function renderTeacherReviewPreview(target, request) {
+
+        target.replaceChildren();
+
+        const panel = createElement("div");
+
+        panel.style.cssText = [
+            "display:grid",
+            "gap:12px",
+            "padding:16px",
+            "border:1px solid #cbd5e1",
+            "border-radius:12px",
+            "background:#ffffff",
+            "text-align:left"
+        ].join(";");
+
+        const heading = createElement(
+            "strong",
+            "ตรวจสอบคำขอเชื่อม LINE ของครู"
+        );
+
+        heading.style.fontSize = "16px";
+        panel.append(heading);
+
+        const teacherInfo = createElement("div");
+
+        teacherInfo.style.cssText = [
+            "padding:12px",
+            "background:#f8fafc",
+            "border-radius:8px",
+            "line-height:1.9"
+        ].join(";");
+
+        teacherInfo.textContent = [
+            "ชื่อครู: " + (request.teacher_name || "—"),
+            "รหัสครู: " + (request.teacher_code || "—"),
+            "รหัสประจำตัว: " +
+                (request.instructor_number || "—"),
+            "วันที่ส่ง: " + formatDate(request.created_at),
+            "วันหมดอายุ: " + formatDate(request.expires_at)
+        ].join("\n");
+
+        teacherInfo.style.whiteSpace = "pre-line";
+        panel.append(teacherInfo);
+
+        const warning = createElement(
+            "p",
+            "Admin ต้องตรวจยืนยันตัวบุคคลผ่านช่องทาง" +
+            "ที่โรงเรียนเชื่อถือก่อนอนุมัติ"
+        );
+
+        warning.style.cssText =
+            "color:#92400e;background:#fffbeb;" +
+            "padding:12px;border-radius:8px;margin:0";
+
+        panel.append(warning);
+
+        const verifyLabel = document.createElement("label");
+
+        verifyLabel.style.cssText =
+            "display:flex;gap:10px;align-items:flex-start";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+
+        const verifyText = createElement(
+            "span",
+            "Admin ได้ตรวจสอบและยืนยันตัวบุคคลของครูแล้ว"
+        );
+
+        verifyLabel.append(checkbox, verifyText);
+        panel.append(verifyLabel);
+
+        const noteLabel = createElement(
+            "label",
+            "หมายเหตุการตรวจสอบ"
+        );
+
+        panel.append(noteLabel);
+
+        const note = document.createElement("textarea");
+
+        note.rows = 3;
+        note.maxLength = 1000;
+        note.placeholder =
+            "ระบุวิธีตรวจสอบตัวบุคคล หรือเหตุผลที่ปฏิเสธ";
+
+        note.style.cssText =
+            "width:100%;padding:10px;" +
+            "border:1px solid #cbd5e1;" +
+            "border-radius:8px;box-sizing:border-box;" +
+            "font-family:inherit";
+
+        panel.append(note);
+
+        const actions = createElement("div");
+
+        actions.style.cssText =
+            "display:flex;gap:10px;flex-wrap:wrap";
+
+        const approve = createElement(
+            "button",
+            "✅ อนุมัติ (ยังไม่เปิดใช้งาน)"
+        );
+
+        const reject = createElement(
+            "button",
+            "❌ ปฏิเสธ (ยังไม่เปิดใช้งาน)"
+        );
+
+        approve.type = "button";
+        reject.type = "button";
+
+        approve.disabled = true;
+        reject.disabled = true;
+
+        approve.style.cssText =
+            "padding:10px;border-radius:8px;" +
+            "border:0;background:#166534;color:white;" +
+            "opacity:.5;cursor:not-allowed";
+
+        reject.style.cssText =
+            "padding:10px;border-radius:8px;" +
+            "border:1px solid #fca5a5;" +
+            "background:#fef2f2;color:#991b1b;" +
+            "opacity:.5;cursor:not-allowed";
+
+        actions.append(approve, reject);
+        panel.append(actions);
+
+        const status = createElement(
+            "p",
+            request.is_expired
+                ? "คำขอนี้หมดอายุแล้ว ไม่สามารถอนุมัติได้"
+                : "โหมดตรวจสอบ: ยังไม่มีการบันทึกข้อมูลจริง"
+        );
+
+        status.style.cssText =
+            "font-size:13px;color:#64748b";
+
+        panel.append(status);
+
+        // Teacher review confirmation only.
+        // Parent review functions are untouched.
+        prepareTeacherReviewConfirmation(
+            request,
+            approve,
+            reject,
+            checkbox,
+            note,
+            status,
+            panel
+        );
+
+        target.append(panel);
+    }
+
+    // =================================================
+    // LINE Connect 2.17.42.1
+    // Admin Teacher LINE Registration Requests
+    // READ ONLY — No approval or rejection
+    // =================================================
+
+    async function openTeacherRequests() {
+
+        if (loading) return;
+
+        loading = true;
+
+        try {
+            await Swal.fire({
+                title: "คำขอเชื่อม LINE ของครู",
+                width: "min(850px, calc(100vw - 24px))",
+                heightAuto: false,
+                showCloseButton: true,
+                confirmButtonText: "ปิดหน้าต่าง",
+                html: '<div id="teacher-line-requests"></div>',
+
+                didOpen: async () => {
+
+                    const popup = Swal.getPopup();
+                    const target = document.getElementById(
+                        "teacher-line-requests"
+                    );
+
+                    if (!popup || !target) return;
+
+                    popup.style.maxHeight =
+                        "calc(100dvh - 24px)";
+
+                    popup.style.overflowY = "auto";
+
+                    target.style.cssText = [
+                        "text-align:left",
+                        "line-height:1.7",
+                        "min-width:0"
+                    ].join(";");
+
+                    showMessage(
+                        target,
+                        "กำลังโหลดคำขอเชื่อม LINE ของครู..."
+                    );
+
+                    try {
+                        const { data, error } =
+                            await supabaseClient.rpc(
+                                "admin_list_teacher_line_registration_requests"
+                            );
+
+                        if (error) throw error;
+
+                        if (!target.isConnected) return;
+
+                        const requests = data || [];
+
+                        target.replaceChildren();
+
+                        if (!requests.length) {
+                            showMessage(
+                                target,
+                                "ยังไม่มีคำขอเชื่อม LINE ของครูที่รอตรวจสอบ"
+                            );
+                            return;
+                        }
+
+                        const summary = createElement(
+                            "p",
+                            "พบคำขอรอตรวจสอบ " +
+                            requests.length +
+                            " รายการ"
+                        );
+
+                        target.append(summary);
+
+                        const wrapper = createElement("div");
+                        wrapper.style.cssText =
+                            "width:100%;overflow-x:auto";
+
+                        const table = createElement("table");
+                        table.style.cssText =
+                            "width:100%;border-collapse:collapse";
+
+                        const headers = [
+                            "รหัสครู",
+                            "ชื่อครู",
+                            "รหัสประจำตัว",
+                            "วันที่ส่งคำขอ",
+                            "สถานะ",
+                            "ตรวจสอบ"
+                        ];
+
+                        const thead = createElement("thead");
+                        const headerRow = createElement("tr");
+
+                        headers.forEach(label => {
+                            const th = createElement("th", label);
+                            th.style.cssText =
+                                "padding:10px;text-align:left;" +
+                                "border-bottom:1px solid #cbd5e1;" +
+                                "white-space:nowrap";
+                            headerRow.append(th);
+                        });
+
+                        thead.append(headerRow);
+
+                        const tbody = createElement("tbody");
+
+                        requests.forEach(request => {
+                            const tr = createElement("tr");
+
+                            const values = [
+                                request.teacher_code,
+                                request.teacher_name,
+                                request.instructor_number,
+                                formatDate(request.created_at),
+                                request.is_expired
+                                    ? "หมดอายุแล้ว"
+                                    : "รอตรวจสอบ"
+                            ];
+
+                            values.forEach(value => {
+                                const td = createElement(
+                                    "td",
+                                    value ?? "—"
+                                );
+
+                                td.style.cssText =
+                                    "padding:10px;" +
+                                    "border-bottom:1px solid #e2e8f0;" +
+                                    "vertical-align:top";
+
+                                tr.append(td);
+                            });
+
+                            // LINE Connect 2.17.44
+                            // Teacher request details — READ ONLY.
+
+                            const actionCell = createElement("td");
+
+                            actionCell.style.cssText =
+                                "padding:10px;" +
+                                "border-bottom:1px solid #e2e8f0";
+
+                            const detailButton = createElement(
+                                "button",
+                                "ดูรายละเอียด"
+                            );
+
+                            detailButton.type = "button";
+                            detailButton.disabled =
+                                request.is_expired === true;
+
+                            detailButton.style.cssText = [
+                                "padding:8px 12px",
+                                "border:1px solid #93c5fd",
+                                "border-radius:8px",
+                                "background:#eff6ff",
+                                "color:#1d4ed8",
+                                "cursor:pointer",
+                                "white-space:nowrap"
+                            ].join(";");
+
+                            if (detailButton.disabled) {
+                                detailButton.style.opacity = "0.5";
+                                detailButton.style.cursor =
+                                    "not-allowed";
+                            }
+
+                            actionCell.append(detailButton);
+                            tr.append(actionCell);
+
+                            const detailRow =
+                                document.createElement("tr");
+
+                            detailRow.style.display = "none";
+
+                            const detailCell =
+                                document.createElement("td");
+
+                            detailCell.colSpan = headers.length;
+
+                            detailCell.style.cssText = [
+                                "padding:14px",
+                                "background:#f8fafc",
+                                "border-bottom:1px solid #cbd5e1"
+                            ].join(";");
+
+                            detailRow.append(detailCell);
+
+                            let detailOpen = false;
+
+                            detailButton.addEventListener(
+                                "click",
+                                () => {
+                                    if (request.is_expired) return;
+
+                                    detailOpen = !detailOpen;
+
+                                    detailRow.style.display =
+                                        detailOpen ? "" : "none";
+
+                                    detailButton.textContent =
+                                        detailOpen
+                                            ? "ซ่อนรายละเอียด"
+                                            : "ดูรายละเอียด";
+
+                                    if (detailOpen) {
+                                        renderTeacherReviewPreview(
+                                            detailCell,
+                                            request
+                                        );
+                                    }
+                                }
+                            );
+
+                            tbody.append(tr, detailRow);
+
+                        });
+
+                        table.append(thead, tbody);
+                        wrapper.append(table);
+                        target.append(wrapper);
+
+                    } catch (error) {
+                        console.error(
+                            "Teacher LINE requests loading failed"
+                        );
+
+                        if (target.isConnected) {
+                            showMessage(
+                                target,
+                                "ไม่สามารถโหลดคำขอ LINE ของครูได้"
+                            );
+                        }
+                    }
+                }
+            });
+
+        } finally {
+            loading = false;
+        }
+    }
+
     // -------------------------------------------------
     // Public API
     // -------------------------------------------------
 
-        return Object.freeze({
+    return Object.freeze({
         openRequests,
+        openTeacherRequests,
+        openTeacherLineStatus,
         getLinkedParentIds,
         renderParentLineStatus
     });

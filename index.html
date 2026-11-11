@@ -2299,6 +2299,116 @@
         </button>
     </div>
 
+    <!-- ==========================================
+         LINE Connect 2.17.81
+         Teacher LINE Account Connection
+         UI only — no database writes
+         ========================================== -->
+<!-- เส้นแบ่งระหว่างความปลอดภัยบัญชีกับ LINE -->
+<div
+    id="teacher-line-settings-divider"
+    style="
+        display: none;
+        border-top: 1px solid #e2e8e4;
+        margin: 28px 0 24px;
+    "
+></div>
+
+    <section
+        id="teacher-line-settings"
+        style="
+            display:none;
+            margin-top:28px;
+            padding:20px;
+            border:1px solid #bbf7d0;
+            border-radius:14px;
+            background:#f0fdf4;
+            box-sizing:border-box;
+        "
+    >
+        <h3 style="
+            margin:0 0 10px;
+            color:#166534;
+            font-size:19px;
+        ">
+            💬 การเชื่อมต่อ LINE
+        </h3>
+
+        <p style="
+            margin:0 0 18px;
+            color:#475569;
+            font-size:14px;
+            line-height:1.8;
+        ">
+            เชื่อมบัญชี LINE ของคุณกับระบบโรงเรียน (SMS)
+            เพื่อเตรียมรับการแจ้งเตือนจากระบบ
+        </p>
+
+        <div style="
+            background:#ffffff;
+            border:1px solid #bbf7d0;
+            border-radius:10px;
+            padding:16px;
+            margin-bottom:16px;
+        ">
+            <div style="
+                font-size:13px;
+                color:#64748b;
+                margin-bottom:8px;
+            ">
+                สถานะการเชื่อมบัญชี LINE
+            </div>
+
+            <strong
+                id="teacher-line-settings-status"
+                role="status"
+                aria-live="polite"
+                style="
+                    display:block;
+                    font-size:16px;
+                    color:#475569;
+                "
+            >
+                กำลังตรวจสอบสถานะ...
+            </strong>
+        </div>
+
+        <button
+            type="button"
+            id="teacher-line-connect-button"
+            class="btn"
+            disabled
+            style="
+                width:100%;
+                max-width:360px;
+                padding:13px 18px;
+                background:#06c755;
+                color:#ffffff;
+                border:0;
+                border-radius:10px;
+                font-size:15px;
+                font-weight:700;
+                cursor:not-allowed;
+                opacity:0.65;
+            "
+        >
+            ▣ เชื่อมบัญชี LINE ผ่าน QR Code
+        </button>
+
+        <p
+            id="teacher-line-settings-message"
+            style="
+                margin:14px 0 0;
+                font-size:13px;
+                line-height:1.8;
+                color:#64748b;
+            "
+        >
+            หลังยืนยันตัวตนผ่าน LINE
+            ระบบจะส่งคำขอให้ผู้ดูแลระบบตรวจสอบและอนุมัติ
+        </p>
+    </section>
+
 </div>
 
             <div id="setting-clear" class="setting-page">
@@ -2509,10 +2619,12 @@
 <script src="js/import.js"></script>
 <script src="js/app.js"></script>
 <script src="js/attendance.js"></script>
+<script src="js/notification.js"></script>
 <script src="js/student-management.js"></script>
 <script src="js/student-detail.js"></script>
 <script src="js/admin-users.js"></script>
 <script src="js/line-management.js"></script>
+<script src="js/line-settings.js"></script>
 <script src="js/admin-audit.js"></script>
 
 <script>

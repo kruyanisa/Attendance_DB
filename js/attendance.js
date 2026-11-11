@@ -1501,13 +1501,34 @@ if (activitySchedule?.id) {
 
                     <td>
 
-                        <button
-                            class="btn-alert"
-                            disabled
-                            data-student-id="${row.studentId}"
-                        >
-                            🔔 Alert
-                        </button>
+<button
+    type="button"
+    class="btn-alert"
+    disabled
+    data-student-id="${row.studentId}"
+    title="LINE Alert — กำลังเตรียมเปิดใช้งาน"
+    style="
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:8px;
+        padding:9px 14px;
+        min-width:135px;
+        border:1px solid rgba(255,255,255,0.2);
+        border-radius:12px;
+        background:linear-gradient(135deg,#2563eb,#7c3aed);
+        color:#ffffff;
+        font-size:13px;
+        font-weight:700;
+        letter-spacing:0.2px;
+        box-shadow:0 4px 12px rgba(79,70,229,0.18);
+        opacity:0.65;
+        cursor:not-allowed;
+    "
+>
+    <span aria-hidden="true">🔔</span>
+    <span>LINE Alert</span>
+</button>
 
                     </td>
 
@@ -2028,13 +2049,34 @@ async function filterAndLoad() {
 
                     <td>
 
-                        <button
-                            class="btn-alert"
-                            disabled
-                            data-student-id="${row.id}"
-                        >
-                            🔔 Alert
-                        </button>
+<button
+    type="button"
+    class="btn-alert"
+    disabled
+    data-student-id="${row.id}"
+    title="LINE Alert — กำลังเตรียมเปิดใช้งาน"
+    style="
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:8px;
+        padding:9px 14px;
+        min-width:135px;
+        border:1px solid rgba(255,255,255,0.2);
+        border-radius:12px;
+        background:linear-gradient(135deg,#2563eb,#7c3aed);
+        color:#ffffff;
+        font-size:13px;
+        font-weight:700;
+        letter-spacing:0.2px;
+        box-shadow:0 4px 12px rgba(79,70,229,0.18);
+        opacity:0.65;
+        cursor:not-allowed;
+    "
+>
+    <span aria-hidden="true">🔔</span>
+    <span>LINE Alert</span>
+</button>
 
                     </td>
 

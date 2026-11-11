@@ -234,14 +234,16 @@
       </div>
 
       <div class="notice">
-        🔐 การเชื่อม LINE ต้องยืนยันตัวตน
-        ผ่านบัญชีโรงเรียนและ LINE ก่อน
-        จากนั้นผู้ดูแลระบบจะตรวจสอบและอนุมัติ
+          🔐 การเชื่อม LINE ต้องยืนยันตัวตน
+          ผ่านบัญชีโรงเรียน (SMS) และ LINE ก่อน
+          จากนั้นผู้ดูแลระบบจะตรวจสอบและอนุมัติ
 
         <p>
-          ขณะนี้อยู่ระหว่างพัฒนา
-          ยังไม่มีการส่งคำขอเชื่อม LINE
+          หลังยืนยันบัญชี LINE สำเร็จ
+          ระบบจะส่งคำขอให้ Admin ตรวจสอบ
+          และอนุมัติก่อนเริ่มใช้งาน
         </p>
+
       </div>
 
       <button
@@ -258,10 +260,10 @@
         id="testBackendButton"
         type="button"
         class="connect-button"
-        style="margin-top: 12px; background: #256d43;"
+        style="display: none;"
         disabled
       >
-        ทดสอบการยืนยันบัญชีกับ Backend
+      ทดสอบการยืนยันบัญชีกับ Backend
       </button>
 
       <div
@@ -552,10 +554,10 @@
         teacherProfile.style.display = "block";
 
         setConnectionStatus(
-          "✅ ตรวจสอบบัญชี Teacher สำเร็จ " +
-          "ระบบเชื่อม LINE กำลังเตรียมเปิดใช้งาน",
-          "success"
+        "✅ ตรวจสอบบัญชี Teacher สำเร็จ",
+        "success"
         );
+
 
         // Keep the real LINE Connect button disabled.
         // Enable only the read-only Backend PRECHECK test.
@@ -570,6 +572,39 @@
           testTeacherBackendPrecheck
         );
 
+        // LINE Connect 2.17.72
+        // Enable Teacher LINE Login on production only.
+
+        const connectLineButton =
+          document.getElementById("connectLineButton");
+
+        const isProductionLineConnect =
+          window.location.origin ===
+            "https://kruyanisa.github.io" &&
+          window.location.pathname ===
+            "/Attendance_DB/line-connect.html";
+
+        if (isProductionLineConnect) {
+          connectLineButton.disabled = false;
+
+          connectLineButton.textContent =
+            "💬 เชื่อมบัญชี LINE";
+
+          connectLineButton.style.background = "#06c755";
+          connectLineButton.style.cursor = "pointer";
+
+          connectLineButton.addEventListener(
+            "click",
+            startTeacherLineLogin
+          );
+
+        } else {
+          connectLineButton.disabled = true;
+
+          connectLineButton.textContent =
+            "💬 เชื่อมบัญชี LINE";
+        }
+
       } catch (error) {
         console.error(
           "LINE Connect initialization failed"
@@ -582,11 +617,110 @@
       }
     }
 
-    // LINE Connect 2.17.3
-    // Detect LINE callback without processing OAuth yet.
-    // No token exchange, database writes, or LINE Push.
+    // LINE Connect 2.17.32
+    // Prepare the LINE Login START request.
+    // This function is not connected to the
+    // disabled LINE Connect button yet.
 
-    function inspectLineCallback() {
+    async function startTeacherLineLogin() {
+      const ENABLE_LINE_LOGIN_START = true;
+
+      if (!ENABLE_LINE_LOGIN_START) {
+        return;
+      }
+
+      // LINE OAuth callback is configured for
+      // the production GitHub Pages website.
+      if (
+        window.location.origin !==
+        "https://kruyanisa.github.io"
+      ) {
+        setConnectionStatus(
+          "กรุณาเชื่อม LINE ผ่านเว็บไซต์ SMS ชุดจริง",
+          "error"
+        );
+        return;
+      }
+
+      const connectButton =
+        document.getElementById("connectLineButton");
+
+      connectButton.disabled = true;
+
+      try {
+        const {
+          data: sessionData,
+          error: sessionError
+        } = await supabaseClient.auth.getSession();
+
+        const accessToken =
+          sessionData?.session?.access_token;
+
+        if (sessionError || !accessToken) {
+          throw new Error("SMS_SESSION_REQUIRED");
+        }
+
+        const response = await fetch(
+          SUPABASE_URL +
+            "/functions/v1/line-teacher-connect",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": SUPABASE_ANON_KEY,
+              "Authorization": "Bearer " + accessToken
+            },
+            body: JSON.stringify({
+              action: "START_LINE_LOGIN"
+            }),
+            cache: "no-store",
+            signal: AbortSignal.timeout(15000)
+          }
+        );
+
+        const result = await response.json();
+
+        if (
+          !response.ok ||
+          result.ok !== true ||
+          result.code !== "LINE_LOGIN_READY"
+        ) {
+          throw new Error("LINE_LOGIN_START_FAILED");
+        }
+
+        const loginUrl = new URL(
+          result.authorization_url
+        );
+
+        if (
+          loginUrl.origin !== "https://access.line.me" ||
+          loginUrl.pathname !== "/oauth2/v2.1/authorize"
+        ) {
+          throw new Error("INVALID_LINE_LOGIN_URL");
+        }
+
+        // Redirect to LINE only after Backend
+        // confirms the authorization URL.
+        window.location.assign(loginUrl.href);
+
+      } catch {
+        setConnectionStatus(
+          "ยังไม่สามารถเริ่มเชื่อม LINE ได้ " +
+          "กรุณาลองใหม่เมื่อระบบเปิดใช้งาน",
+          "error"
+        );
+
+        connectButton.disabled = false;
+      }
+    }
+
+    // LINE Connect 2.17.29
+    // Prepare secure LINE callback submission.
+    // Actual callback processing remains disabled.
+
+    async function inspectLineCallback() {
+      const ENABLE_LINE_CALLBACK_SUBMISSION = true;
+
       const params = new URLSearchParams(
         window.location.search
       );
@@ -600,12 +734,11 @@
         return;
       }
 
-      const hasCode = params.has("code");
-      const hasState = params.has("state");
-      const hasError = params.has("error");
-
-      // Remove sensitive OAuth parameters from the URL.
-      // Never log or display their values.
+      // Read into memory before cleaning the URL.
+      // Never log, display, or persist these values.
+      const code = params.get("code");
+      const state = params.get("state");
+      const error = params.get("error");
       window.history.replaceState(
         null,
         "",
@@ -617,10 +750,7 @@
 
       resultElement.style.display = "block";
 
-      if (
-        hasError &&
-        !hasCode
-      ) {
+      if (error && !code) {
         resultElement.className = "status error";
         resultElement.textContent =
           "การเข้าสู่ระบบ LINE ถูกยกเลิกหรือไม่สำเร็จ " +
@@ -629,22 +759,88 @@
       }
 
       if (
-        hasCode &&
-        hasState &&
-        !hasError
+        !code ||
+        !state ||
+        error ||
+        code.length > 2048 ||
+        !/^[A-Za-z0-9_-]{43}$/.test(state)
       ) {
-        resultElement.className = "status";
+        resultElement.className = "status error";
         resultElement.textContent =
-          "ได้รับผลตอบกลับจาก LINE แล้ว " +
-          "แต่ระบบตรวจสอบ Callback ยังไม่เปิดใช้งาน " +
-          "ยังไม่มีการเชื่อมบัญชี";
+          "ข้อมูล LINE Callback ไม่ถูกต้องหรือไม่ครบถ้วน";
         return;
       }
 
-      resultElement.className = "status error";
+      if (!ENABLE_LINE_CALLBACK_SUBMISSION) {
+        resultElement.className = "status";
+        resultElement.textContent =
+          "ได้รับ LINE Callback แล้ว " +
+          "แต่ระบบเชื่อมบัญชียังไม่เปิดใช้งาน";
+        return;
+      }
+
+      resultElement.className = "status";
       resultElement.textContent =
-        "ข้อมูลตอบกลับจาก LINE ไม่ครบถ้วน " +
-        "กรุณาเริ่มกระบวนการใหม่เมื่อเปิดใช้งาน";
+        "กำลังตรวจสอบ LINE Callback...";
+
+      try {
+        const {
+          data: sessionData,
+          error: sessionError
+        } = await supabaseClient.auth.getSession();
+
+        const accessToken =
+          sessionData?.session?.access_token;
+
+        if (sessionError || !accessToken) {
+          throw new Error("SMS_SESSION_REQUIRED");
+        }
+
+        const response = await fetch(
+          SUPABASE_URL +
+            "/functions/v1/line-teacher-connect",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": SUPABASE_ANON_KEY,
+              "Authorization": "Bearer " + accessToken
+            },
+            body: JSON.stringify({
+              action: "COMPLETE_LINE_LOGIN",
+              code: code,
+              state: state
+            }),
+            cache: "no-store",
+            signal: AbortSignal.timeout(25000)
+          }
+        );
+
+        const result = await response.json();
+
+        if (
+          response.ok &&
+          result.ok === true &&
+          result.code === "LINE_TEACHER_REQUEST_PENDING"
+        ) {
+          resultElement.className = "status success";
+          resultElement.textContent =
+            "ส่งคำขอเชื่อม LINE สำเร็จ " +
+            "กรุณารอ Admin ตรวจสอบและอนุมัติ";
+          return;
+        }
+
+        resultElement.className = "status error";
+        resultElement.textContent =
+          "ไม่สามารถดำเนินการเชื่อม LINE ได้: " +
+          String(result.code || "UNKNOWN_ERROR");
+
+      } catch {
+        resultElement.className = "status error";
+        resultElement.textContent =
+          "ไม่สามารถตรวจสอบ LINE Callback ได้ " +
+          "กรุณาเข้าสู่ระบบ SMS และเริ่มใหม่";
+      }
     }
 
     // Inspect and clear callback parameters immediately,
