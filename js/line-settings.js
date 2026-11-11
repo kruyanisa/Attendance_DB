@@ -65,6 +65,8 @@ const LineSettings = (() => {
 
         button.style.display = "";
         button.disabled = true;
+        button.style.cursor = "not-allowed";
+        button.style.opacity = "0.65";
         button.onclick = null;
 
         status.textContent = "กำลังตรวจสอบสิทธิ์...";
@@ -137,6 +139,8 @@ const LineSettings = (() => {
                         "เพื่อส่งคำขอให้ Admin ตรวจสอบและอนุมัติ";
 
                     button.disabled = false;
+                    button.style.cursor = "pointer";
+                    button.style.opacity = "1";
 
                     button.onclick = () => {
                         window.location.assign(
@@ -154,6 +158,8 @@ const LineSettings = (() => {
                         "คุณสามารถเริ่มเชื่อมบัญชี LINE ใหม่ได้";
 
                     button.disabled = false;
+                    button.style.cursor = "pointer";
+                    button.style.opacity = "1";
 
                     button.onclick = () => {
                         window.location.assign(
