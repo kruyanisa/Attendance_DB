@@ -1304,6 +1304,7 @@ const activitySchedule =
     );
 
 let activityAttendanceMap = {};
+let activityAttendanceRecords = [];
 
 if (activitySchedule?.id) {
 
@@ -1332,6 +1333,7 @@ if (activitySchedule?.id) {
             await getAttendanceBySession(
                 session.id
             );
+            activityAttendanceRecords = attendanceData || [];
 
         console.log(
             "ACTIVITY ATTENDANCE RECORDS:",
@@ -1540,11 +1542,15 @@ if (activitySchedule?.id) {
             }
         );
 
-
         tbody.appendChild(
             fragment
         );
-
+        // LINE-ALERT.1L-03
+        // เปิด Preview เฉพาะรายการที่บันทึกแล้ว
+        // ไม่มีการส่ง LINE จริง
+        setupSavedAttendanceAlertButtons(
+        activityAttendanceRecords
+        );
 
         // ============================================
         // แสดงตาราง
@@ -2590,16 +2596,18 @@ if (!activityScheduleId) {
 
         }
 
+        // LINE-ALERT.1L-04
+        // โหลดข้อมูลที่บันทึกสำเร็จแล้วกลับมาใหม่
+        // เพื่อให้ปุ่ม LINE Alert เปิดใช้งานทันที
+        // โดยไม่ต้อง Refresh หน้าเว็บ
 
-        Swal.close();
-
+        await loadActivityParticipantsAndRender();
 
         await Swal.fire(
             "สำเร็จ",
             "บันทึกการเช็คชื่อกิจกรรมเรียบร้อย",
             "success"
         );
-
 
         console.log(
             "ACTIVITY ATTENDANCE SAVED:",
@@ -2609,7 +2617,6 @@ if (!activityScheduleId) {
             }
         );
 
-
     } catch (error) {
 
         console.error(
@@ -2617,9 +2624,7 @@ if (!activityScheduleId) {
             error
         );
 
-
         Swal.close();
-
 
         Swal.fire(
             "เกิดข้อผิดพลาด",
@@ -2884,6 +2889,140 @@ const result = await saveAttendance(records);
 
     }
 
+}
+
+/**
+ * LINE-ALERT.1L-02
+ * เตรียมปุ่ม Preview จาก Attendance Records ที่บันทึกแล้ว
+ * ไม่แก้ข้อมูลและไม่ส่ง LINE
+ */
+function setupSavedAttendanceAlertButtons(attendanceRecords) {
+
+    const records = Array.isArray(attendanceRecords)
+        ? attendanceRecords
+        : [];
+
+    const recordsByStudentId = new Map();
+
+    records.forEach(record => {
+        if (
+            record.id &&
+            record.student_id &&
+            !record.deleted_at
+        ) {
+            recordsByStudentId.set(
+                String(record.student_id),
+                record
+            );
+        }
+    });
+
+    const allowedStatuses = new Set([
+        "ABSENT",
+        "LATE",
+        "SICK",
+        "PERSONAL"
+    ]);
+
+    const uiStatusMap = {
+        "มา": "PRESENT",
+        "สาย": "LATE",
+        "ลาป่วย": "SICK",
+        "ลากิจ": "PERSONAL",
+        "ขาด": "ABSENT"
+    };
+
+    const rows = document.querySelectorAll(
+        "#student-body tr[data-student-id]"
+    );
+
+    rows.forEach(row => {
+
+        const studentId = String(
+            row.dataset.studentId || ""
+        );
+
+        const record = recordsByStudentId.get(studentId);
+
+        const button = row.querySelector(".btn-alert");
+        const statusSelect = row.querySelector(
+            'select[id^="status-"]'
+        );
+
+        if (!button || !statusSelect) {
+            return;
+        }
+
+        // เริ่มจากปิดปุ่มเสมอ
+        button.disabled = true;
+        button.onclick = null;
+
+        const savedStatus = record?.status || null;
+
+        // เมื่อแก้สถานะ ต้องบันทึกหรือโหลดข้อมูลใหม่ก่อน
+        // จึงจะเปิด LINE Alert ได้อีกครั้ง
+        let modifiedAfterLoad = false;
+
+        function updateButtonState() {
+
+            const selectedStatus =
+                uiStatusMap[statusSelect.value] || null;
+
+            const eligible =
+                Boolean(record?.id) &&
+                !modifiedAfterLoad &&
+                allowedStatuses.has(savedStatus) &&
+                selectedStatus === savedStatus;
+
+            button.disabled = !eligible;
+
+            button.style.opacity = eligible ? "1" : "0.65";
+
+            button.style.cursor = eligible
+                ? "pointer"
+                : "not-allowed";
+
+            button.title = eligible
+                ? "ตรวจสอบข้อมูล LINE Alert"
+                : "ต้องบันทึกสถานะที่รองรับก่อนเปิด LINE Alert";
+        }
+
+            statusSelect.addEventListener(
+            "change",
+            () => {
+                modifiedAfterLoad = true;
+                updateButtonState();
+            }
+        );
+
+        button.addEventListener("click", async () => {
+
+            updateButtonState();
+
+            if (button.disabled || !record?.id) {
+                return;
+            }
+
+            if (
+                typeof NotificationModule === "undefined" ||
+                typeof NotificationModule.showAttendancePreview
+                    !== "function"
+            ) {
+                await Swal.fire(
+                    "ไม่พร้อมใช้งาน",
+                    "ไม่พบระบบ LINE Alert Preview",
+                    "warning"
+                );
+                return;
+            }
+
+            await NotificationModule.showAttendancePreview(
+                record.id
+            );
+        });
+
+        updateButtonState();
+    });
 }
 
 document.addEventListener('DOMContentLoaded', initSystem);

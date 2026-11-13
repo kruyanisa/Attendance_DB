@@ -2567,9 +2567,16 @@
 </div>
 
 <!-- ==========================================
-     B56-ACTIVITY-09
-     ADMIN ACTIVITY ASSIGNMENT
-     UI SHELL ONLY / NO DATABASE WRITES
+     B56-ACTIVITY-09 / LINE-RECIPIENT.15
+     ADMIN ACTIVITY ASSIGNMENT + LINE RECIPIENT TABS
+
+     Tab 1:
+     Existing activity assignment from app.js
+
+     Tab 2:
+     Additional LINE recipients by Activity ID
+
+     UI ONLY — NO DATABASE WRITES
      ========================================== -->
 
 <div
@@ -2582,27 +2589,225 @@
             <h1>🎯 มอบหมายกิจกรรม</h1>
             <p>
                 มอบหมายกิจกรรมให้ครูผู้รับผิดชอบ
-                ตามปีการศึกษาและภาคเรียน
+                และจัดการผู้รับ LINE แจ้งเตือนเพิ่มเติม
             </p>
         </div>
     </div>
 
     <div class="glass-card">
-        <h2>จัดการกิจกรรมครู</h2>
 
-        <p>
-            เลือกครูผู้รับผิดชอบ ตรวจรายการกิจกรรม
-            และมอบหมายกิจกรรมทั้ง 9 ประเภท
-        </p>
+        <!-- Tab Navigation -->
+        <div
+            id="admin-activity-tabs"
+            style="
+                display:flex;
+                flex-wrap:wrap;
+                gap:10px;
+                margin-bottom:24px;
+                padding-bottom:16px;
+                border-bottom:1px solid var(--border);
+            "
+        >
+            <button
+                id="admin-activity-tab-assignment"
+                type="button"
+                class="btn"
+                aria-pressed="true"
+                onclick="switchAdminActivityTab('assignment')"
+                style="
+                    padding:11px 18px;
+                    font-weight:600;
+                "
+            >
+                🎯 มอบหมายกิจกรรม
+            </button>
+
+            <button
+                id="admin-activity-tab-line"
+                type="button"
+                class="btn"
+                aria-pressed="false"
+                onclick="switchAdminActivityTab('line')"
+                style="
+                    padding:11px 18px;
+                    font-weight:600;
+                    opacity:0.65;
+                "
+            >
+                🔔 ผู้รับ LINE เพิ่มเติม
+            </button>
+        </div>
+
+        <!-- ==================================
+             TAB 1: EXISTING ASSIGNMENT
+             Keep existing app.js behavior
+             ================================== -->
 
         <div
-            id="admin-activities-content"
-            style="margin-top:20px;"
+            id="admin-activity-panel-assignment"
         >
-            กำลังเตรียมระบบมอบหมายกิจกรรม
+            <h2>จัดการกิจกรรมครู</h2>
+
+            <p>
+                เลือกครูผู้รับผิดชอบ ตรวจรายการกิจกรรม
+                และมอบหมายกิจกรรมทั้ง 9 ประเภท
+            </p>
+
+            <div
+                id="admin-activities-content"
+                style="margin-top:20px;"
+            >
+                กำลังเตรียมระบบมอบหมายกิจกรรม
+            </div>
         </div>
+
+        <!-- ==================================
+             TAB 2: ADDITIONAL LINE RECIPIENTS
+             UI placeholder only
+             ================================== -->
+
+        <div
+            id="admin-activity-panel-line"
+            style="display:none;"
+        >
+            <h2>🔔 จัดการผู้รับ LINE เพิ่มเติม</h2>
+
+            <p style="margin-top:10px;">
+                กำหนดครูที่ปรึกษาร่วมให้เป็นผู้รับ
+                LINE แจ้งเตือนเพิ่มเติม
+                สำหรับกิจกรรมที่มีคาบในตารางสอนแล้ว
+            </p>
+
+            <!-- Guide -->
+            <div
+                style="
+                    margin-top:18px;
+                    padding:14px 16px;
+                    border:1px solid var(--border);
+                    border-left:4px solid var(--primary);
+                    border-radius:10px;
+                    background:var(--bg);
+                    line-height:1.8;
+                "
+            >
+                <strong>
+                    ℹ️ ไม่พบคาบกิจกรรมที่ต้องการ?
+                </strong>
+
+                <div style="margin-top:5px;">
+                    กรุณาตรวจสอบว่าครูผู้รับผิดชอบ
+                    ได้เพิ่มวัน เวลา และคาบกิจกรรม
+                    ในเมนูตารางสอนแล้ว
+                    จึงจะสามารถกำหนดครูที่ปรึกษาร่วม
+                    เพื่อรับ LINE แจ้งเตือนได้
+                </div>
+            </div>
+
+            <!-- Future module mount point -->
+            <div
+                id="admin-activity-line-recipients-content"
+                style="margin-top:24px;"
+            >
+                <div
+                    style="
+                        padding:24px;
+                        border:1px dashed var(--border);
+                        border-radius:12px;
+                        text-align:center;
+                        color:var(--text-light);
+                    "
+                >
+                    <div
+                        style="
+                            font-size:28px;
+                            margin-bottom:10px;
+                        "
+                    >
+                        🔔
+                    </div>
+
+                    <strong>
+                        เตรียมเชื่อมรายการคาบกิจกรรม
+                    </strong>
+
+                    <p style="margin-top:8px;">
+                        ส่วนจัดการผู้รับ LINE เพิ่มเติม
+                        ยังไม่เปิดให้บันทึกข้อมูล
+                    </p>
+                </div>
+            </div>
+
+            <p
+                style="
+                    margin-top:18px;
+                    color:var(--text-light);
+                    font-size:13px;
+                    line-height:1.7;
+                "
+            >
+                การกำหนดผู้รับ LINE เพิ่มเติม
+                ไม่เพิ่มสิทธิ์เช็กชื่อ
+                ไม่สร้างคาบสอนใหม่
+                และไม่ส่งข้อความอัตโนมัติ
+            </p>
+        </div>
+
     </div>
 </div>
+
+<!-- LINE-RECIPIENT.15: Activity Tab Navigation -->
+<script>
+function switchAdminActivityTab(tabName) {
+    const assignmentPanel = document.getElementById(
+        "admin-activity-panel-assignment"
+    );
+
+    const linePanel = document.getElementById(
+        "admin-activity-panel-line"
+    );
+
+    const assignmentButton = document.getElementById(
+        "admin-activity-tab-assignment"
+    );
+
+    const lineButton = document.getElementById(
+        "admin-activity-tab-line"
+    );
+
+    if (
+        !assignmentPanel ||
+        !linePanel ||
+        !assignmentButton ||
+        !lineButton
+    ) {
+        return;
+    }
+
+    const isLineTab = tabName === "line";
+
+    assignmentPanel.style.display =
+        isLineTab ? "none" : "";
+
+    linePanel.style.display =
+        isLineTab ? "" : "none";
+
+    assignmentButton.style.opacity =
+        isLineTab ? "0.65" : "1";
+
+    lineButton.style.opacity =
+        isLineTab ? "1" : "0.65";
+
+    assignmentButton.setAttribute(
+        "aria-pressed",
+        String(!isLineTab)
+    );
+
+    lineButton.setAttribute(
+        "aria-pressed",
+        String(isLineTab)
+    );
+}
+</script>
 
 </div>
 
@@ -2620,6 +2825,7 @@
 <script src="js/app.js"></script>
 <script src="js/attendance.js"></script>
 <script src="js/notification.js"></script>
+<script src="js/line-alert-recipients.js"></script>
 <script src="js/student-management.js"></script>
 <script src="js/student-detail.js"></script>
 <script src="js/admin-users.js"></script>
